@@ -11,7 +11,7 @@ import type { OpenCodeClient } from "@opencode/client"
 import { Plugin } from "@opencode/plugin"
 import { createAshbyPlugin } from "../../src/plugin.js"
 import { SKILL_NAMES } from "../../src/skills.js"
-import { startFakeMcp } from "./fake-mcp.js"
+import { startFakeMcp, type FakeMcpOptions } from "./fake-mcp.js"
 
 export type Rule = { action: string; resource: string; effect: "allow" | "ask" | "deny" }
 
@@ -54,6 +54,8 @@ export interface HostInput {
   readonly config?: (url: string) => Record<string, unknown>
   /** Register the server with OAuth, as the published plugin does, so the host gives it a /connect entry. */
   readonly oauth?: true
+  /** What the fake MCP and sign-in server answers, such as a token without a refresh token. */
+  readonly fake?: FakeMcpOptions
 }
 
 let hosts = 0
@@ -62,7 +64,7 @@ export async function startHost(input: HostInput = {}) {
   const base = join(root, `host-${++hosts}`)
   const work = join(base, "work")
   mkdirSync(work, { recursive: true })
-  const fake = await startFakeMcp()
+  const fake = await startFakeMcp(input.fake)
   const ashby = createAshbyPlugin({ endpoint: fake.url, ...(input.oauth ? {} : { oauth: false as const }), skillsDir })
   const withOptions = Plugin.define({ id: ashby.id, setup: (ctx) => ashby.setup({ ...ctx, options: input.options ?? {} }) })
   const probes = new Map<string, Plugin.Context>()

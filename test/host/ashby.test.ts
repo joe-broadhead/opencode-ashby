@@ -23,6 +23,7 @@ const AGENTS_NEXT_STEP = "Put the default rules shown by /ashby-status first in 
 const KEY = "sk-fake-host-test-0123456789"
 const SIGN_IN = "Run /connect and choose Ashby, then press o or Enter to open the link (in a terminal, opencode mcp auth ashby opens it automatically)."
 const OFF = "change_application_stage and submit_mcp_feedback"
+const SIGN_IN_AGAIN = "Ashby needs a new sign-in. Choose this account to sign in again."
 
 // Starting a host takes several seconds, more on a busy machine.
 setDefaultTimeout(120_000)
@@ -45,7 +46,7 @@ const hidden = (rules: readonly Rule[], action: string) => {
 const ashbyTools = (host: Host) =>
   until("Ashby's tools are registered", async () => {
     const ids = (await host.probe().tool.list()).map((tool) => tool.id).filter((id) => id.startsWith("ashby_"))
-    return ids.length === 6 && ids.sort()
+    return ids.length === 8 && ids.sort()
   })
 
 async function status(host: Host, sessionID: string) {
@@ -94,7 +95,7 @@ describe(`the plugin on OpenCode ${HOST_VERSION}`, () => {
     expect(plugins.find((plugin) => plugin.id === "ashby.recruiting")?.state.status).toBe("active")
     const { data: servers } = await host.client.mcp.list({ location: host.location })
     expect(servers.find((server) => server.name === "ashby")?.status).toEqual({ status: "connected" })
-    expect(await ashbyTools(host)).toEqual([...["add_note_to_candidate", "get_pending_tasks", "search_records_by_name", "shiny_new_tool", ...DENIED_TOOLS].map((tool) => `ashby_${tool}`)].sort())
+    expect(await ashbyTools(host)).toEqual([...["get_pending_tasks", "search_records_by_name", "shiny_new_tool", ...WRITE_TOOLS, ...DENIED_TOOLS].map((tool) => `ashby_${tool}`)].sort())
     const { data: skills } = await host.client.skill.list({ location: host.location })
     expect(skills.map((skill) => skill.id).filter((id) => id.startsWith("ashby")).sort()).toEqual([...SKILL_NAMES].sort())
     const { data: commands } = await host.client.command.list({ location: host.location })
@@ -126,7 +127,11 @@ describe(`the plugin on OpenCode ${HOST_VERSION}`, () => {
     const before = host.fake.calls.length
     expect(await attempt(host, build, "build", "search_records_by_name")).toMatchObject({ asked: undefined, ok: true })
     expect(await attempt(host, build, "build", "shiny_new_tool")).toEqual({ asked: "ashby_shiny_new_tool", ok: false, error: "Permission.DeclinedError: " })
-    expect(await attempt(host, build, "build", "add_note_to_candidate")).toEqual({ asked: "ashby_add_note_to_candidate", ok: false, error: "Permission.DeclinedError: " })
+    // Every known write asks, and a declined ask never reaches Ashby. consider_candidate_for_job matters most: its
+    // first stage's automations can email the candidate.
+    for (const tool of WRITE_TOOLS) {
+      expect({ tool, result: await attempt(host, build, "build", tool) }).toEqual({ tool, result: { asked: `ashby_${tool}`, ok: false, error: "Permission.DeclinedError: " } })
+    }
     expect(host.fake.calls.slice(before)).toEqual(["search_records_by_name"])
     const rules = (await agentRules(host)).get("build")!
     expect(["ashby_search_records_by_name", "ashby_add_note_to_candidate", "ashby_shiny_new_tool"].filter((action) => hidden(rules, action))).toEqual([])
@@ -179,13 +184,13 @@ describe(`the plugin on OpenCode ${HOST_VERSION}`, () => {
     // A server without OAuth has no sign-in, so no label: Ashby's MCP has no account tool.
     expect(text).toContain("- Account: account name not reported by Ashby's MCP\n")
     expect(text).toContain(`- Access: reads run without asking; the ${WRITE_TOOLS.length} writes ask first; ${DENIED_TOOLS.join(" and ")} are off; default rules missing in the agents listed below\n`)
-    expect(text).toContain(`- Tools: 4 available, 1 unknown: shiny_new_tool (unknown tools ask before running); off by default: ${OFF}\n`)
+    expect(text).toContain(`- Tools: 6 available, 1 unknown: shiny_new_tool (unknown tools ask before running); off by default: ${OFF}\n`)
     expect(text).toContain(`- Agents without default rules: reviewer\n${AGENT_RULES}\n`)
     expect(text).toContain(`- Next step: ${AGENTS_NEXT_STEP}`)
     expect(text).toContain(`- OpenCode: ${HOST_VERSION} (${TESTED_HOSTS.includes(HOST_VERSION) ? "tested" : "untested"}; supported range ${SUPPORTED_HOST})`)
     expect(text).not.toContain("Plan")
     const output = await statusRpc(host)
-    expect(output).toMatchObject({ state: "connected", tools: 4, deniedTools: [...DENIED_TOOLS], unknownCount: 1, listing: false, unguardedAgents: ["reviewer"] })
+    expect(output).toMatchObject({ state: "connected", tools: 6, deniedTools: [...DENIED_TOOLS], unknownCount: 1, listing: false, unguardedAgents: ["reviewer"] })
     expect(output).not.toHaveProperty("account")
   })
 
@@ -392,13 +397,49 @@ describe("a user ashby server that points elsewhere", () => {
 describe("a server that asks for a sign-in", () => {
   let host: Host
   beforeAll(async () => {
-    host = await startHost({ oauth: true })
+    // A token without a refresh token, as Ashby issues when the authorization request lacks prompt=consent: a 401 then
+    // needs a new sign-in and keeps the credential, which is the account /connect marks.
+    host = await startHost({ oauth: true, fake: { refreshTokens: false } })
   })
   afterAll(() => host?.close())
+
+  /** The /connect entry's connections, with the status a credential shows there. */
+  const connections = async () => {
+    const { data: servers } = await host.client.mcp.list({ location: host.location })
+    const integrationID = servers.find((item) => item.name === "ashby")?.integrationID
+    if (!integrationID) return []
+    const { data } = await host.client.integration.get({ integrationID, location: host.location })
+    return (data as unknown as { connections?: { status?: { status: string; message?: string } }[] }).connections ?? []
+  }
+
+  /** Signs in through OpenCode's own flow: it registers, the authorization endpoint redirects the loopback callback, and the token endpoint exchanges the code. */
+  const signIn = async () => {
+    const { data: servers } = await host.client.mcp.list({ location: host.location })
+    const integrationID = servers.find((item) => item.name === "ashby")!.integrationID!
+    const { data: integration } = await host.client.integration.get({ integrationID, location: host.location })
+    const oauth = (host.client.integration as unknown as { oauth: Record<"connect", (input: object) => Promise<{ data: { attemptID: string; url: string } }>> }).oauth
+    const { data: attempt } = await oauth.connect({ integrationID, methodID: (integration.methods as { id: string }[])[0]!.id, location: host.location })
+    const redirect = await fetch(attempt.url, { redirect: "manual" })
+    const callback = redirect.headers.get("location")
+    expect(callback).toMatch(/^http:\/\/127\.0\.0\.1:\d+\//)
+    await fetch(callback!)
+  }
 
   test("is sign-in required, with the /connect next step, in the RPC and in /ashby-status", async () => {
     await ashbyTools(host)
     expect(await statusRpc(host)).toMatchObject({ state: "connected" })
+    // A real sign-in leaves a credential: the account /connect marks when Ashby stops accepting it.
+    host.fake.challenge = true
+    await signIn()
+    await until("the sign-in stores a token", async () => host.fake.tokens.length === 1)
+    expect(host.fake.tokens[0]).toMatchObject({ grant_type: "authorization_code" })
+    expect(host.fake.tokens[0]).not.toHaveProperty("refresh_token")
+    host.fake.challenge = false
+    await until("the server is connected after the sign-in", async () => {
+      const { data } = await host.client.mcp.list({ location: host.location })
+      return data.find((item) => item.name === "ashby")?.status.status === "connected"
+    })
+    expect(await until("/connect shows the account", async () => (await connections()).find((item) => item.status?.message === undefined && (item as { type?: string }).type === "credential")))
     // The tokens stop working: the next connection gets the challenge.
     host.fake.challenge = true
     const mcp = host.client.mcp as unknown as Record<"connect" | "disconnect", (input: object) => Promise<unknown>>
@@ -410,11 +451,21 @@ describe("a server that asks for a sign-in", () => {
       return found?.status.status === "needs_auth" ? found : undefined
     })
     expect(server.status.status).toBe("needs_auth")
+    // The plugin marks the /connect account, so the person sees which one to choose there.
+    expect(await until("/connect shows the new sign-in on the account", async () => (await connections()).find((item) => item.status?.message === SIGN_IN_AGAIN)))
     expect(await statusRpc(host)).toMatchObject({ state: "sign_in_required", nextStep: SIGN_IN })
     const text = await status(host, await session(host))
     expect(text).toContain(`- Connection: sign-in required (${host.fake.url}, registered by this plugin)`)
     expect(text).toContain(`- Next step: ${SIGN_IN}`)
     expect(text).not.toMatch(/authorize|code_challenge/)
+    // The same account connects again once Ashby answers: the mark is the plugin's, and it clears its own.
+    host.fake.challenge = false
+    await mcp.connect({ server: "ashby", location: host.location })
+    await until("the server is connected again", async () => {
+      const { data } = await host.client.mcp.list({ location: host.location })
+      return data.find((item) => item.name === "ashby")?.status.status === "connected"
+    })
+    expect(await until("/connect clears the sign-in mark", async () => ((await connections()).some((item) => item.status?.message) ? undefined : true))).toBe(true)
   })
 })
 

@@ -1,5 +1,5 @@
-// A loopback Streamable-HTTP MCP server. By default it lists two known reads, one known write, the two denied tools and
-// one tool the plugin has never seen. With `catalog: "ashby"` it lists every tool in src/ashby-tools.ts and the new
+// A loopback Streamable-HTTP MCP server. By default it lists two known reads, every known write, the two denied tools
+// and one tool the plugin has never seen. With `catalog: "ashby"` it lists every tool in src/ashby-tools.ts and the new
 // tool. It answers JSON-RPC POSTs with plain JSON (no SSE stream) and records every tool call, its path and every
 // request header. A `tools/call` answers with the tool's name, the path and its arguments as structured content; for a
 // `query` that starts with "text", with text alone; or, for a `query` that starts with "fail", with an upstream error
@@ -18,7 +18,7 @@ const schema = { type: "object", properties: { query: { type: "string" } } }
 /** A tool the plugin has never seen. */
 export const NEW_TOOL = { name: "shiny_new_tool", description: "A tool added upstream after the tool lists were written", annotations: {} }
 const tool = (name: string, readOnlyHint: boolean) => ({ name, description: `Ashby ${name}`, annotations: { readOnlyHint }, inputSchema: schema })
-const TOOLS = [tool("search_records_by_name", true), tool("get_pending_tasks", true), tool("add_note_to_candidate", false), ...DENIED_TOOLS.map((name) => tool(name, false)), { ...NEW_TOOL, inputSchema: schema }]
+const TOOLS = [tool("search_records_by_name", true), tool("get_pending_tasks", true), ...WRITE_TOOLS.map((name) => tool(name, false)), ...DENIED_TOOLS.map((name) => tool(name, false)), { ...NEW_TOOL, inputSchema: schema }]
 const CATALOG = [...READ_TOOLS.map((name) => tool(name, true)), ...[...WRITE_TOOLS, ...DENIED_TOOLS].map((name) => tool(name, false)), { ...NEW_TOOL, inputSchema: schema }]
 
 /** The upstream error a "fail" query gets: two lines, the first with a signed URL. */
@@ -30,6 +30,11 @@ export const ASHBY_SCOPES = "openid mcp offline_access"
 export interface FakeMcpOptions {
   /** `ashby` lists every tool the plugin knows, and the new tool. */
   readonly catalog?: "ashby"
+  /**
+   * Whether the token endpoint issues a refresh token. Without one, a 401 later needs a new sign-in and leaves the
+   * credential in place, as Ashby does when it issues no refresh token.
+   */
+  readonly refreshTokens?: boolean
 }
 
 /** The scripted model's id, as the fake's model API lists it. */
@@ -58,6 +63,8 @@ export interface FakeMcp {
   }
   /** Every dynamic client registration's body, in order. */
   readonly registrations: Record<string, unknown>[]
+  /** Every token request's form, in order. */
+  readonly tokens: Record<string, string>[]
   /** Tool names called, in order. */
   readonly calls: string[]
   /** Each tool call with the path it was sent to, in order. */
@@ -77,6 +84,8 @@ export async function startFakeMcp(options: FakeMcpOptions = {}): Promise<FakeMc
   const markers: (string | undefined)[] = []
   const authorizations: (string | undefined)[] = []
   const registrations: Record<string, unknown>[] = []
+  const tokens: Record<string, string>[] = []
+  let codes = 0
   const answer = (message: Message, path: string) => {
     const reply = (result: unknown) => ({ jsonrpc: "2.0", id: message.id, result })
     switch (message.method) {
@@ -140,6 +149,28 @@ export async function startFakeMcp(options: FakeMcpOptions = {}): Promise<FakeMc
         scopes_supported: ASHBY_SCOPES.split(" "),
       })
     }
+    // Like a signed-in browser: the authorization endpoint sends the loopback callback a code, and the token endpoint
+    // exchanges it for an access token and a refresh token.
+    if (route === "/oidc/auth") {
+      const query = new URL(request.url ?? "/", "http://127.0.0.1").searchParams
+      const target = new URL(query.get("redirect_uri") ?? "/")
+      target.searchParams.set("code", `fake-code-${++codes}`)
+      if (query.get("state")) target.searchParams.set("state", query.get("state")!)
+      return void response.writeHead(302, { location: target.toString() }).end()
+    }
+    if (route === "/oidc/token" && request.method === "POST") {
+      const form = Object.fromEntries(new URLSearchParams(await read(request)))
+      tokens.push(form)
+      // While the server challenges, a refresh is refused like a revoked token: the person must sign in again.
+      if (fake.challenge && form.grant_type === "refresh_token") return json(400, { error: "invalid_grant" })
+      return json(200, {
+        access_token: `fake-access-${tokens.length}`,
+        token_type: "Bearer",
+        expires_in: 3600,
+        ...(options.refreshTokens === false ? {} : { refresh_token: `fake-refresh-${tokens.length}` }),
+        scope: ASHBY_SCOPES,
+      })
+    }
     if (route === "/oidc/reg" && request.method === "POST") {
       const body = JSON.parse(await read(request)) as Record<string, unknown>
       registrations.push(body)
@@ -176,6 +207,7 @@ export async function startFakeMcp(options: FakeMcpOptions = {}): Promise<FakeMc
     origin: `http://127.0.0.1:${port}`,
     model,
     registrations,
+    tokens,
     calls,
     called,
     markers,
