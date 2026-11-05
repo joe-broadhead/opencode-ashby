@@ -26,11 +26,11 @@ denies a read-only helper every tool not marked `readOnly`. A declared `allow` c
   email) and `ashby_submit_mcp_feedback` (text sent to Ashby's team).
 - Everything else runs, as the plugin's own rules let it.
 
-A tool the upstream server adds later is not declared, so in Jelly it runs without asking, even if it changes
-something, such as a write that reaches candidates, until a new version of this plugin declares it. Ashby says it adds
-tools over time, write actions included. A Jelly admin can set such a tool to ask. Keep `jelly.tools` in step with
-`src/ashby-tools.ts`; `test/unit/jelly.test.ts` checks the list against it, and each declared effect against the
-plugin's own default rules.
+A tool Ashby adds later, a write included, is not declared, so in Jelly it is not asked about: it runs without asking,
+even if it changes something such as a candidate's stage or a pipeline, until a new version of this plugin declares it.
+Ashby says it adds tools over time, write actions included. A Jelly admin can set such a tool to ask. Keep
+`jelly.tools` in step with `src/ashby-tools.ts`; `test/unit/jelly.test.ts` checks the list against it, and each
+declared effect against the plugin's own default rules.
 
 ## Skills
 

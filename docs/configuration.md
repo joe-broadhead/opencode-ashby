@@ -85,12 +85,14 @@ after that rule:
 [
   { "action": "ashby_*", "resource": "*", "effect": "ask" },
   { "action": "ashby_describe_object_fields", "resource": "*", "effect": "allow" },
-  "… one allow rule for each read tool in src/ashby-tools.ts …",
   { "action": "ashby_search_records_by_name", "resource": "*", "effect": "allow" },
   { "action": "ashby_change_application_stage", "resource": "*", "effect": "deny" },
   { "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "deny" }
 ]
 ```
+
+That sample leaves out the other ten read allows, which sit between the two shown; `/ashby-status` prints the whole
+block, and its `Agents without default rules` row prints it as a list to paste.
 
 `READ_TOOLS` in `src/ashby-tools.ts` lists Ashby's read tools, `WRITE_TOOLS` its write tools, and `DENIED_TOOLS` the
 two that are off. Writes and tools that Ashby adds later match only `ashby_*`, so they ask. `/ashby-status` names the
@@ -206,7 +208,7 @@ agent's own rules, so it would loosen Explore. For an agent `reviewer`, with one
       "permissions": [
         { "action": "ashby_*", "resource": "*", "effect": "ask" },
         { "action": "ashby_describe_object_fields", "resource": "*", "effect": "allow" },
-        "… the rest of the block from /ashby-status …",
+        { "action": "ashby_get_pending_tasks", "resource": "*", "effect": "allow" },
         { "action": "ashby_create_candidate", "resource": "*", "effect": "deny" }
       ]
     }
@@ -214,7 +216,8 @@ agent's own rules, so it would loosen Explore. For an agent `reviewer`, with one
 }
 ```
 
-Copy the full block from your own `/ashby-status` output; the lines in quotes above stand for it.
+Copy the full block from your own `/ashby-status` output: the sample above keeps the first two read allows and your own
+rule, and leaves out the other ten.
 
 ## Errors
 

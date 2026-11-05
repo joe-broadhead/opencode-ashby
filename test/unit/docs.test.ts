@@ -139,9 +139,9 @@ describe("docs", () => {
     // Jelly's contracts drop an unknown top-level key; they do not refuse the declaration for it.
     expect(guide).toContain("drop a top-level key they don't know")
     expect(guide).not.toMatch(/refuses this declaration|accepts no unknown keys/)
-    // A tool Ashby adds later is undeclared, and Jelly runs it unasked: the guide says so plainly.
-    expect(guide).toContain("in Jelly it runs without asking, even if it changes something")
-    expect(guide).not.toContain("not asked about")
+    // A tool Ashby adds later is undeclared, and Jelly runs it unasked: the guide says so plainly, a write included.
+    expect(guide).toContain("A tool Ashby adds later, a write included, is not declared, so in Jelly it is not asked about")
+    expect(guide).toContain("it runs without asking, even if it changes something")
     const off = guide.split("- Off:")[1]?.split("- Everything else")[0] ?? ""
     for (const name of DENIED_TOOLS) expect(off).toContain(`\`ashby_${name}\``)
     const skills = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).jelly.skills as string[]

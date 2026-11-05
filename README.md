@@ -17,6 +17,8 @@ Unofficial; not affiliated with Ashby.
   stay hidden unless you were granted them.
 - Ashby's MCP server is in beta, and Ashby may change its tools without notice. A tool Ashby adds asks before it runs
   until a release of this plugin knows it.
+- The 17 tools, and which of them read and write, come from Ashby's own help page until a release reconciles them with
+  a live tool list. Treat a tool's class as Ashby's description of it, not as its annotation.
 - Ashby stores and processes its data in the United States.
 
 ## Install
@@ -206,7 +208,8 @@ Run `/ashby-status` first. Its last line is the next step.
 | Agents without default rules | Put the default rules shown by `/ashby-status` first in each listed agent's own permissions, in `opencode.json` or the agent's Markdown file, followed by your top-level rules for Ashby tools. |
 | OpenCode: untested | OpenCode is not 2.2.3, 2.2.4 or 2.2.5. Inside `>=2.2.3 <2.3.0` the plugin runs normally; outside it, it runs only because `allowUntestedHost` is set. If Ashby misbehaves, use a tested release. |
 | Signed in to the wrong Ashby account | Run `opencode mcp logout ashby` (or remove the account in `/connect` → Ashby), then sign in again. |
-| An Ashby tool is refused in `opencode run` | Nobody could answer its prompt. Add an `allow` rule for that read or write to the agent's own `permissions` (never for a denied tool: run those interactively). |
+| Asked to sign in again after about an hour | Ashby may issue no refresh token, so the sign-in cannot be renewed. Sign in again with `/connect` → Ashby; your Ashby session may still be open in the browser. |
+| An Ashby tool is refused in `opencode run` | Nobody could answer its prompt. A read runs if you add an `allow` rule for it to the agent's own `permissions`. A write needs an interactive session: this plugin documents no `allow` for one, and a saved one would run it unasked in every agent of the project. |
 | A skill seems ignored, and status names a skill to rename or move | A skill of yours with the same id, such as `ashby`, replaces the plugin's. Rename or move it. |
 | `/ashby` is missing | The plugin did not start. Run `/plugins` to see the error. |
 | `OPTIONS_INVALID` | An option is unknown or has a wrong value. The message names the option and the accepted values. |
@@ -218,6 +221,20 @@ Run `/ashby-status` first. Its last line is the next step.
 
 A script's errors from the tools RPC have their own codes, listed in
 [Scripting](https://github.com/joe-broadhead/opencode-ashby/blob/HEAD/docs/scripting.md#errors).
+
+## Known limits
+
+- **The tool table comes from Ashby's help page.** Ashby lists no annotations, and this release has not been
+  reconciled with a live tool list, so a tool Ashby marks as changing data could run here as a read until a release
+  does. `test/unit/ashby-tools.json` records the list, and `npm run drift -- <tools.json> --strict` is the check that
+  reconciles it.
+- **A script's read can cross projects.** A script's session may belong to another directory than the OpenCode server
+  answering it, and the read then runs under the serving location's agent rules; only a `deny` is refused in between.
+  Run scripts in the project whose agent you mean. This is in the module shared with the other plugins, not in this
+  one.
+- **In Jelly, a tool Ashby adds is not asked about.** Jelly applies each declared tool's effect and nothing else, so an
+  undeclared tool, a write included, runs without asking until a release of this plugin declares it. A Jelly admin can
+  set it to ask.
 
 ## Uninstall
 
