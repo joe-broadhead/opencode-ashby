@@ -1,0 +1,186 @@
+{
+  "name": "@joe-broadhead/opencode-ashby",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Unofficial OpenCode plugin for Ashby: find and read your candidates, pipeline, interviews and feedback, and make selected changes, through Ashby's official MCP server",
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "ashby"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joe-broadhead/opencode-ashby.git"
+  },
+  "homepage": "https://github.com/joe-broadhead/opencode-ashby#readme",
+  "bugs": {
+    "url": "https://github.com/joe-broadhead/opencode-ashby/issues"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./tui": "./dist/tui.js"
+  },
+  "files": [
+    "dist",
+    "assets/icon.svg",
+    "skills",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "opencode": {
+    "host": ">=2.2.3 <2.3.0"
+  },
+  "scripts": {
+    "check": "node scripts/check.mjs",
+    "typecheck": "node scripts/check.mjs typecheck",
+    "build": "node scripts/check.mjs build",
+    "test": "node scripts/check.mjs unit",
+    "test:host": "node scripts/check.mjs host",
+    "test:pack": "node scripts/check.mjs pack",
+    "lint": "node scripts/check.mjs forbidden",
+    "drift": "node scripts/check-ashby-tools.mjs"
+  },
+  "devDependencies": {
+    "@opencode/client": "2.2.3",
+    "@opencode/plugin": "2.2.3",
+    "@opencode/sdk": "2.2.3",
+    "@opentui/core": "0.8.0",
+    "@opentui/solid": "0.8.0",
+    "@types/bun": "1.4.4",
+    "@types/node": "24.19.2",
+    "esbuild": "0.28.2",
+    "solid-js": "1.9.17",
+    "typescript": "5.9.3"
+  },
+  "jelly": {
+    "title": "Ashby",
+    "summary": "Your Ashby candidates, pipeline, interviews and feedback.",
+    "icon": "assets/icon.svg",
+    "tools": [
+      {
+        "name": "ashby.describe_object_fields",
+        "permission": "ashby_describe_object_fields",
+        "effect": "allow",
+        "readOnly": true
+      },
+      {
+        "name": "ashby.filter_records",
+        "permission": "ashby_filter_records",
+        "effect": "allow",
+        "readOnly": true
+      },
+      {
+        "name": "ashby.get_candidate",
+        "permission": "ashby_get_candidate",
+        "effect": "allow",
+        "readOnly": true
+      },
+      {
+        "name": "ashby.get_interview_details",
+        "permission": "ashby_get_interview_details",
+        "effect": "allow",
+        "readOnly": true
+      },
+      {
+        "name": "ashby.get_interview_plan",
+        "permission": "ashby_get_interview_plan",
+        "effect": "allow",
+        "readOnly": true
+      },
+      {
+        "name": "ashby.get_job_pipeline",
+        "permission": "ashby_get_job_pipeline",
+        "effect": "allow",
+        "readOnly": true
+      },
+      {
+        "name": "ashby.get_pending_tasks",
+        "permission": "ashby_get_pending_tasks",
+        "effect": "allow",
+        "readOnly": true
+      },
+      {
+        "name": "ashby.get_record_details",
+        "permission": "ashby_get_record_details",
+        "effect": "allow",
+        "readOnly": true
+      },
+      {
+        "name": "ashby.get_submitted_feedback",
+        "permission": "ashby_get_submitted_feedback",
+        "effect": "allow",
+        "readOnly": true
+      },
+      {
+        "name": "ashby.get_upcoming_interviews",
+        "permission": "ashby_get_upcoming_interviews",
+        "effect": "allow",
+        "readOnly": true
+      },
+      {
+        "name": "ashby.search_product_docs",
+        "permission": "ashby_search_product_docs",
+        "effect": "allow",
+        "readOnly": true
+      },
+      {
+        "name": "ashby.search_records_by_name",
+        "permission": "ashby_search_records_by_name",
+        "effect": "allow",
+        "readOnly": true
+      },
+      {
+        "name": "ashby.add_note_to_candidate",
+        "permission": "ashby_add_note_to_candidate",
+        "effect": "ask",
+        "readOnly": false
+      },
+      {
+        "name": "ashby.consider_candidate_for_job",
+        "permission": "ashby_consider_candidate_for_job",
+        "effect": "ask",
+        "readOnly": false
+      },
+      {
+        "name": "ashby.create_candidate",
+        "permission": "ashby_create_candidate",
+        "effect": "ask",
+        "readOnly": false
+      },
+      {
+        "name": "ashby.change_application_stage",
+        "permission": "ashby_change_application_stage",
+        "effect": "deny",
+        "readOnly": false
+      },
+      {
+        "name": "ashby.submit_mcp_feedback",
+        "permission": "ashby_submit_mcp_feedback",
+        "effect": "deny",
+        "readOnly": false
+      }
+    ],
+    "skills": [
+      "ashby",
+      "ashby-write"
+    ],
+    "rpc": [],
+    "views": [],
+    "signIns": [
+      {
+        "id": "ashby",
+        "label": "Ashby",
+        "server": "ashby"
+      }
+    ],
+    "contributes": {
+      "homeFeeds": [],
+      "homeWidgets": [],
+      "workKinds": [],
+      "settings": []
+    }
+  }
+}

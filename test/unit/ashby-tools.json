@@ -1,0 +1,73 @@
+{
+  "source": "Ashby's list of its MCP tools, https://docs.ashbyhq.com/ashby-mcp-server-beta (\"Available tools\", 2026-11-05): names only, in the research form. Ashby publishes no schemas or annotations; replace this file with a list saved from a signed-in server.",
+  "tools": [
+    {
+      "name": "search_records_by_name",
+      "purpose": "Resolve a name to a candidate, job, application or email template"
+    },
+    {
+      "name": "filter_records",
+      "purpose": "Find or count candidates, applications, jobs, job postings, openings, scheduled interviews or offers by criteria; costs 2 rate-limit units"
+    },
+    {
+      "name": "describe_object_fields",
+      "purpose": "Helper: the filterable fields of a record type, before filter_records"
+    },
+    {
+      "name": "get_record_details",
+      "purpose": "Full details of located jobs, job postings, applications, email templates, openings, scheduled interviews or offers"
+    },
+    {
+      "name": "get_candidate",
+      "purpose": "A candidate's profile: resume, interview feedback, emails, texts, notes, interview transcripts, referrals, follow-ups, form submissions"
+    },
+    {
+      "name": "get_upcoming_interviews",
+      "purpose": "The user's upcoming interviews: candidate, job, time, links"
+    },
+    {
+      "name": "get_interview_details",
+      "purpose": "Prep briefing for one interview: candidate background, resume summary, panel, hiring team"
+    },
+    {
+      "name": "get_interview_plan",
+      "purpose": "The stages of a job's or application's interview plan"
+    },
+    {
+      "name": "get_submitted_feedback",
+      "purpose": "Scorecard feedback the user personally submitted (never other interviewers')"
+    },
+    {
+      "name": "get_job_pipeline",
+      "purpose": "Candidate counts per stage for one or more jobs"
+    },
+    {
+      "name": "get_pending_tasks",
+      "purpose": "The user's pending tasks: scorecards owed, approvals, follow-ups, candidate reviews, survey requests"
+    },
+    {
+      "name": "search_product_docs",
+      "purpose": "Answers 'how do I' questions from Ashby's product docs, with links"
+    },
+    {
+      "name": "create_candidate",
+      "purpose": "Create a candidate with name and contact details"
+    },
+    {
+      "name": "add_note_to_candidate",
+      "purpose": "Draft a note on a candidate's profile for the user to confirm before saving; can reply to a note"
+    },
+    {
+      "name": "consider_candidate_for_job",
+      "purpose": "Create an application for a candidate at the first stage of a job's interview plan"
+    },
+    {
+      "name": "change_application_stage",
+      "purpose": "Move an application to another stage, including Archived (needs an archive reason; the stage's automatic activities run, such as an automated archive email to the candidate)"
+    },
+    {
+      "name": "submit_mcp_feedback",
+      "purpose": "Send feedback to the Ashby team when the server hits a limitation"
+    }
+  ]
+}
