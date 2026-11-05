@@ -261,9 +261,10 @@ model. It holds no token, no header and no URL query, and makes no Ashby call. `
 | `problems` | Setup problems, each `CODE: What happened. Next step: What to do.` |
 | `nextStep` | Exactly one next step: the `Next step` row, `Nothing to do.` when nothing is needed |
 
-The `Access` row says that your Ashby access roles decide what you can read and change, and whether the default rules
-are in place: "no agent runs new Ashby tools unasked", "default rules missing in the agents listed below", or "default
-rules not added (see the OpenCode row)".
+The `Access` row states the posture the default rules fix, from the tool lists: "reads run without asking; the 3 writes
+ask first; change_application_stage and submit_mcp_feedback are off". Then it says whether those rules are in place:
+"no agent runs new Ashby tools unasked", "default rules missing in the agents listed below", or "default rules not
+added (see the OpenCode row)".
 
 When the status cannot be read, the method answers with its error `unavailable`: the message
 `STATUS_UNAVAILABLE: Could not read Ashby's status (…).` and `data: { nextStep }`.

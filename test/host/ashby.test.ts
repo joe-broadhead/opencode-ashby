@@ -10,7 +10,7 @@ import { tmpdir } from "node:os"
 import { join, sep } from "node:path"
 import { Plugin } from "@opencode/plugin"
 import { SUPPORTED_HOST, TESTED_HOSTS } from "../../src/constants.js"
-import { DENIED_TOOLS } from "../../src/ashby-tools.js"
+import { DENIED_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
 import { defaultRules, type Rule } from "../../src/permissions.js"
 import { SKILL_NAMES } from "../../src/skills.js"
 import { StatusRpc } from "../../src/status.js"
@@ -178,7 +178,7 @@ describe(`the plugin on OpenCode ${HOST_VERSION}`, () => {
     expect(text).toContain(`- Connection: connected (${host.fake.url}, registered by this plugin)`)
     // A server without OAuth has no sign-in, so no label: Ashby's MCP has no account tool.
     expect(text).toContain("- Account: account name not reported by Ashby's MCP\n")
-    expect(text).toContain("- Access: what your Ashby access roles allow; default rules missing in the agents listed below\n")
+    expect(text).toContain(`- Access: reads run without asking; the ${WRITE_TOOLS.length} writes ask first; ${DENIED_TOOLS.join(" and ")} are off; default rules missing in the agents listed below\n`)
     expect(text).toContain(`- Tools: 4 available, 1 unknown: shiny_new_tool (unknown tools ask before running); off by default: ${OFF}\n`)
     expect(text).toContain(`- Agents without default rules: reviewer\n${AGENT_RULES}\n`)
     expect(text).toContain(`- Next step: ${AGENTS_NEXT_STEP}`)

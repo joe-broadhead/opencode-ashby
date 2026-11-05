@@ -3,6 +3,7 @@ import { checkHost } from "../../src/host-version.js"
 import { defaultRules } from "../../src/permissions.js"
 import { buildStatus, formatStatus, readStatus, registerStatusCommand, registerStatusRpc, shortReason, StatusRpc, type Status, type StatusContext, type StatusFacts } from "../../src/status.js"
 import { VERSION } from "../../src/version.js"
+import { DENIED_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
 import { allow } from "./fake.js"
 
 const SIGN_IN = "Run /connect and choose Ashby, then press o or Enter to open the link (in a terminal, opencode mcp auth ashby opens it automatically)."
@@ -15,7 +16,8 @@ const URL = "https://mcp.ashbyhq.com/mcp/v1"
 const base: StatusFacts = { server: { status: "connected" }, source: { type: "plugin", url: URL, signIn: "oauth" }, host, tools: ["search_records_by_name"] }
 const guarded = { id: "build", permissions: [allow("*"), ...defaultRules()] }
 const RULES = "no agent runs new Ashby tools unasked"
-const ACCESS = `what your Ashby access roles allow; ${RULES}`
+const POSTURE = `reads run without asking; the ${WRITE_TOOLS.length} writes ask first; ${DENIED_TOOLS.join(" and ")} are off`
+const ACCESS = `${POSTURE}; ${RULES}`
 
 describe("buildStatus", () => {
   test("connected, with the sign-in's label, and nothing left to do", () => {
@@ -134,11 +136,13 @@ describe("buildStatus", () => {
   })
 
   test("the Access row says whether the default rules are in place, from what status can see", () => {
-    expect(formatStatus(buildStatus(base))).toContain("- Access: what your Ashby access roles allow; no agent runs new Ashby tools unasked\n")
+    expect(formatStatus(buildStatus(base))).toContain(`- Access: ${ACCESS}\n`)
+    // The posture is the tool lists': 3 writes ask, 2 tools are off.
+    expect(ACCESS).toContain("the 3 writes ask first; change_application_stage and submit_mcp_feedback are off")
     const missing = buildStatus({ ...base, agents: [{ id: "reviewer", permissions: [allow("*")] }] })
-    expect(formatStatus(missing)).toContain("- Access: what your Ashby access roles allow; default rules missing in the agents listed below\n")
+    expect(formatStatus(missing)).toContain(`- Access: ${POSTURE}; default rules missing in the agents listed below\n`)
     const problem = "RULES_NOT_ADDED: Ashby's default permission rules could not be added (boom), so Ashby tools may run without asking. Next step: Restart OpenCode."
-    expect(formatStatus(buildStatus({ ...base, problems: [problem] }))).toContain("- Access: what your Ashby access roles allow; default rules not added (see the OpenCode row)\n")
+    expect(formatStatus(buildStatus({ ...base, problems: [problem] }))).toContain(`- Access: ${POSTURE}; default rules not added (see the OpenCode row)\n`)
   })
 
   test("a failure's reason never carries a token or key the host's text echoed", () => {

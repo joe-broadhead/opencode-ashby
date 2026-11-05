@@ -1,7 +1,7 @@
 import type { Plugin, Rpc } from "@opencode/plugin"
 import { DISPLAY_NAME, PLUGIN_ID, SERVER_NAME, TESTED_HOSTS } from "./constants.js"
 import { isSupportedHost, type HostCheck } from "./host-version.js"
-import { classify } from "./ashby-tools.js"
+import { classify, DENIED_TOOLS, WRITE_TOOLS } from "./ashby-tools.js"
 import { defaultRules, unguardedAgents, type Rule } from "./permissions.js"
 import { cut, oneLine, shortReason } from "./redact.js"
 import { VERSION } from "./version.js"
@@ -208,14 +208,19 @@ function toolsText({ tools, unknownCount, unknownTools, deniedTools, listing }: 
 
 const list = (names: readonly string[]) => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`)
 
-/** What decides access, and whether the default rules are in place: facts status can check, not a fixed claim. */
+/**
+ * The permission posture the default rules fix, derived from the tool lists so it cannot go stale, and whether those
+ * rules are in place: facts status can check, not a fixed claim.
+ */
+const POSTURE = `reads run without asking; the ${WRITE_TOOLS.length} writes ask first; ${DENIED_TOOLS.join(" and ")} are off`
+
 function accessText({ problems, unguardedAgents }: Status) {
   const rules = problems.some((problem) => problem.startsWith(RULES_NOT_ADDED))
     ? "default rules not added (see the OpenCode row)"
     : unguardedAgents.length
       ? "default rules missing in the agents listed below"
       : "no agent runs new Ashby tools unasked"
-  return `what your ${DISPLAY_NAME} access roles allow; ${rules}`
+  return `${POSTURE}; ${rules}`
 }
 
 /** The OpenCode row: the version, whether it is tested, the supported range, then any setup problems. */
