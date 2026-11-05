@@ -22,8 +22,8 @@ expect it, and only as long as you need it.
 
 ## A script runs as a session
 
-Every call names a session, and the session must name an agent. The script runs as that agent, with exactly the
-access its model would have:
+Every call names a session, and the session must name an agent. The script runs as that agent, with the access its
+model has:
 
 - A tool that the agent's rules or the session's rules hide from the model is refused. OpenCode hides a tool when the
   last rule that matches its permission name, such as `ashby_get_candidate`, on resource `*` is a `deny`.
@@ -84,7 +84,8 @@ sign-in, so make calls one at a time, never in parallel. When Ashby reports a ra
 `opencode api` calls run in the OpenCode service's default location, your home directory, whatever directory you run
 them from. They use that location's plugin options, from your global config, and its `ashby` connection. To call a
 project whose own config sets other options, call the HTTP API with `?location[directory]=<dir>`. The session may
-belong to another directory.
+belong to another directory: the read then runs under the serving location's agent rules, and only a `deny` is refused
+in between, so run a script in the project whose agent you mean.
 
 ## Errors
 

@@ -79,7 +79,9 @@ known read tools for a script, with no model. It adds no authority:
 
 - A script names a session that names an agent, and runs as them. A tool that the agent's or the session's rules hide
   from the model is refused. OpenCode's own executor then checks the call against the agent's rules, the session's
-  rules and saved approvals, as it does for the model.
+  rules and saved approvals, as it does for the model. A session in another directory than the server answering the
+  call runs under the serving location's agent rules, and only a deny is refused in between: the README's known limits
+  say so.
 - An ask on a script's call is denied, not prompted: no one is there to answer it. The plugin's permission hook
   changes only an ask on one of its own script calls in flight, only to a deny, and leaves every other call alone.
 - Only the known reads are methods. Ashby's write tools never are, nor `change_application_stage`, nor

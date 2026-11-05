@@ -52,7 +52,8 @@ If your config defines no server named `ashby`, the plugin registers one:
 ```
 
 There is no `oauth` block, and none is needed. Ashby's sign-in challenge and its server metadata name the scopes
-`openid mcp offline_access`, and OpenCode requests them as given, so Ashby can issue a refresh token. OpenCode registers
+`openid mcp offline_access`, and OpenCode requests them as given, so Ashby can issue a refresh token. Ashby may still
+issue none, and then a sign-in cannot be renewed: the README's Troubleshooting has the row. OpenCode registers
 itself with Ashby's sign-in server on first use: there is no client ID to set, and OpenCode's defaults apply to
 everything else.
 
