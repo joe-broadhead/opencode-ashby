@@ -199,7 +199,7 @@ Run `/ashby-status` first. Its last line is the next step.
 | Tools: off by default | The tools the default rules deny, listed by name. See [Permissions](#permissions) to turn one on, as an ask. |
 | Tools: unknown | Ashby added tools the plugin does not know yet. They ask before they run. A known tool missing from the count is normal: Ashby may list fewer tools for less access. |
 | Access: default rules missing or not added | Some agents lack the default rules (see the agents row), or OpenCode could not add them (see the OpenCode row). Follow the next step. |
-| Account: account name not reported | Ashby's MCP has no account tool, and OpenCode keeps no name on this sign-in. To check which account you signed in with, sign out and in again. |
+| Account: account name not reported | Nothing is wrong: Ashby's MCP has no account tool, and OpenCode keeps no name on this sign-in. Ashby's answers follow the user you signed in as. |
 | Answers miss jobs or candidates | Ashby returns only what your access roles allow, and confidential jobs stay hidden unless you were granted them. Ask an Ashby admin for access. |
 | Rate limited | Ashby allows 120 requests a minute per sign-in. Wait a minute, and make fewer calls at once. |
 | A move or archive is refused | `ashby_change_application_stage` is off by default. See [Permissions](#permissions) to turn it on as an ask, or make the change in Ashby. |
