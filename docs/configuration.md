@@ -74,10 +74,11 @@ admin credentials that skip your own access roles, and the MCP server does not t
 
 The plugin compares origin and path, so a trailing slash or a query string still matches. Any other URL, or a local
 command, is a **conflict**: the plugin leaves your entry alone, adds nothing, status shows "Connection: conflict", and
-gives the next step:
+gives the next step. A conflicting entry at another origin shows only its origin, because a path can hold a secret;
+Ashby's own origin keeps its path, so a wrong one is visible.
 
 ```text
-- Next step: Your OpenCode config defines mcp.servers.ashby with https://ashby-mcp.example.com/mcp, but the plugin uses https://mcp.ashbyhq.com/mcp/v1. Point it at https://mcp.ashbyhq.com/mcp/v1 or remove it, then restart OpenCode.
+- Next step: Your OpenCode config defines mcp.servers.ashby with https://ashby-mcp.example.com/…, but the plugin uses https://mcp.ashbyhq.com/mcp/v1. Point it at https://mcp.ashbyhq.com/mcp/v1 or remove it, then restart OpenCode.
 ```
 
 ## Permissions

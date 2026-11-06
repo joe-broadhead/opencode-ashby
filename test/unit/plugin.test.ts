@@ -5,7 +5,7 @@ import { join } from "node:path"
 import type { Plugin } from "@opencode/plugin"
 import { ENDPOINT, NAMESPACE_DESCRIPTION } from "../../src/constants.js"
 import ashby from "../../src/index.js"
-import { createAshbyPlugin, displayUrl, registerServer, serverConfig } from "../../src/plugin.js"
+import { conflictUrl, createAshbyPlugin, displayUrl, registerServer, serverConfig } from "../../src/plugin.js"
 import { SKILL_NAMES } from "../../src/skills.js"
 import type { ServerSource } from "../../src/status.js"
 import { agentEditor, builtInAgents, mcpEditor, transforms, type McpEditor } from "./fake.js"
@@ -76,6 +76,18 @@ describe("the ashby server", () => {
   test("display URLs drop credentials, queries and trailing slashes", () => {
     expect(displayUrl("https://user:pass@mcp.ashbyhq.com/mcp/v1/?key=1#x")).toBe("https://mcp.ashbyhq.com/mcp/v1")
     expect(displayUrl("not a url")).toBe("an invalid URL")
+  })
+
+  // DR-3: another server's path may hold a secret, so only its origin is shown; Ashby's own origin keeps its path, so a
+  // wrong path there is visible. The status example in docs/configuration.md is this function's output.
+  test("a conflict shows another origin alone, and Ashby's own origin with its path", () => {
+    expect(conflictUrl("https://ashby-mcp.example.com/mcp?token=secret-path-123", ENDPOINT)).toBe("https://ashby-mcp.example.com/…")
+    expect(conflictUrl("https://hooks.example.com", ENDPOINT)).toBe("https://hooks.example.com")
+    expect(conflictUrl("https://mcp.ashbyhq.com/mcp/v2?token=secret-path-123#x", ENDPOINT)).toBe("https://mcp.ashbyhq.com/mcp/v2")
+    expect(conflictUrl("https://alice:hunter2@mcp.ashbyhq.com/mcp/v2", ENDPOINT)).toBe("https://mcp.ashbyhq.com/mcp/v2")
+    expect(conflictUrl("not a url", ENDPOINT)).toBe("an invalid URL")
+    // The guide's Next step example is what the first line builds.
+    expect(`Your OpenCode config defines mcp.servers.ashby with ${conflictUrl("https://ashby-mcp.example.com/mcp", ENDPOINT)}, but the plugin uses ${ENDPOINT}.`).toContain("with https://ashby-mcp.example.com/…")
   })
 })
 
