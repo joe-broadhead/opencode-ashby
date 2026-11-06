@@ -81,6 +81,18 @@ describe("docs", () => {
     })
   })
 
+  // DR-1: a write always asks. An allow for one anywhere in the docs or the skills would remove the only gate on a
+  // change that reaches candidates and the hiring team, so it fails here rather than only on a denied tool.
+  test.each(FILES)("%s never gives a write tool an allow rule", (file) => {
+    const raw = readFileSync(join(ROOT, file), "utf8")
+    const allowed = [...raw.matchAll(/\{[^{}]*\}/g)]
+      .filter(([rule]) => /"effect"\s*:\s*"allow"/.test(rule))
+      .flatMap(([rule]) => [...rule.matchAll(/"action"\s*:\s*"ashby_([a-z_]+)"/g)].map((match) => match[1]!))
+    expect(allowed.filter((name) => WRITE_TOOLS.includes(name))).toEqual([])
+    // The prose forms would be just as wrong: "make X allow", or "set X to allow".
+    for (const name of WRITE_TOOLS) expect(raw).not.toMatch(new RegExp(`ashby_${name}\\b[^\\n]{0,60}\\ballow\\b`, "i"))
+  })
+
   test("the strict-agent recipe repeats every deny after its ashby_* ask, so no denied tool reopens", () => {
     const recipe = text("docs/configuration.md").split("A strict agent where every Ashby tool asks")[1]?.split("```")[1] ?? ""
     const ask = recipe.indexOf('{ "action": "ashby_*", "resource": "*", "effect": "ask" }')

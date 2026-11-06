@@ -158,18 +158,9 @@ Never create candidates, in any agent (a `deny` also hides the tool):
 [{ "action": "ashby_create_candidate", "resource": "*", "effect": "deny" }]
 ```
 
-Run one write tool without a prompt in the build agent (answering "Always allow" once does the same, for every agent
-in the project):
-
-```json
-{
-  "agents": {
-    "build": {
-      "permissions": [{ "action": "ashby_add_note_to_candidate", "resource": "*", "effect": "allow" }]
-    }
-  }
-}
-```
+Every write asks, and no recipe removes that. An `allow` rule, or one "Always allow" answer, would let a change that
+reaches candidates and the hiring team run without a prompt, in every agent of the project. In an unattended run, run
+the write from an interactive session instead.
 
 A strict agent where every Ashby tool asks, reads included: put these in that agent's own `permissions`, after the
 block. The last match wins, so the `ashby_*` ask alone would turn the two denied tools into asks too; repeating their
