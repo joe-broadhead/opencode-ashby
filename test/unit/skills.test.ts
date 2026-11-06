@@ -97,7 +97,11 @@ describe("skills", () => {
     expect(text).toContain("run `/connect` and choose Ashby, then press `o` or Enter")
     expect(text).toContain("opencode mcp auth ashby")
     expect(text).toContain("Never ask for a password or an API key")
-    expect(text).toContain("an Ashby Org Admin must turn on MCP Server (Admin > Organization Setup > Opt-In Features), and the user needs Elevated Access")
+    expect(text).toContain("an Org Admin must turn on MCP Server (Admin > Organization Setup > Opt-In Features) and give the user Elevated Access")
+    // DR-2: both commands work for a plugin-registered server, from its project folder, with the cold-start caveat.
+    expect(text).toContain("run `opencode mcp auth ashby` in the project folder, and if it answers `MCP server not found: ashby`, wait a")
+    expect(text).toContain("run `opencode mcp logout ashby` in")
+    expect(text).toMatch(/in the project folder or remove the account in `\/connect`/)
   })
 
   test("the descriptions route Ashby's records here, and interviews' content, meetings and other changes elsewhere", () => {

@@ -81,7 +81,7 @@ export interface Status {
   readonly nextStep: string
 }
 
-const SIGN_IN = `Run /connect and choose Ashby, then press o or Enter to open the link (in a terminal, opencode mcp auth ${SERVER_NAME} opens it automatically).`
+const SIGN_IN = `Run /connect and choose Ashby, then press o or Enter to open the link (in a terminal, opencode mcp auth ${SERVER_NAME} opens it automatically in this project's folder; if it answers MCP server not found: ${SERVER_NAME}, wait a few seconds and run it again).`
 
 /** The default rules to paste into an agent's own permissions, one rule a line, as a JSON array body. */
 const AGENT_RULES = defaultRules()

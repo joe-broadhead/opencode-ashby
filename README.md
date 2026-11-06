@@ -43,14 +43,18 @@ Run `/connect` and choose **Ashby** (it is listed under MCP). In the terminal UI
 to Ashby's sign-in page in your browser, sign in with your Ashby account, and approve the access. No API key is needed
 or used.
 
-From a terminal, run `opencode mcp auth ashby` instead; it opens the link automatically. `/mcps` also offers the same
-sign-in.
+From a terminal, run `opencode mcp auth ashby` instead, in the project folder where the plugin is installed; it opens
+the link automatically. `/mcps` also offers the same sign-in.
+
+If either command answers `MCP server not found: ashby`, OpenCode is still opening that folder: wait a few seconds and
+run it again.
 
 When the sign-in expires and cannot be renewed, `/connect` marks the Ashby account as needing a new sign-in, and
 OpenCode shows its "MCP server needs authentication" notice.
 
-To sign out, or to switch account, run `opencode mcp logout ashby`, or remove the account in `/connect` → Ashby. Then
-sign in again. To sign out before you remove the plugin, see [Uninstall](#uninstall).
+To sign out, or to switch account, run `opencode mcp logout ashby` from the project folder where the plugin is
+installed, or remove the account in `/connect` → Ashby. If it answers `MCP server not found: ashby`, OpenCode is still
+opening that folder: wait a few seconds and run it again. Then sign in again. To sign out before you remove the plugin, see [Uninstall](#uninstall).
 
 ## Use
 
@@ -189,7 +193,7 @@ Run `/ashby-status` first. Its last line is the next step.
 
 | Status or error | What to do |
 | --- | --- |
-| Connection: sign-in required | Run `/connect` and choose Ashby, then press `o` or Enter to open the link. In a terminal, `opencode mcp auth ashby` opens it automatically. |
+| Connection: sign-in required | Run `/connect` and choose Ashby, then press `o` or Enter to open the link. In a terminal, `opencode mcp auth ashby` opens it automatically: run it from the project folder, and if it answers `MCP server not found: ashby`, wait a few seconds and run it again. |
 | Connection: connecting | Wait a few seconds, then run `/ashby-status` again. |
 | Connection: failed | Check your network, then run `/ashby-status` again. With your own `mcp.servers.ashby` that has `"oauth": false`, remove that line: Ashby's server signs in only with OAuth. |
 | Connection: disabled | Enable `ashby` in `/mcps`, or remove `"disabled": true` from `mcp.servers.ashby` in `opencode.json`. |
@@ -207,7 +211,7 @@ Run `/ashby-status` first. Its last line is the next step.
 | A move or archive is refused | `ashby_change_application_stage` is off by default. See [Permissions](#permissions) to turn it on as an ask, or make the change in Ashby. |
 | Agents without default rules | Put the default rules shown by `/ashby-status` first in each listed agent's own permissions, in `opencode.json` or the agent's Markdown file, followed by your top-level rules for Ashby tools. |
 | OpenCode: untested | OpenCode is not 2.2.3, 2.2.4 or 2.2.5. Inside `>=2.2.3 <2.3.0` the plugin runs normally; outside it, it runs only because `allowUntestedHost` is set. If Ashby misbehaves, use a tested release. |
-| Signed in to the wrong Ashby account | Run `opencode mcp logout ashby` (or remove the account in `/connect` → Ashby), then sign in again. |
+| Signed in to the wrong Ashby account | Run `opencode mcp logout ashby` from the project folder (or remove the account in `/connect` → Ashby); if it answers `MCP server not found: ashby`, wait a few seconds and run it again. Then sign in again. |
 | Asked to sign in again after about an hour | Ashby may issue no refresh token, so the sign-in cannot be renewed. Sign in again with `/connect` → Ashby; your Ashby session may still be open in the browser. |
 | An Ashby tool is refused in `opencode run` | Nobody could answer its prompt. A read runs if you add an `allow` rule for it to the agent's own `permissions`. A write needs an interactive session: this plugin documents no `allow` for one, and a saved one would run it unasked in every agent of the project. |
 | A skill seems ignored, and status names a skill to rename or move | A skill of yours with the same id, such as `ashby`, replaces the plugin's. Rename or move it. |
@@ -242,8 +246,9 @@ Sign out while the plugin is still installed: once it is removed, OpenCode no lo
 `opencode mcp logout ashby` fails with `MCP server not found: ashby` and the sign-in stays in OpenCode's credential
 store.
 
-1. Sign out: `opencode mcp logout ashby`. Right after OpenCode starts or reloads, it can answer
-   `MCP server not found: ashby` for a few seconds; wait, then run it again.
+1. Sign out: `opencode mcp logout ashby` from the project folder where the plugin is installed, or remove the account
+   in `/connect` → Ashby. If it answers `MCP server not found: ashby`, OpenCode is still opening that folder: wait a
+   few seconds and run it again.
 2. Check: `opencode auth list` no longer lists **Ashby**.
 3. Remove the plugin: `opencode plugin remove @joe-broadhead/opencode-ashby`, then `opencode reload`.
    `opencode mcp list` no longer lists `ashby`.

@@ -84,11 +84,11 @@ calls in flight at most; on a rate limit wait a minute and call less, on a timeo
 
 ## Sign-in and status
 
-`/ashby-status`'s last line is the next step. To sign in, run `/connect` and choose Ashby, then press `o` or Enter to
-open the link (in a terminal, `opencode mcp auth ashby` opens it automatically). Never ask for a password or an API
-key. The wrong account: `opencode mcp logout ashby`, then sign in again. No Ashby tools, or a sign-in Ashby refuses: an
-Ashby Org Admin must turn on MCP Server (Admin > Organization Setup > Opt-In Features), and the user needs Elevated
-Access.
+`/ashby-status`'s last line is the next step. To sign in, run `/connect` and choose Ashby, then press `o` or Enter; from
+a terminal, run `opencode mcp auth ashby` in the project folder, and if it answers `MCP server not found: ashby`, wait a
+few seconds and run it again. Never ask for a password or an API key. To switch account, run `opencode mcp logout ashby`
+in the project folder or remove the account in `/connect`. No Ashby tools, or a sign-in Ashby refuses: an Org Admin must
+turn on MCP Server (Admin > Organization Setup > Opt-In Features) and give the user Elevated Access.
 
 ## Scripts
 

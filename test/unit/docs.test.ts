@@ -108,15 +108,46 @@ describe("docs", () => {
     }
   })
 
-  // Once the plugin is removed and OpenCode reloads, `mcp logout ashby` finds no server: sign out first.
-  test("the README's Uninstall signs out before it removes the plugin", () => {
+  // Once the plugin is removed and OpenCode reloads, `mcp logout ashby` finds no server: sign out first, and the
+  // /connect route works whatever folder the terminal is in.
+  test("the README's Uninstall signs out before it removes the plugin, with the /connect route and the cold-start caveat", () => {
     const uninstall = /## Uninstall(.*?)## Links/.exec(text("README.md"))?.[1] ?? ""
     const logout = uninstall.indexOf("opencode mcp logout ashby")
+    const connect = uninstall.indexOf("remove the account")
     const list = uninstall.indexOf("opencode auth list")
     const remove = uninstall.indexOf("opencode plugin remove @joe-broadhead/opencode-ashby")
     expect(logout).toBeGreaterThanOrEqual(0)
+    expect(connect).toBeGreaterThan(logout)
     expect(list).toBeGreaterThan(logout)
     expect(remove).toBeGreaterThan(list)
+    expect(uninstall).toContain("in `/connect` → Ashby")
+    expect(uninstall).toContain("OpenCode is still opening that folder: wait a few seconds and run it again")
+  })
+
+  // DR-2: `opencode mcp logout` and `mcp auth` work for a plugin-registered server, but only from the folder that
+  // loads the plugin, and a cold server answers "MCP server not found" until the folder's plugins have loaded. Every
+  // place that names one of the commands says so; the tests order above keeps sign-out before removal.
+  test("every place that names mcp logout or mcp auth carries the project-folder and cold-start caveat", () => {
+    const CAVEAT = /(?:in|from) the project folder/
+    const COLD = /MCP server not found: ashby[^.]*wait a few seconds/
+    for (const file of FILES) {
+      const raw = text(file)
+      for (const command of ["opencode mcp logout ashby", "opencode mcp auth ashby"]) {
+        if (!raw.includes(command)) continue
+        // The caveat may sit in the same section, not the same sentence: the sentences before and after count too.
+        const positions = [...raw.matchAll(new RegExp(command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"))].map((match) => match.index!)
+        for (const at of positions) {
+          const around = raw.slice(Math.max(0, at - 400), Math.min(raw.length, at + command.length + 400))
+          expect({ file, command, at, folder: CAVEAT.test(around), cold: COLD.test(around) }).toEqual({ file, command, at, folder: true, cold: true })
+        }
+      }
+    }
+    // The sign-in next step the model reads names the command too, so it carries the same caveat.
+    const status = readFileSync(join(ROOT, "src/status.ts"), "utf8").replace(/\$\{SERVER_NAME\}/g, "ashby")
+    const tools = readFileSync(join(ROOT, "src/host/tools-rpc.ts"), "utf8").replace(/\$\{SERVER_NAME\}/g, "ashby")
+    for (const source of [status, tools]) {
+      expect(source).toMatch(/opencode mcp auth ashby[^`]*project's folder[^`]*MCP server not found: ashby[^`]*wait a few seconds/)
+    }
   })
 
   // Every code the plugin's own code raises (the tools RPC's are in docs/scripting.md) has no service prefix and a row

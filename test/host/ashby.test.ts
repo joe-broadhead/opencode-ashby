@@ -21,7 +21,7 @@ import { agentRules, attempt, cleanup, effect, HOST_VERSION, session, startHost,
 const AGENT_RULES = defaultRules().map((rule, index, rules) => `  ${JSON.stringify(rule)}${index < rules.length - 1 ? "," : ""}`).join("\n")
 const AGENTS_NEXT_STEP = "Put the default rules shown by /ashby-status first in each listed agent's own permissions, in opencode.json or the agent's Markdown file, followed by your top-level rules for Ashby tools."
 const KEY = "sk-fake-host-test-0123456789"
-const SIGN_IN = "Run /connect and choose Ashby, then press o or Enter to open the link (in a terminal, opencode mcp auth ashby opens it automatically)."
+const SIGN_IN = "Run /connect and choose Ashby, then press o or Enter to open the link (in a terminal, opencode mcp auth ashby opens it automatically in this project's folder; if it answers MCP server not found: ashby, wait a few seconds and run it again)."
 const OFF = "change_application_stage and submit_mcp_feedback"
 const SIGN_IN_AGAIN = "Ashby needs a new sign-in. Choose this account to sign in again."
 

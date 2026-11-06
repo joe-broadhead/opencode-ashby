@@ -57,6 +57,10 @@ issue none, and then a sign-in cannot be renewed: the README's Troubleshooting h
 itself with Ashby's sign-in server on first use: there is no client ID to set, and OpenCode's defaults apply to
 everything else.
 
+Sign in and out with `/connect` → Ashby, or from a terminal in the project folder where the plugin is installed:
+`opencode mcp auth ashby` and `opencode mcp logout ashby`. If either answers `MCP server not found: ashby`, OpenCode
+is still opening that folder: wait a few seconds and run it again.
+
 To change anything else, define `mcp.servers.ashby` yourself at Ashby's URL. The plugin then **adopts** your entry
 unchanged, and `/ashby-status` shows "Connection: connected (…, your own mcp.servers.ashby, used unchanged)". The
 permission rules and skills still apply. Of your entry the plugin reads only its type, its URL and whether `oauth` is

@@ -5,7 +5,7 @@ import { checkHost } from "../../src/host-version.js"
 import { buildStatus, formatStatus, StatusRpc, type Status } from "../../src/status.js"
 import tui, { setupView, viewMessage, type ViewContext } from "../../src/tui.js"
 
-const SIGN_IN = "Run /connect and choose Ashby, then press o or Enter to open the link (in a terminal, opencode mcp auth ashby opens it automatically)."
+const SIGN_IN = "Run /connect and choose Ashby, then press o or Enter to open the link (in a terminal, opencode mcp auth ashby opens it automatically in this project's folder; if it answers MCP server not found: ashby, wait a few seconds and run it again)."
 
 const status = (overrides: Partial<Parameters<typeof buildStatus>[0]> = {}): Status =>
   buildStatus({ server: { status: "connected" }, source: { type: "plugin", url: "https://mcp.ashbyhq.com/mcp/v1", signIn: "oauth" }, tools: ["search_records_by_name"], host: checkHost("2.2.3", false), ...overrides })

@@ -6,7 +6,7 @@ import { VERSION } from "../../src/version.js"
 import { DENIED_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
 import { allow } from "./fake.js"
 
-const SIGN_IN = "Run /connect and choose Ashby, then press o or Enter to open the link (in a terminal, opencode mcp auth ashby opens it automatically)."
+const SIGN_IN = "Run /connect and choose Ashby, then press o or Enter to open the link (in a terminal, opencode mcp auth ashby opens it automatically in this project's folder; if it answers MCP server not found: ashby, wait a few seconds and run it again)."
 const NOTHING_TO_DO = "Nothing to do."
 /** The default rules as /ashby-status shows them: one rule a line, a JSON array body. */
 const AGENT_RULES = defaultRules().map((rule, index, rules) => `  ${JSON.stringify(rule)}${index < rules.length - 1 ? "," : ""}`).join("\n")
