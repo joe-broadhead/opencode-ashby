@@ -34,7 +34,8 @@ and `src/tui.ts` into `dist/tui.js`. Shared code, such as the status model and t
 The bundles have no chunks and no relative imports, because OpenCode reloads a plugin in place and keeps the modules it
 already loaded for unchanged paths: an entry that imported a sibling module could get an older copy of it. Only
 `@opencode/plugin`, OpenTUI, Solid and `node:` built-ins stay external, because the host provides them. `tsc` only
-typechecks. The package exports `.` (`dist/index.js`) and `./tui` (`dist/tui.js`), and ships no declaration files.
+typechecks. The package exports `.` (`dist/index.js`) and `./tui` (`dist/tui.js`), plus the three icon files the family icon kit
+adds (`./icon.svg`, `./icon-128.png`, `./icon-256.png`), and ships no declaration files.
 `dist/index.js` finds the skills at `../skills/` from its own URL, which is the package root's `skills/`.
 
 ## Setup
