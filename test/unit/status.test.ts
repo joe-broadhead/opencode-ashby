@@ -142,6 +142,8 @@ describe("buildStatus", () => {
     const missing = buildStatus({ ...base, agents: [{ id: "reviewer", permissions: [allow("*")] }] })
     expect(formatStatus(missing)).toContain(`- Access: ${POSTURE}; default rules missing in the agents listed below\n`)
     const problem = "RULES_NOT_ADDED: Ashby's default permission rules could not be added (boom), so Ashby tools may run without asking. Next step: Restart OpenCode."
+    // DR-7: with the rules not added, restarting is the fault's own step, even though an agent is listed too.
+    expect(buildStatus({ ...base, problems: [problem], agents: [{ id: "reviewer", permissions: [allow("*")] }] }).nextStep).toBe("Restart OpenCode.")
     expect(formatStatus(buildStatus({ ...base, problems: [problem] }))).toContain(`- Access: ${POSTURE}; default rules not added (see the OpenCode row)\n`)
   })
 

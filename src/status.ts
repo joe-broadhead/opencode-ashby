@@ -166,6 +166,10 @@ function nextStepOf(status: Omit<Status, "nextStep">): string {
   if (status.tools === 0 && status.deniedTools.length === 0) {
     return "Ashby lists no tools for this account. Ask an Ashby Org Admin to turn on MCP Server in Admin > Organization Setup > Opt-In Features, and to give you Elevated Access."
   }
+  // The rules not being added is the fault, even when agents are also unlisted: pasting the block cannot fix it, and
+  // its own next step (restart) is the one that can.
+  const rules = status.problems.find((problem) => problem.startsWith(RULES_NOT_ADDED))
+  if (rules) return rules.split(" Next step: ")[1] ?? AGENTS_NEXT_STEP
   if (status.unguardedAgents.length) return AGENTS_NEXT_STEP
   // A problem reads `CODE: What happened. Next step: What to do.`; its own next step becomes the status's.
   const problem = status.problems[0]?.split(" Next step: ")[1]
