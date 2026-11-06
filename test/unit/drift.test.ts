@@ -6,7 +6,8 @@ import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSy
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { DENIED_TOOLS, PARAMETERS, READ_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
+import { classify, DENIED_TOOLS, PARAMETERS, READ_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
+import { defaultRules, evaluate, type Rule } from "../../src/permissions.js"
 
 const SCRIPT = fileURLToPath(new URL("../../scripts/check-ashby-tools.mjs", import.meta.url))
 const TOOLS = fileURLToPath(new URL("../../src/ashby-tools.ts", import.meta.url))
@@ -15,6 +16,10 @@ const dir = mkdtempSync(join(tmpdir(), "ashby-drift-"))
 afterAll(() => rmSync(dir, { recursive: true, force: true }))
 
 const ALL = [...READ_TOOLS, ...WRITE_TOOLS, ...DENIED_TOOLS]
+const BASE_ALLOW: Rule = { action: "*", resource: "*", effect: "allow" }
+const wildcard = (pattern: string) => new RegExp(`^${pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*")}$`)
+/** The host hides a tool when the last rule matching its action on every resource denies. */
+const hidden = (rules: readonly Rule[], action: string) => rules.findLast((rule) => wildcard(rule.action).test(action) && wildcard(rule.resource).test("*"))?.effect === "deny"
 const recorded = () => (JSON.parse(readFileSync(FIXTURE, "utf8")) as { tools: { name: string }[] }).tools
 /** One tool in OpenCode's form, with a schema. */
 const opencode = (name: string, properties: Record<string, unknown> = { query: { type: "string" } }, required = ["query"], description = `Ashby ${name}`) => ({
@@ -48,6 +53,24 @@ describe("npm run drift", () => {
   test("PARAMETERS records only known tools, each as name, required mark and type", () => {
     expect(Object.keys(PARAMETERS).filter((name) => !ALL.includes(name))).toEqual([])
     for (const entries of Object.values(PARAMETERS)) for (const entry of entries) expect(entry).toMatch(/^[a-z][a-z0-9_]*\*?:[a-z<>|]+$/)
+  })
+
+  // The reconcile is a drop-in: replace this fixture with the captured live list, then fix what `npm run drift --
+  // --strict` and this test report, with no code change and no new test. Each tool the fixture lists must land on
+  // exactly one rule, with that class's effect, and every deny must be hidden from the model.
+  test("the fixture is reconcile-ready: every recorded tool has exactly one rule, and every deny is hidden", () => {
+    const rules = [BASE_ALLOW, ...defaultRules()]
+    for (const { name } of recorded()) {
+      // Exactly one rule: the tool is in exactly one class, and the default rules resolve it to that class's effect.
+      const lists = [READ_TOOLS, WRITE_TOOLS, DENIED_TOOLS].filter((list) => list.includes(name)).length
+      expect({ name, lists }).toEqual({ name, lists: 1 })
+      const effect = classify(name) === "denied" ? "deny" : classify(name) === "write" ? "ask" : "allow"
+      expect({ name, effect: evaluate(rules, `ashby_${name}`) }).toEqual({ name, effect })
+      // A deny hides the tool: the last rule that matches it denies on every resource.
+      if (effect === "deny") expect({ name, hidden: hidden(rules, `ashby_${name}`) }).toEqual({ name, hidden: true })
+    }
+    // A live list that adds a tool fails here; one that drops a tool is the drift script's and the pack test's.
+    expect(recorded().length).toBe(ALL.length)
   })
 
   test("the recorded list holds exactly the known tools, and shows no drift", () => {
