@@ -90,7 +90,7 @@
   },
   "jelly": {
     "title": "Ashby",
-    "summary": "Your Ashby candidates, pipeline, interviews and feedback.",
+    "summary": "Your Ashby candidates, pipeline, interviews and feedback; add a candidate, note or pipeline entry, asking first.",
     "icon": "assets/icon.svg",
     "tools": [
       {

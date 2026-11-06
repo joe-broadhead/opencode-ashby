@@ -1,7 +1,7 @@
 # Ashby for OpenCode
 
-Find and read your Ashby candidates, pipeline, interviews and feedback from OpenCode, through Ashby's official MCP
-server.
+Find and read your Ashby candidates, pipeline, interviews and feedback from OpenCode, and add a candidate, a note or
+a pipeline entry, each asking first, through Ashby's official MCP server.
 
 Unofficial; not affiliated with Ashby.
 
@@ -49,8 +49,9 @@ the link automatically. `/mcps` also offers the same sign-in.
 If either command answers `MCP server not found: ashby`, OpenCode is still opening that folder: wait a few seconds and
 run it again.
 
-When the sign-in expires and cannot be renewed, `/connect` marks the Ashby account as needing a new sign-in, and
-OpenCode shows its "MCP server needs authentication" notice.
+When the sign-in expires and cannot be renewed, `/connect` marks the Ashby account as needing a new sign-in while the
+account is still listed, and OpenCode shows its "MCP server needs authentication" notice; if OpenCode has removed the
+account, `/connect` offers the sign-in again.
 
 To sign out, or to switch account, run `opencode mcp logout ashby` from the project folder where the plugin is
 installed, or remove the account in `/connect` → Ashby. If it answers `MCP server not found: ashby`, OpenCode is still
@@ -134,8 +135,8 @@ So reads run, the 3 write tools ask before they run, and the two above don't run
 - `ashby_create_candidate`: a new candidate record that everyone with access to candidates sees.
 - `ashby_consider_candidate_for_job`: adds the candidate to a job's pipeline, which its hiring team sees. The job's
   first stage's automatic activities run, and some organisations email candidates there.
-- `ashby_add_note_to_candidate`: a note that everyone with access to the candidate's profile sees; a mention notifies
-  that colleague.
+- `ashby_add_note_to_candidate`: a note, or a reply, on the candidate's profile. Ashby may hold it as a draft for you
+  to confirm; once saved, everyone with access to the profile sees it, and a mentioned colleague is notified.
 
 Everything that comes later than these rules still wins: an agent's own stricter rules (Explore cannot use Ashby),
 your `permissions` in `opencode.json`, and your saved "Always allow" answers. In an unattended run such as

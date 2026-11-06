@@ -100,6 +100,28 @@ describe("docs", () => {
     for (const name of DENIED_TOOLS) expect(recipe.indexOf(`{ "action": "ashby_${name}", "resource": "*", "effect": "deny" }`)).toBeGreaterThan(ask)
   })
 
+  // DR-5: the two one-liners a person sees before installing say the plugin can change records, and that it asks.
+  test("the README's first line and the Jelly summary say the plugin changes records, with a prompt for each", () => {
+    expect(text("README.md")).toContain("add a candidate, a note or a pipeline entry, each asking first")
+    const { jelly } = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as { jelly: { summary: string } }
+    expect(jelly.summary).toMatch(/add a candidate, note or pipeline entry, asking first/)
+    expect(jelly.summary.length).toBeLessThanOrEqual(120)
+  })
+
+  // DR-4: a note may be a draft Ashby holds for the user to confirm, so the reach starts once it is saved.
+  test("the note's reach says Ashby may hold it as a draft, and that saving is what makes it visible", () => {
+    for (const file of ["README.md", "docs/configuration.md", "skills/ashby-write/SKILL.md"]) {
+      expect({ file, draft: /may hold (?:it|a note)?[^.]*draft/.test(text(file)), saved: /once saved[^.]*everyone with access/.test(text(file)) }).toEqual({ file, draft: true, saved: true })
+    }
+  })
+
+  // DR-9: /connect can only mark an account that is still listed.
+  test("the README's sign-in mark says it needs a listed account, and that /connect offers the sign-in otherwise", () => {
+    const readme = text("README.md")
+    expect(readme).toContain("while the account is still listed")
+    expect(readme).toContain("if OpenCode has removed the account, `/connect` offers the sign-in again")
+  })
+
   test("the docs sign in only with OAuth: no API key, no oauth block to copy, and no key or token anywhere", () => {
     expect(text("README.md")).toContain("No API key is needed or used.")
     expect(text("docs/configuration.md")).toContain("Ashby's server signs in only with OAuth")
