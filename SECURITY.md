@@ -74,22 +74,28 @@ Things to know:
 ## Scripts
 
 The tools RPC (`ashby.recruiting.tools`, see
-[docs/scripting.md](https://github.com/joe-broadhead/opencode-ashby/blob/HEAD/docs/scripting.md)) runs Ashby's
-known read tools for a script, with no model. It adds no authority:
+[docs/scripting.md](https://github.com/joe-broadhead/opencode-ashby/blob/HEAD/docs/scripting.md)) exposes every known
+Ashby tool as a method for a script, with no model, each with a class: read, write or destructive. It adds no
+authority:
 
-- A script names a session that names an agent, and runs as them. A tool that the agent's or the session's rules hide
-  from the model is refused. OpenCode's own executor then checks the call against the agent's rules, the session's
-  rules and saved approvals, as it does for the model. A session in another directory than the server answering the
-  call runs under the serving location's agent rules, and only a deny is refused in between: the README's known limits
-  say so.
-- An ask on a script's call is denied, not prompted: no one is there to answer it. The plugin's permission hook
-  changes only an ask on one of its own script calls in flight, only to a deny, and leaves every other call alone.
-- Only the known reads are methods. Ashby's write tools never are, nor `change_application_stage`, nor
-  `submit_mcp_feedback`, nor a tool that Ashby adds later, even with an allow rule.
+- A script names a session that names an agent, and runs as them. The rules that decide are the agent's, then the
+  session's, resolved before dispatch: only `allow` runs. An `ask` is refused with no prompt and no Ashby call, and a
+  `deny` is refused with no Ashby call. A saved "Always allow" is not part of those rules and does not authorise a
+  script; a script's grant is a rule in config, or a Jobs run session.
+- Making a tool a method does not make it reachable. A write's default rule asks, so a script needs an explicit
+  `allow` for its action; the two denied tools resolve to `deny` and are refused until that deny is changed.
+- OpenCode's own executor still checks an MCP call against the agent's rules, the session's rules and saved approvals.
+  A session in another directory than the server answering the call runs under the serving location's agent rules: the
+  README's known limits say so, and `docs/scripting.md` gives the `x-opencode-directory` header that names the location.
+- An inner ask on a script's call is denied, not prompted. The plugin's permission hook changes only an ask on one of
+  its own script calls in flight, only to a deny, and leaves every other call alone.
+- A tool that Ashby adds later is not a method, even with an allow rule; `describe` reports it as unclassified.
 - The call goes through OpenCode's own MCP connection and sign-in. The plugin never sees the token, and returns none.
 - Ashby's error text reaches the script only as the first line, at most 300 characters, with tokens and URL query
   strings removed.
 - OpenCode's `execute.before` and `execute.after` tool hooks, from any plugin, do not run for a script's call, so
-  another plugin's policy hook does not see it. A script's calls are not recorded in the session.
+  another plugin's policy hook does not see it. The plugin's own shapers apply the same result shaping it applies on
+  the model path; Ashby has no such hook, so both pass everything through. A script's calls are not recorded in the
+  session.
 - The RPC is reachable only by callers of the OpenCode server API, who already hold the server's full authority. The
   session is not a login: it scopes a script to what its agent may do.

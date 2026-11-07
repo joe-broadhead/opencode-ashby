@@ -32,3 +32,10 @@ All notable changes to this project are documented here. The format follows [Kee
 - The family icon kit's mark and its 128 and 256 pixel rasters, declared in `opencode.icons` and exported from the
   package, with `opencode.vendor` naming Ashby's domain: a display app may show Ashby's own logo from Ashby's site,
   and the package carries no vendor marks.
+
+### Changed
+
+- The tools RPC is v2: every known tool is scriptable under a prior explicit allow, each method carries its class,
+  `describe` takes a session and reports each method's permission, and `shapeInput` runs beside `shapeResult` so a
+  script's call reaches Ashby with the model path's arguments. A saved "Always allow" no longer authorises an ad-hoc
+  script: a grant is a rule in config, or a Jobs run session.

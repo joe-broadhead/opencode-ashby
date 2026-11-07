@@ -2,7 +2,7 @@ import { Plugin, type Mcp } from "@opencode/plugin"
 import { reasonOf } from "./redact.js"
 import { errorText, NAMESPACE_DESCRIPTION, PLUGIN_ID, SERVER_NAME } from "./constants.js"
 import { checkHost } from "./host-version.js"
-import { registerToolsRpc } from "./host/tools-rpc.js"
+import { registerToolsRpc, METHODS } from "./host/tools-rpc.js"
 import { watchIntegration } from "./integration.js"
 import { watchListing } from "./listing.js"
 import { parseOptions } from "./options.js"
@@ -109,8 +109,8 @@ export function createAshbyPlugin(seam: AshbySeam) {
       await registerSkills(ctx.skill, skills)
       await registerStatusCommand(ctx, read)
       await registerStatusRpc(ctx.rpc, read)
-      // Scripts call the known reads with no model, as a session and its agent.
-      const stopTools = await registerToolsRpc(ctx, { mcp: { server: SERVER_NAME, managed: () => source?.type !== "conflict" } })
+      // Scripts call every known tool with no model, as a session and its agent; the rules decide what runs.
+      const stopTools = await registerToolsRpc(ctx, { methods: METHODS, mcp: { server: SERVER_NAME, managed: () => source?.type !== "conflict" } })
       const stopWatch = watchIntegration(ctx, owned)
       return async () => {
         await stopWatch()

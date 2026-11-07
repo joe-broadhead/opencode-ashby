@@ -97,10 +97,11 @@ reason is cut to one line of 160 characters with no URL query.
 
 ## Tools RPC
 
-`ashby.recruiting.tools` lets a script call the known reads with no model; [Scripting](scripting.md) is the user's
-view. Its methods are `describe` and one per name in `READ_TOOLS`, named after the upstream tool. It is an allowlist:
-`WRITE_TOOLS`, `DENIED_TOOLS` and a tool that Ashby adds later are never methods. `describe` reports each method as
-available or not from what OpenCode lists now.
+`ashby.recruiting.tools` lets a script call every known tool with no model; [Scripting](scripting.md) is the user's
+view. Its methods are `describe` and one per name in `READ_TOOLS`, `WRITE_TOOLS` and `DENIED_TOOLS`, named after the
+upstream tool, each with its class. A tool that Ashby adds later is never a method. The rules are resolved before
+dispatch: an `ask` or a `deny` is refused with no call, and only an `allow` runs. `describe` reports each method's
+class, and — given a session — its permission, and whether OpenCode lists it now.
 
 A call is `{ sessionID, input }`. The module:
 

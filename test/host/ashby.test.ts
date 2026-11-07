@@ -5,7 +5,7 @@
 // starts, and the /connect entry. Each describe owns one host.
 import { ROOT } from "./isolate.js"
 import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from "bun:test"
-import { existsSync, realpathSync } from "node:fs"
+import { existsSync, mkdirSync, realpathSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, sep } from "node:path"
 import { Plugin } from "@opencode/plugin"
@@ -58,10 +58,10 @@ async function status(host: Host, sessionID: string) {
   })
 }
 
-/** Enough of the tools RPC's contract for the client to call describe and two reads. */
+/** Enough of the tools RPC's contract for the client to call describe and the methods these tests use. */
 const TOOLS_CONTRACT = {
   id: TOOLS_RPC_ID,
-  methods: Object.fromEntries(["describe", "get_pending_tasks", "search_records_by_name"].map((name) => [name, { input: { type: "object" }, output: { type: "object" } }])),
+  methods: Object.fromEntries(["describe", "get_pending_tasks", "search_records_by_name", "create_candidate", ...DENIED_TOOLS].map((name) => [name, { input: { type: "object" }, output: { type: "object" } }])),
   events: {},
 }
 type ToolsClient = Record<string, (input: object, options: object) => Promise<unknown>>
@@ -72,6 +72,10 @@ const scriptCall = (host: Host, method: string, input: object) =>
     (output) => JSON.stringify(output),
     (error: unknown) => JSON.stringify(error, Object.getOwnPropertyNames(error ?? {})),
   )
+
+/** A session whose own rules are the grant a script needs: a blanket deny, then one allow per method it may call. */
+const grantedSession = async (host: Host, permissions: Rule[]) =>
+  (await host.client.sessions.create({ agent: "build", permissions, location: host.location })).id
 
 const statusRpc = (host: Host) => (host.client.rpc as unknown as (definition: typeof StatusRpc) => { status: (input: object, options: object) => Promise<Record<string, unknown>> })(StatusRpc).status({}, { location: host.location })
 
@@ -146,17 +150,65 @@ describe(`the plugin on OpenCode ${HOST_VERSION}`, () => {
     }
   })
 
-  test("no script reaches a denied tool: the tools RPC has no such method, and describe never lists one", async () => {
-    const sessionID = await session(host)
-    const described = await scriptCall(host, "describe", {})
+  test("a script's read runs, and a write runs only in a session that names an allow for it", async () => {
+    const reader = await session(host)
+    const before = host.fake.calls.length
+    const read = JSON.parse(await scriptCall(host, "get_pending_tasks", { sessionID: reader, input: {} })) as { text: string }
+    expect(read.text).toBe("called get_pending_tasks")
+    expect(host.fake.calls.slice(before)).toEqual(["get_pending_tasks"])
+    const writer = await grantedSession(host, [{ action: "*", resource: "*", effect: "deny" }, { action: "ashby_create_candidate", resource: "*", effect: "allow" }])
+    const write = JSON.parse(await scriptCall(host, "create_candidate", { sessionID: writer, input: { query: "Example Candidate" } })) as { text: string }
+    expect(write.text).toBe("called create_candidate")
+    expect(host.fake.calls.at(-1)).toBe("create_candidate")
+  })
+
+  test("a write that would ask is refused before dispatch, with no Ashby call", async () => {
+    const before = host.fake.calls.length
+    const refused = JSON.parse(await scriptCall(host, "create_candidate", { sessionID: await session(host), input: { query: "Example Candidate" } })) as { message: string }
+    expect(refused.message).toContain("PERMISSION_DENIED: ashby_create_candidate would ask")
+    expect(host.fake.calls.length).toBe(before)
+  })
+
+  test("describe with a session reports each method's class and permission, and without one no permission", async () => {
+    const described = JSON.parse(await scriptCall(host, "describe", { sessionID: await session(host) })) as {
+      location: string
+      locationHint: string
+      methods: { name: string; class: string; permission?: string }[]
+    }
+    const find = (name: string) => described.methods.find((method) => method.name === name)!
+    expect(find("get_pending_tasks")).toMatchObject({ class: "read", permission: "allow" })
+    expect(find("create_candidate")).toMatchObject({ class: "write", permission: "ask" })
+    expect(find("change_application_stage")).toMatchObject({ class: "destructive", permission: "deny" })
+    expect(described.location).toBe(host.location.directory)
+    expect(described.locationHint).toContain("x-opencode-directory")
+    const plain = JSON.parse(await scriptCall(host, "describe", {})) as { methods: { permission?: string }[] }
+    expect(plain.methods.every((method) => !Object.hasOwn(method, "permission"))).toBe(true)
+  })
+
+  test("the location: describe reports where the call landed, and a call that names another location is answered there", async () => {
+    const elsewhere = join(ROOT, "elsewhere")
+    mkdirSync(elsewhere, { recursive: true })
+    const rpc = (host.client.rpc as unknown as (definition: object) => ToolsClient)(TOOLS_CONTRACT)
+    const there = (await rpc.describe!({}, { location: { directory: elsewhere } })) as { location: string }
+    expect(there.location).toBe(elsewhere)
+    // Without a location the call reaches the service's default location, which is why a script sends the header.
+    const fallback = (await rpc.describe!({}, {})) as { location: string }
+    expect(fallback.location).not.toBe(host.location.directory)
+  })
+
+  test("a denied tool is a method but never runs: a script call is refused before dispatch, and describe shows it denied", async () => {    const sessionID = await session(host)
+    const described = JSON.parse(await scriptCall(host, "describe", { sessionID })) as { methods: { name: string; class: string; permission: string }[] }
+    const call = (host.client.rpc as unknown as { call: (input: object) => Promise<unknown> }).call
     for (const tool of DENIED_TOOLS) {
-      expect(described).not.toContain(tool)
-      const call = (host.client.rpc as unknown as { call: (input: object) => Promise<unknown> }).call
+      expect(described.methods.find((method) => method.name === tool)).toMatchObject({ class: "destructive", permission: "deny" })
+      const before = host.fake.calls.length
       const outcome = await call({ rpcID: TOOLS_RPC_ID, method: tool, input: { sessionID, input: { query: "archive the candidate" } }, location: host.location }).then(
         (output) => ({ ran: true, output }),
         (error: unknown) => ({ ran: false, error: JSON.stringify(error, Object.getOwnPropertyNames(error ?? {})) }),
       )
       expect(outcome).toMatchObject({ ran: false })
+      expect(JSON.stringify(outcome)).toContain("PERMISSION_DENIED")
+      expect(host.fake.calls.length).toBe(before)
       expect(host.fake.calls).not.toContain(tool)
     }
   })

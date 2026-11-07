@@ -89,11 +89,15 @@ Two skills teach the model to use Ashby well:
 
 ### Scripts
 
-A script or a cron job can call Ashby's read tools with no model, through `opencode api`. It runs as a session and its
-agent, under that agent's permission rules and the session's own. Write tools are never available to scripts:
+A script or a cron job can call every known Ashby tool with no model, through `opencode api`. It runs as a session
+and its agent, under that agent's permission rules and the session's own. Only a rule that resolves to `allow` runs: a
+write, whose default rule asks, needs an explicit `allow` in the session's or the agent's rules, and the two denied
+tools need their deny removed. An `ask` is refused before anything reaches Ashby, and a saved "Always allow" does not
+authorise a script.
 
 ```sh
 opencode api post /api/rpc/ashby.recruiting.tools/get_pending_tasks \
+  -H "x-opencode-directory:$PWD" \
   -d '{"input":{"sessionID":"ses_…","input":{}}}'
 ```
 
