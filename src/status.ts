@@ -1,12 +1,10 @@
 import type { Plugin, Rpc } from "@opencode/plugin"
-import { DISPLAY_NAME, PLUGIN_ID, SERVER_NAME, TESTED_HOSTS } from "./constants.js"
+import { codeText, DISPLAY_NAME, PLUGIN_ID, SERVER_NAME, TESTED_HOSTS } from "./constants.js"
 import { isSupportedHost, type HostCheck } from "./host-version.js"
 import { classify, DENIED_TOOLS, WRITE_TOOLS } from "./ashby-tools.js"
 import { defaultRules, unguardedAgents, type Rule } from "./permissions.js"
 import { cut, oneLine, shortReason } from "./redact.js"
 import { VERSION } from "./version.js"
-
-export { shortReason }
 
 /** The shared status labels in machine form; `/ashby-status` shows them as `sign-in required` and so on. */
 type State = "connected" | "sign_in_required" | "connecting" | "disabled" | "failed" | "not_configured" | "conflict"
@@ -303,7 +301,7 @@ export async function readStatus(
 function unavailable(error: unknown) {
   const reason = shortReason(error instanceof Error ? error.message : String(error))
   return {
-    message: `STATUS_UNAVAILABLE: Could not read Ashby's status${reason ? ` (${reason})` : ""}.`,
+    message: codeText("STATUS_UNAVAILABLE", `Could not read Ashby's status${reason ? ` (${reason})` : ""}.`),
     nextStep: "Restart OpenCode, then run /ashby-status again.",
   }
 }

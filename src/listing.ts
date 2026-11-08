@@ -1,7 +1,6 @@
 import type { Plugin } from "@opencode/plugin"
 import { SERVER_NAME } from "./constants.js"
-
-const RESUBSCRIBE_MS = 5_000
+import { delay, RESUBSCRIBE_MS } from "./watch.js"
 
 /**
  * Notes when the `ashby` server's status last changed, so status can tell a server that is still listing its tools from
@@ -30,15 +29,3 @@ export function watchListing(ctx: { readonly event: Pick<Plugin.Context["event"]
     },
   }
 }
-
-const delay = (ms: number, signal: AbortSignal) =>
-  new Promise<void>((resolve) => {
-    if (signal.aborted) return resolve()
-    const done = () => {
-      clearTimeout(timer)
-      signal.removeEventListener("abort", done)
-      resolve()
-    }
-    const timer = setTimeout(done, ms)
-    signal.addEventListener("abort", done, { once: true })
-  })
