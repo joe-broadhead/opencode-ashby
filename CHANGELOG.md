@@ -21,12 +21,13 @@ All notable changes to this project are documented here. The format follows [Kee
   without the default rules, the OpenCode check and one next step. A skill of yours with one of the plugin's ids is
   named, with a next step.
 - The status RPC `ashby.recruiting/status`, with the fields this family of plugins shares.
-- The tools RPC `ashby.recruiting.tools`, which lets scripts call Ashby's read tools with no model, as a session and
-  its agent.
+- The tools RPC `ashby.recruiting.tools`, which lets scripts call every known Ashby tool with no model, as a session
+  and its agent, each method under a prior explicit allow.
 - Two skills: `ashby` (finding candidates, jobs and applications, filters and counts, interview prep, what you owe,
   citing, and the rules for candidate data) and `ashby-write` (whom each change reaches, said before the call, with
   OpenCode's permission prompt as the yes).
-- The option `allowUntestedHost`, and a host check for OpenCode `>=2.2.3 <2.3.0`, tested on 2.2.3, 2.2.4 and 2.2.5.
+- The option `allowUntestedHost`, and a host check for OpenCode `>=2.2.3 <2.3.0`, tested on 2.2.3, 2.2.4, 2.2.5 and
+  2.2.6.
 - A `jelly` declaration for Jelly: the tools with their default effects, the skills, the sign-in, a summary and an
   icon.
 - The family icon kit's mark and its 128 and 256 pixel rasters, declared in `opencode.icons` and exported from the

@@ -55,28 +55,29 @@ describe("npm run drift", () => {
     for (const entries of Object.values(PARAMETERS)) for (const entry of entries) expect(entry).toMatch(/^[a-z][a-z0-9_]*\*?:[a-z<>|]+$/)
   })
 
-  // The reconcile is a drop-in: replace this fixture with the captured live list, then fix what `npm run drift --
-  // --strict` and this test report, with no code change and no new test. Each tool the fixture lists must land on
-  // exactly one rule, with that class's effect, and every deny must be hidden from the model.
-  test("the fixture is reconcile-ready: every recorded tool has exactly one rule, and every deny is hidden", () => {
+  // The reconcile is a drop-in: save the server's `tools/list` response over this fixture, then fix what `npm run
+  // drift -- --strict` and this test report. Each tool the list holds must land on exactly one rule with that class's
+  // effect, every deny must be hidden, and every known tool must still be listed; a difference is named here, one tool
+  // at a time, so the failing message is the work list.
+  test("replacing test/unit/ashby-tools.json with a saved tools/list is the whole reconcile", () => {
     const rules = [BASE_ALLOW, ...defaultRules()]
-    for (const { name } of recorded()) {
-      // Exactly one rule: the tool is in exactly one class, and the default rules resolve it to that class's effect.
-      const lists = [READ_TOOLS, WRITE_TOOLS, DENIED_TOOLS].filter((list) => list.includes(name)).length
-      expect({ name, lists }).toEqual({ name, lists: 1 })
-      const effect = classify(name) === "denied" ? "deny" : classify(name) === "write" ? "ask" : "allow"
-      expect({ name, effect: evaluate(rules, `ashby_${name}`) }).toEqual({ name, effect })
-      // A deny hides the tool: the last rule that matches it denies on every resource.
-      if (effect === "deny") expect({ name, hidden: hidden(rules, `ashby_${name}`) }).toEqual({ name, hidden: true })
-    }
-    // A live list that adds a tool fails here; one that drops a tool is the drift script's and the pack test's.
-    expect(recorded().length).toBe(ALL.length)
+    const live = recorded().map((tool) => tool.name)
+    const unclassified = live.filter((name) => classify(name) === "unknown")
+    const unlisted = ALL.filter((name) => !live.includes(name))
+    const listsOf = (name: string) => [READ_TOOLS, WRITE_TOOLS, DENIED_TOOLS].filter((list) => list.includes(name)).length
+    const misplaced = live.filter((name) => listsOf(name) !== 1).map((name) => ({ name, lists: listsOf(name) }))
+    const wrongEffect = live
+      .filter((name) => classify(name) !== "unknown")
+      .map((name) => ({ name, effect: evaluate(rules, `ashby_${name}`) }))
+      .filter(({ name, effect }) => effect !== (classify(name) === "denied" ? "deny" : classify(name) === "write" ? "ask" : "allow"))
+    const notHidden = DENIED_TOOLS.filter((name) => live.includes(name) && !hidden(rules, `ashby_${name}`))
+    // Each list names its own difference; an empty report means the table, the rules and the file agree.
+    expect({ unclassified, unlisted, misplaced, wrongEffect, notHidden }).toEqual({ unclassified: [], unlisted: [], misplaced: [], wrongEffect: [], notHidden: [] })
   })
 
-  test("the recorded list holds exactly the known tools, and shows no drift", () => {
+  test("the fixture is the raw tools/list form the guide names, and shows no drift", () => {
     expect(recorded().map((tool) => tool.name).sort()).toEqual([...ALL].sort())
     const { code, out } = drift({ tools: recorded() }, ["--strict"])
-    expect(out).toContain("Not checked: this list gives no input schemas")
     expect([code, out.trim().split("\n").at(-1)]).toEqual([0, "No drift."])
   })
 

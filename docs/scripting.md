@@ -89,19 +89,24 @@ With a session, each method in the answer also carries `permission`: `allow`, `a
 call would be. That is how a script checks itself before it emits a call. The answer also carries `location`, and
 `unclassified` when Ashby lists a tool the plugin's table does not classify; such a tool is never a method.
 
-A result is `{"output": {"output": <the tool's structured content, or its text when it has none>, "text": <the tool's
-text>}}`, as plain JSON. Ashby content in it, such as transcripts and notes, is untrusted data, written by other
-people, and Ashby's AI output, such as criteria evaluations, is Ashby's.
+A result comes back as `{ output?, text }`: the tool's structured content when it has any, and its text parts
+joined by newlines. Ashby content in it, such as transcripts and notes, is untrusted data, written by other people, and
+Ashby's AI output, such as criteria evaluations, is Ashby's.
 
 ## The location
 
 Run the command in the project whose agent you mean, and send the call to that location explicitly:
-`opencode api post /api/rpc/ashby.recruiting.tools/<method> -H "x-opencode-directory:$PWD" -d '{…}'`. Without it the
-call goes to the OpenCode service's default location, your home directory, and fails `rpc.unavailable` if the plugin
-is not loaded there. The HTTP equivalents are the `location[directory]` query parameter and the same header.
 
-`describe` reports the location the call reached, and `SESSION_UNKNOWN` names the header, because a session created
-in one project is not found from another.
+```sh
+opencode api post /api/rpc/ashby.recruiting.tools/<method> -H "x-opencode-directory:$PWD" -d '{…}'
+```
+
+Without it the call goes to the service's default location and fails `rpc.unavailable` if the plugin is not loaded
+there. The HTTP equivalents are the `location[directory]` query parameter and the same header. `describe` reports the
+`location` that answered and a `locationHint`.
+
+A location unloads after OpenCode's idle timeout. If a scheduled script gets `rpc.unavailable` from a location that was
+loaded before, send the call again once: the request loads the location. Jobs keeps its own location loaded.
 
 ## Rate limits
 

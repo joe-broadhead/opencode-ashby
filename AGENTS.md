@@ -9,8 +9,9 @@ It has no tool of its own. Read [docs/architecture.md](docs/architecture.md) bef
 
 - **Public API only.** Use only the public `@opencode/plugin` 2.2.3 API. `opencode.host` in `package.json` and
   `SUPPORTED_HOST` in `src/constants.ts` both say exactly `>=2.2.3 <2.3.0`, never `^2.2.3`. `TESTED_HOSTS` in
-  `src/constants.ts` is the one list of tested releases (2.2.3, 2.2.4 and 2.2.5): status calls only those tested, and
-  the host and pack stages and CI run on each. Inside the range an untested release still starts.
+  `src/constants.ts` is the one list of tested releases (2.2.3, 2.2.4, 2.2.5 and 2.2.6): status calls only those
+  tested, and the host and pack stages and CI run on each. Inside the range an untested release, such as 2.2.99, still
+  starts.
 - **Greenfield.** No legacy, migration code, compatibility shim, dual path or deprecated alias, and nothing dead.
   Delete rather than deprecate.
 - **No peers, no runtime dependencies, no lifecycle scripts.** `@opencode/plugin`, `@opencode/sdk` and
@@ -26,9 +27,10 @@ It has no tool of its own. Read [docs/architecture.md](docs/architecture.md) bef
   its base allow. Agents that miss the rules are named in status with the per-agent fix, never patched, and the fix
   never goes in the top-level `permissions`.
 - **Transforms are cheap, synchronous and never throw.** Record failures for status instead.
-- **Errors** read `CODE: What happened. Next step: What to do.`, built by `ashbyError` or `errorText`. Codes have no
-  service prefix; shared failures use the shared names (`HOST_UNTESTED`, `OPTIONS_INVALID`, `STATUS_UNAVAILABLE`,
-  `SKILLS_INVALID`).
+- **Errors** read `CODE: What happened. Next step: What to do.`, built by `ashbyError`, `errorText` or `codeText`.
+  `CODES` in `src/constants.ts` is the one table: the helpers take its `PluginCode`, so a code outside it does not
+  compile, and the README's `Errors` table is checked equal to it in both directions. Codes have no service prefix;
+  shared failures use the shared names (`HOST_UNTESTED`, `OPTIONS_INVALID`, `STATUS_UNAVAILABLE`, `SKILLS_INVALID`).
 - **Status.** `src/status.ts` builds one model for `/ashby-status`, the `/ashby` dialog and the status RPC. The
   RPC keeps the fields every plugin of this family shares, `version`, `host` (`version`, `range`, `tested`), `state`,
   `unguardedAgents` and `nextStep`, under those names. It never shows OpenCode's text for a needed sign-in, cuts a
@@ -39,9 +41,11 @@ It has no tool of its own. Read [docs/architecture.md](docs/architecture.md) bef
   `offline_access` included, and OpenCode requests them as given. Only the tests' seam sets `oauth: false`.
 - **A user's own server entry** is read for its type, URL and whether `oauth` is `false`, never its `headers`.
 - **`src/ashby-tools.ts` is the one record of Ashby's tools**, and has no runtime imports. Everything else derives from
-  it; `jelly.tools` and the skills are checked against it. Its names come from Ashby's docs and `PARAMETERS` is empty
-  until a tool list from a signed-in server is recorded: reconciling is a change to that file,
-  `test/unit/ashby-tools.json`, `jelly.tools` and the skills, which `npm run drift` guides. `src/constants.ts` has no
+  it; `jelly.tools`, the skills and the default rules are checked against it. Its names come from Ashby's docs, and
+  `PARAMETERS` is empty until a tool list from a signed-in server is recorded. `test/unit/ashby-tools.json` is a raw
+  `tools/list` response (`{ "tools": [ { "name", "description", "inputSchema"?, "annotations"? } ] }`) holding the
+  published names and descriptions; replacing it with a saved one is the whole reconcile, and the drift test names each
+  difference. `npm run drift -- <saved.json>` reports the rest. `src/constants.ts` has no
   imports at all: `scripts/check.mjs` loads it with Node's type stripping.
 - **Candidate data is personal data.** Tests, fixtures, docs and skills use only invented people and companies. The
   skills label Ashby's AI output as Ashby's and Metaview's AI notes as Metaview's, never infer protected
@@ -76,7 +80,11 @@ It has no tool of its own. Read [docs/architecture.md](docs/architecture.md) bef
 
 ## Forbidden in this repository
 
-`scripts/check-forbidden.mjs` enforces this list in `src/`, `test/`, `scripts/` and `dist/`:
+`scripts/check-forbidden.mjs` enforces this list in `src/`, `test/`, `scripts/` and `dist/`; `test/unit/docs.test.ts`
+enforces the same wording rules over the shipped docs:
+
+- internal wording: a decision attributed to the owner, the lead or a reviewer; a lane's name or identifier; and a
+  `hey-jelly` issue reference;
 
 - dispatch-lease, catalog-ownership and text-only markers, and tool `options.mcp` delegation;
 - `Plugin.image` and profile images;

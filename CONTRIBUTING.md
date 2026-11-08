@@ -116,20 +116,23 @@ list from a signed-in server is saved, reconciling is a data change, made with t
 ### Drift check
 
 The drift check is a manual maintainer check. It is not part of `npm run check` or CI, nothing at runtime depends on
-it, and it never calls Ashby or reads a credential. Save the tool list first, by either of these:
+it, and it never calls Ashby or reads a credential.
 
-- in an OpenCode project signed in to Ashby, a throwaway local plugin that writes `ctx.tool.list()`'s `ashby` tools
-  (`name`, `description`, `inputSchema`) as `{ "tools": [...] }` to a file;
-- an MCP client's `tools/list` result for `https://mcp.ashbyhq.com/mcp/v1`, saved as JSON, which also carries Ashby's
-  annotations.
-
-A list in the research form, `{ "tools": [{ "name", "annotations", "inputs": ["name*:type", …] }] }`, works too, and
-`annotations` and `inputs` may be missing, as in `test/unit/ashby-tools.json`. Keep a saved list out of this
-repository, except as that fixture, which lists names and input schemas only. Then:
+**One form, one command.** A saved list is the server's own `tools/list` response: `{ "tools": [ { "name",
+"description", "inputSchema"?, "annotations"? } ] }`, exactly as an MCP client prints it. Save it with the MCP
+Inspector's CLI, which is the command this file names:
 
 ```sh
-npm run drift -- <tools.json>
-npm run drift -- <tools.json> --strict
+npx -y @modelcontextprotocol/inspector --cli https://mcp.ashbyhq.com/mcp/v1 \
+  --method tools/list --header "Authorization: Bearer $ASHBY_TOKEN" > tools-list.json
+```
+
+A list written from an OpenCode project signed in to Ashby, `ctx.tool.list()`'s `ashby` tools as
+`{ "tools": [ { "name", "description", "inputSchema" } ] }`, is the same form and works too. Then:
+
+```sh
+npm run drift -- tools-list.json
+npm run drift -- tools-list.json --strict
 ```
 
 - It needs Node.js 22.18 or later, which loads `src/ashby-tools.ts` by stripping its types. Keep that file free of
@@ -146,9 +149,11 @@ npm run drift -- <tools.json> --strict
 - Exit codes: `0` for no drift, or drift without `--strict`; `1` for drift with `--strict`; `2` for a usage or file
   error.
 
-`test/unit/ashby-tools.json` records the list the plugin was built from, and the drift test runs the check on it with
-`--strict`, so `src/ashby-tools.ts` must match it exactly. Replace that file with a newly saved list (the same fields,
-and a `source` line with no local path) when Ashby changes its tools.
+`test/unit/ashby-tools.json` is the same form, holding the names and descriptions Ashby publishes today: it replaces
+cleanly with the saved response. The reconcile is one step — save the response over that file, run `npm run check` —
+and the failure names each difference: a name with no list (`unclassified`), a known tool the list no longer has
+(`unlisted`), a name in two lists or none (`misplaced`), a rule that resolves to the wrong effect (`wrongEffect`), and
+a deny that is not hidden (`notHidden`). Fix each in `src/ashby-tools.ts`, then `jelly.tools` and the skills.
 
 ### Updating the tool lists
 
