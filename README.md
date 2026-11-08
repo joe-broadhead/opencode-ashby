@@ -17,8 +17,9 @@ Unofficial; not affiliated with Ashby.
   stay hidden unless you were granted them.
 - Ashby's MCP server is in beta, and Ashby may change its tools without notice. A tool Ashby adds asks before it runs
   until a release of this plugin knows it.
-- The 17 tools, and which of them read and write, come from Ashby's own help page until a release reconciles them with
-  a live tool list. Treat a tool's class as Ashby's description of it, not as its annotation.
+- The 12 read, 3 write and 2 denied tools, and their classes, come from Ashby's own help page, which gives no
+  annotations: treat a class as Ashby's description of the tool, not as its annotation. A tool Ashby adds asks before
+  it runs, and status names it as unknown.
 - Ashby stores and processes its data in the United States.
 
 ## Install
@@ -150,6 +151,29 @@ Agents that exist only in your own config, and agents added by plugins that load
 adds its rules, so Ashby tools run there without asking. `/ashby-status` and `/ashby` name those agents and show the
 default rules to put first in each one's own `permissions`. Do not put them in the top-level `permissions`, which would
 loosen Explore.
+
+The whole block, in the order the plugin inserts it. `/ashby-status` prints the same list for the agents it names, so
+you can paste it into an agent's own `permissions`:
+
+```json
+[
+  { "action": "ashby_*", "resource": "*", "effect": "ask" },
+  { "action": "ashby_describe_object_fields", "resource": "*", "effect": "allow" },
+  { "action": "ashby_filter_records", "resource": "*", "effect": "allow" },
+  { "action": "ashby_get_candidate", "resource": "*", "effect": "allow" },
+  { "action": "ashby_get_interview_details", "resource": "*", "effect": "allow" },
+  { "action": "ashby_get_interview_plan", "resource": "*", "effect": "allow" },
+  { "action": "ashby_get_job_pipeline", "resource": "*", "effect": "allow" },
+  { "action": "ashby_get_pending_tasks", "resource": "*", "effect": "allow" },
+  { "action": "ashby_get_record_details", "resource": "*", "effect": "allow" },
+  { "action": "ashby_get_submitted_feedback", "resource": "*", "effect": "allow" },
+  { "action": "ashby_get_upcoming_interviews", "resource": "*", "effect": "allow" },
+  { "action": "ashby_search_product_docs", "resource": "*", "effect": "allow" },
+  { "action": "ashby_search_records_by_name", "resource": "*", "effect": "allow" },
+  { "action": "ashby_change_application_stage", "resource": "*", "effect": "deny" },
+  { "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "deny" }
+]
+```
 [Configuration](https://github.com/joe-broadhead/opencode-ashby/blob/HEAD/docs/configuration.md#permissions) has a
 worked example and permission recipes.
 
@@ -221,22 +245,43 @@ Run `/ashby-status` first. Its last line is the next step.
 | An Ashby tool is refused in `opencode run` | Nobody could answer its prompt. A read runs if you add an `allow` rule for it to the agent's own `permissions`. A write needs an interactive session: this plugin documents no `allow` for one, and a saved one would run it unasked in every agent of the project. |
 | A skill seems ignored, and status names a skill to rename or move | A skill of yours with the same id, such as `ashby`, replaces the plugin's. Rename or move it. |
 | `/ashby` is missing | The plugin did not start. Run `/plugins` to see the error. |
-| `OPTIONS_INVALID` | An option is unknown or has a wrong value. The message names the option and the accepted values. |
-| `HOST_UNTESTED` | Your OpenCode is outside `>=2.2.3 <2.3.0`, so the plugin did not start. Use OpenCode `>=2.2.3 <2.3.0`, or set `"allowUntestedHost": true` to run anyway. |
-| `STATUS_UNAVAILABLE` | The status could not be read, or the plugin is not running. Follow the next step in the message. |
-| `SKILLS_INVALID` | A skill file in the package is missing or broken. Reinstall the plugin. |
-| `SERVER_NOT_REGISTERED` | The plugin could not register the `ashby` server. Restart OpenCode. |
-| `RULES_NOT_ADDED` | The default permission rules could not be added, so Ashby tools may run without asking. Restart OpenCode. |
+| An error code such as `OPTIONS_INVALID` | See [Errors](#errors) for the code, where it comes from and what to do. |
 
-A script's errors from the tools RPC have their own codes, listed in
-[Scripting](https://github.com/joe-broadhead/opencode-ashby/blob/HEAD/docs/scripting.md#errors).
+## Errors
+
+Every error reads `CODE: What happened. Next step: What to do.` The codes are the plugin's own one table. `setup` and
+`status` codes come from the plugin; `rpc` codes are a refusal from the tools RPC for scripts, which
+[Scripting](https://github.com/joe-broadhead/opencode-ashby/blob/HEAD/docs/scripting.md#errors) explains in detail.
+
+| Code | Surface | When |
+| --- | --- | --- |
+| `HOST_UNTESTED` | setup | OpenCode is outside the supported range and `allowUntestedHost` is not set. |
+| `OPTIONS_INVALID` | setup | An option is unknown or has a wrong value. |
+| `SKILLS_INVALID` | setup | A skill file is missing or broken; the plugin still starts. |
+| `SERVER_NOT_REGISTERED` | setup | The `ashby` server could not be registered. |
+| `RULES_NOT_ADDED` | setup | The default permission rules could not be added. |
+| `STATUS_UNAVAILABLE` | status | The status could not be read, or the plugin is not running. |
+| `SESSION_UNKNOWN` | rpc | The session does not exist in this location. |
+| `SESSION_AGENT_REQUIRED` | rpc | The session names no agent, or one that does not exist. |
+| `PERMISSION_DENIED` | rpc | The last matching rule is an `ask` or a `deny`; refused before dispatch. |
+| `SERVER_CONFLICT` | rpc | `mcp.servers.ashby` is defined at another URL. |
+| `AUTH_REQUIRED` | rpc | The `ashby` server needs a sign-in. |
+| `CONNECTING` | rpc | The `ashby` server is still connecting. |
+| `CONNECTION_FAILED` | rpc | The `ashby` server could not connect. |
+| `DISABLED` | rpc | The `ashby` server is disabled. |
+| `NOT_REGISTERED` | rpc | The `ashby` server is not registered. |
+| `TOOL_UNAVAILABLE` | rpc | The server is connected but OpenCode does not list the tool. |
+| `UPSTREAM_ERROR` | rpc | Ashby answered with an error, such as an invalid input or a rate limit. |
+| `CANCELLED` | rpc | The request was cancelled. |
+
+The status RPC's own error is `unavailable`, with a next step, when the status cannot be read.
 
 ## Known limits
 
-- **The tool table comes from Ashby's help page.** Ashby lists no annotations, and this release has not been
-  reconciled with a live tool list, so a tool Ashby marks as changing data could run here as a read until a release
-  does. `test/unit/ashby-tools.json` records the list, and `npm run drift -- <tools.json> --strict` is the check that
-  reconciles it.
+- **The tool table comes from Ashby's help page.** Ashby publishes no annotations, so a class is a judgement from
+  Ashby's description of the tool. A tool Ashby adds asks before it runs and is counted as unknown; a tool Ashby marks
+  as changing data could run here as a read until a release knows it. `CONTRIBUTING.md` has the check that reconciles
+  the table with a saved tool list.
 - **A script's read can cross projects.** A script's session may belong to another directory than the OpenCode server
   answering it, and the read then runs under the serving location's agent rules; only a `deny` is refused in between.
   Run scripts in the project whose agent you mean. This is in the module shared with the other plugins, not in this

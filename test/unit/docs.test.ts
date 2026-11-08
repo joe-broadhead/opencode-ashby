@@ -5,7 +5,10 @@ import { describe, expect, test } from "bun:test"
 import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { DENIED_TOOLS, READ_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
+import { CODES, TESTED_HOSTS, UNTESTED_EXAMPLE } from "../../src/constants.js"
+import { DENIED_TOOLS, PARAMETERS, READ_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
+import { METHODS, NEXT_STEPS, TOOLS_RPC_ID } from "../../src/host/tools-rpc.js"
+import { defaultRules } from "../../src/permissions.js"
 
 const ROOT = fileURLToPath(new URL("../..", import.meta.url))
 // Everything a user or the model reads about the current release.
@@ -19,7 +22,8 @@ const FILES = [
   ...readdirSync(join(ROOT, "skills")).map((name) => `skills/${name}/SKILL.md`),
 ]
 const KNOWN = [...READ_TOOLS, ...WRITE_TOOLS, ...DENIED_TOOLS]
-const text = (file: string) => readFileSync(join(ROOT, file), "utf8").replace(/\s+/g, " ")
+const raw = (file: string) => readFileSync(join(ROOT, file), "utf8")
+const text = (file: string) => raw(file).replace(/\s+/g, " ")
 const DENY_RULE = '{ "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "deny" }'
 const OPT_IN = '{ "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "ask" }'
 
@@ -172,29 +176,123 @@ describe("docs", () => {
     }
   })
 
-  // Every code the plugin's own code raises (the tools RPC's are in docs/scripting.md) has no service prefix and a row
-  // in the configuration guide's Errors table.
-  test("the configuration guide documents every error code the plugin raises, none with a service prefix", () => {
-    const sources = readdirSync(join(ROOT, "src")).filter((name) => name.endsWith(".ts"))
-    const codes = new Set(sources.flatMap((name) => [...readFileSync(join(ROOT, "src", name), "utf8").matchAll(/(?:ashbyError|errorText)\(\s*"([A-Z][A-Z_]+)"/g)].map((match) => match[1]!)))
-    expect(codes.size).toBeGreaterThan(3)
-    const errors = /## Errors(.*?)## /.exec(text("docs/configuration.md"))?.[1] ?? ""
-    const troubleshooting = /## Troubleshooting(.*?)## /.exec(text("README.md"))?.[1] ?? ""
-    for (const code of codes) {
-      expect(code).not.toStartWith("ASHBY_")
-      expect(errors).toContain(`| \`${code}\` |`)
-      // Every code the plugin raises has a README troubleshooting row too.
-      expect({ code, inReadme: troubleshooting.includes(`| \`${code}\` |`) }).toEqual({ code, inReadme: true })
-    }
+  // R6: one typed code table (CODES in src/constants.ts). `ashbyError`, `errorText` and `codeText` take a PluginCode,
+  // so a code outside it does not compile; this finds any code that escaped the helpers, and keeps the README's table
+  // equal to the table in both directions.
+  test("every code raised in src/ is in CODES, and every non-rpc code in CODES is raised", () => {
+    const sources = readdirSync(join(ROOT, "src")).filter((name) => name.endsWith(".ts")).map((name) => [name, readFileSync(join(ROOT, "src", name), "utf8")] as const)
+    const found = new Set(sources.flatMap(([, source]) => [...source.matchAll(/(?:ashbyError|errorText|codeText)\(\s*"([A-Z][A-Z_]+)"/g)].map((match) => match[1]!)))
+    // A code written into a message template, such as `STATUS_UNAVAILABLE: ...`, is caught here too.
+    for (const [, source] of sources) for (const match of source.matchAll(/`([A-Z][A-Z0-9]*_[A-Z0-9_]+): /g)) found.add(match[1]!)
+    expect([...found].filter((code) => !(code in CODES))).toEqual([])
+    const declared = Object.entries(CODES).filter(([, entry]) => entry.surface !== "rpc").map(([code]) => code)
+    expect(declared.filter((code) => !found.has(code))).toEqual([])
   })
 
-  test("the configuration guide's Errors table lists only codes the plugin raises", () => {
-    const sources = readdirSync(join(ROOT, "src")).filter((name) => name.endsWith(".ts") && name !== "tools-rpc.ts")
-    const raised = sources.map((name) => readFileSync(join(ROOT, "src", name), "utf8")).join("\n")
-    const errors = /## Errors(.*?)## /.exec(text("docs/configuration.md"))?.[1] ?? ""
-    const documented = [...errors.matchAll(/\| `([A-Z][A-Z_]+)` \|/g)].map((match) => match[1]!)
-    expect(documented.length).toBeGreaterThan(5)
-    expect(documented.filter((code) => !raised.includes(`"${code}"`) && !raised.includes(`${code}:`))).toEqual([])
+  test("the tools RPC's next steps are exactly the rpc codes in CODES", () => {
+    const rpc = Object.entries(CODES).filter(([, entry]) => entry.surface === "rpc").map(([code]) => code)
+    expect(Object.keys(NEXT_STEPS).sort()).toEqual(rpc.sort())
+  })
+
+  test("the README's Errors table is CODES, in both directions, with the same surface and when", () => {
+    const errors = /## Errors\n([\s\S]*?)\n## /.exec(raw("README.md"))?.[1] ?? ""
+    const rows = [...errors.matchAll(/\| `([A-Z][A-Z_]+)` \| ([a-z-]+) \| ([^|]+?) \|/g)].map(([, code, surface, when]) => [code!, { surface: surface!, when: when!.trim() }] as const)
+    expect(Object.fromEntries(rows)).toEqual(CODES)
+  })
+
+  test("the configuration guide documents the setup and status codes, and the scripting guide the rpc ones", () => {
+    const errors = /## Errors([\s\S]*?)## /.exec(text("docs/configuration.md"))?.[1] ?? ""
+    const setup = Object.entries(CODES).filter(([, entry]) => entry.surface !== "rpc").map(([code]) => code)
+    expect([...errors.matchAll(/\| `([A-Z][A-Z_]+)` \|/g)].map((match) => match[1]!).sort()).toEqual(setup.sort())
+    const scripting = /## Errors([\s\S]*?)## What scripts cannot do/.exec(text("docs/scripting.md"))?.[1] ?? ""
+    for (const [code, entry] of Object.entries(CODES)) expect({ code, named: entry.surface !== "rpc" || scripting.includes(`\`${code}\``) }).toEqual({ code, named: true })
+    const named = [...scripting.matchAll(/`([A-Z][A-Z_]+)`/g)].map((match) => match[1]!)
+    expect(named.filter((code) => !(code in CODES))).toEqual([])
+  })
+
+  // R7: the block the plugin inserts, in full, generated from defaultRules(), so a class change cannot leave the README
+  // showing a block that is not what runs.
+  test("the README prints the whole default-rules block, and it equals defaultRules()", () => {
+    const blocks = [...raw("README.md").matchAll(/```json\n(\[[\s\S]*?\])\n```/g)].map((match) => JSON.parse(match[1]!))
+    const block = blocks.find((value) => Array.isArray(value) && value.some((rule) => rule?.action === "ashby_*"))
+    expect(block).toEqual(defaultRules())
+    // No elided block anywhere: every element is a rule, never a placeholder string.
+    for (const value of blocks) if (Array.isArray(value)) for (const rule of value) expect(typeof rule).toBe("object")
+  })
+
+  // R8: every "tested on ..." mention is TESTED_HOSTS, and the untested example is a version that is not a release.
+  test("every tested-on mention equals TESTED_HOSTS, and the untested example is not a tested release", () => {
+    let mentions = 0
+    const check = (file: string, source: string) => {
+      for (const match of source.matchAll(/tested on /g)) {
+        mentions += 1
+        // The run of versions right after "tested on", across a line wrap, and nothing else.
+        const run = /^\s*((?:\d+\.\d+\.\d+)(?:(?:,[ \t]*|\s+and\s+)(?:\d+\.\d+\.\d+))*)/.exec(source.slice(match.index! + match[0].length))?.[1] ?? ""
+        expect({ file, versions: [...(run.match(/\d+\.\d+\.\d+/g) ?? [])] }).toEqual({ file, versions: [...TESTED_HOSTS] })
+      }
+    }
+    for (const file of ["README.md", "AGENTS.md", "SECURITY.md", "docs/configuration.md"]) check(file, raw(file))
+    const changelog = /## \[[\s\S]*?\] - Unreleased\n([\s\S]*?)(?:\n## \[|$)/.exec(raw("CHANGELOG.md"))?.[1] ?? ""
+    check("CHANGELOG.md (Unreleased)", changelog)
+    expect(mentions).toBeGreaterThanOrEqual(2)
+    // The places that list the releases without the words "tested on" name the same four.
+    const list = `${TESTED_HOSTS.slice(0, -1).join(", ")} and ${TESTED_HOSTS.at(-1)}`
+    for (const file of ["AGENTS.md", "docs/configuration.md", "CONTRIBUTING.md"]) expect({ file, list: text(file).includes(list) }).toEqual({ file, list: true })
+    // The example of a release the checks do not run on is 2.2.99, never one of the tested ones.
+    expect(text("docs/configuration.md")).toContain(UNTESTED_EXAMPLE)
+    for (const version of TESTED_HOSTS) expect(text("docs/configuration.md")).not.toContain(`inside the range, such as ${version}`)
+  })
+
+  // R9: shipped text states behaviour, never who decided it, and names no lane.
+  test("the shipped docs use no internal wording", () => {
+    const banned = /\bowner(?:'s)? (?:decision|ruling|sign-off|call)\b|\bthe lead(?:'s)? (?:decision|ruling|audit|report|review)\b|\bhey-jelly\s*#|\b(?:audit|review|reconcile) lane\s+[A-Z]\d\b|\blane\s+G\d\b/i
+    for (const file of FILES) expect({ file, hit: banned.exec(text(file))?.[0] }).toEqual({ file, hit: undefined })
+  })
+
+  // R1: every example runs the RPC this plugin registers, with the location header and the envelope, and names a method
+  // in the table. A `<method>` placeholder names no method, but it must still carry the header and the body shape.
+  test("every scripting example has the RPC id, the location header, the envelope, and a method in the table", () => {
+    const names = new Set(["describe", ...METHODS.map((method) => method.name)])
+    let examples = 0
+    for (const file of ["docs/scripting.md", "README.md"]) {
+      // A shell continuation joins its line, so one example is one logical line.
+      const source = raw(file).replace(/\\\n\s*/g, " ")
+      for (const match of source.matchAll(/opencode api post (\/api\/rpc\/[^\s/]+\/([A-Za-z0-9._<>-]+))[ \t]+([^\n]*)/g)) {
+        examples += 1
+        const [, path, method] = match
+        const placeholder = method!.startsWith("<")
+        expect({ file, path }).toEqual({ file, path: `/api/rpc/${TOOLS_RPC_ID}/${method}` })
+        if (!placeholder) expect({ file, method, known: names.has(method!) }).toEqual({ file, method, known: true })
+        const line = match[0]
+        expect({ file, header: line.includes(`-H "x-opencode-directory:$PWD"`) }).toEqual({ file, header: true })
+        if (placeholder) continue
+        // The body may run over several lines: join the continuation lines before parsing it.
+        const window = source.slice(match.index!, match.index! + match[0].length + 400).replace(/\n\s+(?=["}])/g, "")
+        const body = /-d '(\{[^']*\})'/.exec(window)
+        expect({ file, body: body !== null }).toEqual({ file, body: true })
+        const parsed = JSON.parse(body![1]!) as { input?: { sessionID?: unknown; input?: unknown } }
+        expect({ file, envelope: typeof parsed.input }).toEqual({ file, envelope: "object" })
+        // `describe` takes nothing, or one session: its envelope holds no nested input. Every other method names the
+        // session the script runs as, and passes the tool's own input.
+        const session = typeof parsed.input!.sessionID
+        if (method === "describe") {
+          expect({ file, session: session === "string" || session === "undefined" }).toEqual({ file, session: true })
+          expect({ file, keys: Object.keys(parsed.input!).filter((key) => key !== "sessionID") }).toEqual({ file, keys: [] })
+          continue
+        }
+        expect({ file, session }).toEqual({ file, session: "string" })
+        expect({ file, input: typeof parsed.input!.input }).toEqual({ file, input: "object" })
+        // An MCP method's real input is the server's, so only the parameters the plugin records are checked.
+        const recorded = method === "describe" ? undefined : PARAMETERS[method!]
+        if (recorded) {
+          const keys = Object.keys(parsed.input!.input as Record<string, unknown>)
+          const known = recorded.map((entry) => entry.split(":")[0]!.replace(/\*$/, ""))
+          expect({ file, method, unknown: keys.filter((key) => !known.includes(key)) }).toEqual({ file, method, unknown: [] })
+          expect({ file, method, missing: known.filter((name) => recorded.some((entry) => entry.startsWith(`${name}*:`)) && !keys.includes(name)) }).toEqual({ file, method, missing: [] })
+        }
+      }
+    }
+    expect(examples).toBeGreaterThanOrEqual(3)
   })
 
   test("the Jelly guide describes the declaration as Jelly reads it, with no placeholder or version", () => {

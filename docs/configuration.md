@@ -83,22 +83,11 @@ Ashby's own origin keeps its path, so a wrong one is visible.
 
 ## Permissions
 
-OpenCode asserts every MCP call itself, with the action `ashby_<tool>` and the resource `*`. The plugin adds these
-rules to every agent that starts with the base rule `{ "action": "*", "resource": "*", "effect": "allow" }`, directly
-after that rule:
-
-```json
-[
-  { "action": "ashby_*", "resource": "*", "effect": "ask" },
-  { "action": "ashby_describe_object_fields", "resource": "*", "effect": "allow" },
-  { "action": "ashby_search_records_by_name", "resource": "*", "effect": "allow" },
-  { "action": "ashby_change_application_stage", "resource": "*", "effect": "deny" },
-  { "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "deny" }
-]
-```
-
-That sample leaves out the other ten read allows, which sit between the two shown; `/ashby-status` prints the whole
-block, and its `Agents without default rules` row prints it as a list to paste.
+OpenCode asserts every MCP call itself, with the action `ashby_<tool>` and the resource `*`. The plugin adds its
+block to every agent that starts with the base rule `{ "action": "*", "resource": "*", "effect": "allow" }`, directly
+after that rule. The README prints the whole block, rule for rule, in
+[Permissions](https://github.com/joe-broadhead/opencode-ashby/blob/HEAD/README.md#permissions); `/ashby-status` prints
+it too, and its `Agents without default rules` row prints it as a list to paste.
 
 `READ_TOOLS` in `src/ashby-tools.ts` lists Ashby's read tools, `WRITE_TOOLS` its write tools, and `DENIED_TOOLS` the
 two that are off. Writes and tools that Ashby adds later match only `ashby_*`, so they ask. `/ashby-status` names the
