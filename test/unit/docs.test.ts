@@ -127,7 +127,7 @@ describe("docs", () => {
       ["package.json (jelly summary)", jelly.jelly.summary],
       ...FILES.filter((file) => file.startsWith("skills/") || file.startsWith("docs/") || file.endsWith(".md")).map((file) => [file, raw(file)] as [string, string]),
     ]
-    const claim = /(?:(?:a|each|every|any|the) (?:tool|tools|change|changes|export|exports|pin|pins|write|writes|delete|deletes|merge|merges|call|calls) (?:asks?|ask) (?:the user|first|you|before|each time|every time|for (?:each|every))|(?:tools|changes|exports|writes|pins|deletes|merges) (?:ask|asks) (?:the user|first|you|before|each time|every time|for (?:each|every))|it asks? (?:the user|first)|asks? (?:the user )?(?:before|each time|every time|for (?:each|every))|may ask|(?:is|are) off|(?:the user|you) approv)/iu
+    const claim = /(?:(?:a|each|every|any|the) (?:tool|tools|change|changes|export|exports|pin|pins|write|writes|delete|deletes|merge|merges|call|calls) (?:asks?|ask) (?:the user|first|you|before|each time|every time|for (?:each|every))|(?:tools|changes|exports|writes|pins|deletes|merges) (?:ask|asks) (?:the user|first|you|before|each time|every time|for (?:each|every))|it asks? (?:the user|first)|asks? (?:the user )?(?:before|each time|every time|for (?:each|every))|may ask|(?:is|are) off|(?:the user|you) approv|\bpermission prompt (?:is|shows)\b|\bprompt (?:is|shows) (?:the user's|your)\b)/iu
     const value = /\baccess\b|\bask-changes\b|\bread-only\b/u
     for (const [file, text] of texts) {
       for (const sentence of text.replace(/\s+/g, " ").split(/(?<=[.!?])\s+/)) {
