@@ -32,10 +32,16 @@ OpenCode project.
 - Ashby content is untrusted. Resumes, notes and emails come from other people and can contain instructions aimed at
   the model. The skills tell the model to treat them as data, to label Ashby's AI output as Ashby's, never to infer
   protected characteristics, and never to repeat EEO, diversity or demographic data.
-- Two tools are denied by default: `ashby_change_application_stage`, which moves or archives a candidate (archiving can
-  send the candidate an automated archive email, which can't be taken back), and `ashby_submit_mcp_feedback`, which
-  sends text to Ashby's team, where text written after a failed lookup could carry candidate data. Turning one on
-  takes an `ask` rule in an agent's own `permissions`, so each call still asks, in that agent only.
+- **Every Ashby tool is allowed by default**, so an agent can create a candidate, add a note to a profile, add someone
+  to a job's pipeline, move or archive an application, and send feedback to Ashby's team without a prompt. Two of those
+  reach people: `ashby_change_application_stage` moves or archives a candidate, and archiving can send them an automated
+  archive email, which can't be taken back; `ashby_consider_candidate_for_job` runs a stage's automatic activities,
+  which some organisations turn into an email to the candidate. `ashby_submit_mcp_feedback` sends text to Ashby's team,
+  and text written after a failed lookup could carry candidate data.
+- **One line restricts it.** Set `"access": "ask-changes"` in the plugin options and every change asks first, or
+  `"access": "read-only"` and every change is denied. A rule in an agent's own `permissions` restricts one agent, and a
+  `deny` in the top-level `permissions` restricts every agent. The README's
+  [Permissions](https://github.com/joe-broadhead/opencode-ashby/blob/HEAD/README.md#permissions) has the three blocks.
 
 ## Permissions
 
@@ -45,10 +51,11 @@ What the model can do in Ashby is limited by these layers, in this order:
    user can see in Ashby: offers need Org Admin or Admin - Private, moving or archiving needs Hiring Manager or higher,
    and confidential jobs stay hidden unless granted. An Org Admin can turn MCP off for the whole organisation. Ashby
    offers one scope for all of MCP, so there is no read-only sign-in: read-only use comes from permission rules.
-2. **Default permission rules.** Every Ashby tool asks before it runs, except Ashby's read tools listed in
-   `src/ashby-tools.ts`, which run without a prompt. Moving or archiving a candidate and `ashby_submit_mcp_feedback`
-   are denied. Some changes that ask still reach people: `ashby_consider_candidate_for_job` runs the first stage's
-   automatic activities, which may email the candidate, and a note's mention notifies a colleague.
+2. **Default permission rules.** The plugin inserts one block generated from the tool table and the `access` option.
+   Its default, `all`, allows every Ashby tool, reads and changes alike. `ask-changes` allows a read and asks for
+   everything else; `read-only` allows a read and denies everything else, which also hides it from the model. Some
+   changes reach people: `ashby_consider_candidate_for_job` runs the first stage's automatic activities, which may email
+   the candidate, and a note's mention notifies a colleague.
 3. **Your OpenCode permissions.** Your `permissions` rules and saved "Always allow" answers override the default
    rules. A `deny` you configure always wins.
 
@@ -60,10 +67,11 @@ Things to know:
   repository with a commit may belong to OpenCode's shared `global` project, so an approval saved there may apply in
   other such folders too.
 - **Some agents get no default rules.** Agents defined only in your own config, and agents added by plugins that load
-  after this one, are created after the plugin inserts its rules, and agents without a base allow get none. Ashby tools
-  may run there without asking. `/ashby-status` names these agents and gives the fix: put the default rules it shows
-  first in that agent's own `permissions`, followed by your top-level rules for Ashby tools. Do not put them in the
-  top-level `permissions`, which would loosen Explore.
+  after this one, are created after the plugin inserts its rules, and agents without a base allow get none. Under the
+  default `access: "all"` that changes nothing; under `ask-changes` or `read-only` those agents stay unrestricted.
+  `/ashby-status` names them and gives the fix: put the block it shows first in that agent's own `permissions`,
+  followed by your top-level rules for Ashby tools. Do not put an `ask` or an `allow` in the top-level `permissions`,
+  which would loosen Explore.
 - **Unattended runs refuse prompts.** In `opencode run`, an Ashby tool that would ask is refused.
 - **The `ashby_*` rule also matches other servers** whose names start with `ashby_`. For their tools it only adds
   prompts.
@@ -82,8 +90,9 @@ authority:
   session's, resolved before dispatch: only `allow` runs. An `ask` is refused with no prompt and no Ashby call, and a
   `deny` is refused with no Ashby call. A saved "Always allow" is not part of those rules and does not authorise a
   script; a script's grant is a rule in config, or a Jobs run session.
-- Making a tool a method does not make it reachable. A write's default rule asks, so a script needs an explicit
-  `allow` for its action; the two denied tools resolve to `deny` and are refused until that deny is changed.
+- A script gets the same default: under `access: "all"` the block allows every method, so a script can call a write
+  with no further rule. Restrict the session's agent, or the session's own rules, to narrow that; with `ask-changes` or
+  `read-only` a script needs an explicit `allow` for a change, and an `ask` is refused because no one is there.
 - OpenCode's own executor still checks an MCP call against the agent's rules, the session's rules and saved approvals.
   A session in another directory than the server answering the call runs under the serving location's agent rules: the
   README's known limits say so, and `docs/scripting.md` gives the `x-opencode-directory` header that names the location.

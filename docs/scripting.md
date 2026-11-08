@@ -10,16 +10,17 @@ class: the worst thing that tool can do.
 | --- | --- | --- |
 | `read` | one per known read: `search_records_by_name`, `filter_records`, `get_candidate`, `get_pending_tasks` and the others | it only reads |
 | `write` | `create_candidate`, `add_note_to_candidate`, `consider_candidate_for_job` | it changes records the hiring team sees; one can reach the candidate |
-| `destructive` | `change_application_stage`, `submit_mcp_feedback` | the two tools the default rules deny |
+| `destructive` | `change_application_stage`, `submit_mcp_feedback` | moves or archives a candidate, or sends text to Ashby's team |
 | `describe` | none: lists the methods, their class, their permission action, whether OpenCode lists each tool now, each tool's input as JSON Schema, and — given a session — whether that session may call it |
 
 The methods come from the plugin's one tool table, `src/ashby-tools.ts`: the known reads (`READ_TOOLS` in
 `src/ashby-tools.ts`), the writes in `WRITE_TOOLS`, and the two denied tools in `DENIED_TOOLS`. Call `describe` for the list. Ashby may list fewer tools for a user with less
 access, so `describe` marks a known tool that Ashby does not offer you as unavailable.
 
-The class is never the decision: the rules are. A `write` is a method, and it runs only with an explicit `allow` in
-the agent's or the session's rules. A `destructive` method is a method too, and the default deny refuses it, so making
-it a method does not make it reachable.
+The class is never the decision: the rules are. A `write` and a `destructive` method are methods too, and they run
+whenever the session's rules resolve them to `allow` — which the default `access: "all"` does, for every method. The
+class decides what `access: "ask-changes"` and `"read-only"` restrict, and `describe` reports it beside the resolved
+permission.
 
 Results hold candidate data, which is personal data: keep what a script writes where the people it is about would
 expect it, and only as long as you need it.
@@ -35,8 +36,10 @@ decide what its model sees: the agent's rules, then the session's, and the last 
   session's rules, so a script that relied on one now needs a rule in config: an `allow` for its action in the agent's
   or the session's rules. This is deliberate; it keeps a script's grant reviewable rather than in a list of past
   clicks.
-- The plugin's default rules allow the reads, so an agent with the default rules runs a read with nothing more. An
-  agent defined only in your config gets no default rules; `/ashby-status` names it.
+- **A script gets the same default.** Under `access: "all"` the block allows every method, so a script that names an
+  agent with the default rules can call a read or a change with nothing more. Set `access: "ask-changes"` or
+  `"read-only"`, or narrow the session's own rules, when a script should not change anything. An agent defined only in
+  your config gets no default rules; `/ashby-status` names it.
 
 Create the session once, with the agent the script runs as, and keep its id. Never reuse a session found through
 history or a list: the script would run as that session's agent, under its rules.
@@ -56,11 +59,10 @@ opencode api post /api/session -d '{"title":"weekly pipeline","agent":"build","p
 ]}'
 ```
 
-To run a method whose class is `write` or whose action asks, add an explicit `allow` for that method's action to the
-session's or the agent's rules, with the same shape as the two reads above and the write's own action in place of
-theirs. Do that only when you mean that script to make that change unattended; otherwise run the change
-interactively, where the approval prompt is the yes. `describe` with the session reports the resolved permission of
-every method, so a script can check before it calls.
+Under `ask-changes` or `read-only`, a method that asks needs an explicit `allow` for its action in the session's or
+the agent's rules, with the shape of the two reads above and the write's own action in place of theirs. Do that only
+when you mean that script to make that change unattended. `describe` with the session reports the resolved permission
+of every method, so a script can check before it calls.
 
 For a one-off script with an approval bound to it, use Jobs' `jobs_run_script`: the approval covers exactly that
 source and that list of methods, and Jobs writes the run session's rules for you.

@@ -22,10 +22,12 @@ It has no tool of its own. Read [docs/architecture.md](docs/architecture.md) bef
   external. `tsc` only typechecks. No declaration files, `.tsx` or JSX.
 - **One endpoint string.** `ENDPOINT` in `src/constants.ts` is the only place Ashby's URL is written in code; the
   pack test points the built plugin at a fake by replacing its one occurrence in `dist/index.js`.
-- **Default rules, not hooks.** Permissions come from rules inserted through `ctx.agent.transform` directly after each
-  agent's base allow. A stricter agent is never weakened. An agent counts as guarded only with the whole block after
-  its base allow. Agents that miss the rules are named in status with the per-agent fix, never patched, and the fix
-  never goes in the top-level `permissions`.
+- **Default rules, not hooks.** Permissions come from one block, `defaultRules(access)`, inserted through
+  `ctx.agent.transform` directly after each agent's base allow. Every tool is allowed by default: `access` is `all`,
+  `ask-changes` or `read-only`, and the tool table's classes decide what the last two restrict. A stricter agent is
+  never weakened. An agent counts as guarded only with the whole block after its base allow. Agents that miss the
+  rules are named in status with the per-agent fix, under the values that restrict, never patched, and the fix never
+  goes in the top-level `permissions`.
 - **Transforms are cheap, synchronous and never throw.** Record failures for status instead.
 - **Errors** read `CODE: What happened. Next step: What to do.`, built by `ashbyError`, `errorText` or `codeText`.
   `CODES` in `src/constants.ts` is the one table: the helpers take its `PluginCode`, so a code outside it does not
@@ -49,7 +51,7 @@ It has no tool of its own. Read [docs/architecture.md](docs/architecture.md) bef
   imports at all: `scripts/check.mjs` loads it with Node's type stripping.
 - **Candidate data is personal data.** Tests, fixtures, docs and skills use only invented people and companies. The
   skills label Ashby's AI output as Ashby's and Metaview's AI notes as Metaview's, never infer protected
-  characteristics, make no hiring decision the user did not ask for, and say whom a change reaches before it asks.
+  characteristics, make no hiring decision the user did not ask for, and say whom a change reaches before it runs.
 - **The `jelly` section** of `package.json` declares every known tool, the skills, the sign-in, a one-line `summary`
   and the `icon`, with only the keys Jelly reads: its contracts drop an unknown top-level key, and refuse an unknown key
   inside a tool, sign-in or `contributes` entry. `test/unit/jelly.test.ts` keeps it in step with the tool lists and the

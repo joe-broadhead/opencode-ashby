@@ -13,10 +13,10 @@ All notable changes to this project are documented here. The format follows [Kee
   sign-in.
 - Adopts your own `mcp.servers.ashby` at Ashby's URL unchanged. The plugin never reads its headers. Any other URL, or a
   local command, is a conflict that status explains.
-- Default permission rules after each agent's base allow: every Ashby tool asks, and Ashby's read tools run without a
-  prompt. Two tools are denied: `ashby_change_application_stage` (moves or archives a candidate; archiving can email
-  the candidate) and `ashby_submit_mcp_feedback` (text sent to Ashby's team). The docs give the rule that turns each
-  back on as an ask.
+- Default permission rules after each agent's base allow: every tool is allowed, reads and changes alike, so an agent
+  can create a candidate, add a note or move an application without a prompt. The option `access` restricts them:
+  `ask-changes` asks for every change, and `read-only` denies every change. The README prints the block each value
+  generates, and three ways to restrict a single agent or tool.
 - `/ashby-status` and the `/ashby` dialog ("Ashby: Status" in the palette): connection, account, access, tools, agents
   without the default rules, the OpenCode check and one next step. A skill of yours with one of the plugin's ids is
   named, with a next step.

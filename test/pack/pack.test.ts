@@ -18,7 +18,7 @@ import { basename, join, relative, resolve, sep } from "node:path"
 import { fileURLToPath } from "node:url"
 import { ENDPOINT, SUPPORTED_HOST, TESTED_HOSTS } from "../../src/constants.js"
 import { TOOLS_RPC_ID } from "../../src/host/tools-rpc.js"
-import { DENIED_TOOLS, READ_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
+import { DESTRUCTIVE_TOOLS, READ_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
 import { defaultRules, type Rule } from "../../src/permissions.js"
 import { SKILL_NAMES } from "../../src/skills.js"
 import { ASHBY_SCOPES, NEW_TOOL, startFakeMcp, UPSTREAM_FAILURE, type FakeMcp } from "../host/fake-mcp.js"
@@ -210,7 +210,8 @@ describe.each(HOST_VERSIONS)("installed alone, in stock OpenCode %s", (version) 
       expect(output).toMatchObject({
         version: pkg.version,
         source: { type: "plugin", url: ENDPOINT, signIn: "oauth" },
-        unguardedAgents: ["reviewer"],
+        access: "all",
+        unguardedAgents: [],
         host: { version, range: SUPPORTED_HOST, tested: true },
         problems: [],
       })
@@ -285,7 +286,8 @@ describe.each(HOST_VERSIONS)("the tools RPC on stock OpenCode %s", (version) => 
   }
   const call = (session: string, method: string, input: unknown) => script(method, { sessionID: sessions[session] ?? session, input })
   /** The tools the fake was asked to run since `from`. */
-  const toolCalls = (from = 0) => fake.calls.slice(from)
+  /** The tool names Ashby was asked to run since `from`. */
+  const toolCalls = (from = 0) => fake.called.slice(from).map((entry) => entry.tool)
   const status = async () => (await host.api<{ output: Record<string, any> }>("POST", "/api/rpc/ashby.recruiting/status", { input: {} })).output
 
   beforeAll(async () => {
@@ -295,11 +297,11 @@ describe.each(HOST_VERSIONS)("the tools RPC on stock OpenCode %s", (version) => 
       // Config-only agents get no default rules: their own rules decide, after the host's defaults.
       agents: { locked: { permissions: [rule("ashby_*", "deny")] }, careful: { permissions: [rule(`ashby_${READ_A}`, "ask")] } },
     })
-    // Every known tool that is not denied, and the fake's new one, which is the only unknown; the denied ones apart.
-    const tools = READ_TOOLS.length + WRITE_TOOLS.length + 1
+    // Every known tool and the fake's new one, which is the only unknown; the destructive class is counted too.
+    const tools = READ_TOOLS.length + WRITE_TOOLS.length + DESTRUCTIVE_TOOLS.length + 1
     await host.until(`ashby is connected with its ${tools} tools`, async () => {
       const output = await status()
-      return output.state === "connected" && output.tools === tools && output.unknownCount === 1 && output.deniedTools.length === DENIED_TOOLS.length
+      return output.state === "connected" && output.tools === tools && output.unknownCount === 1 && output.deniedTools.length === DESTRUCTIVE_TOOLS.length
     })
     const create = async (body: Record<string, unknown>) => {
       const created = await host.api<Record<string, any>>("POST", "/api/session", body)
@@ -322,7 +324,7 @@ describe.each(HOST_VERSIONS)("the tools RPC on stock OpenCode %s", (version) => 
     const { value } = await script("describe", {})
     expect(value.id).toBe(TOOLS_RPC_ID)
     expect(value.locationHint).toContain("x-opencode-directory")
-    expect(value.methods.map((method: { name: string }) => method.name)).toEqual([...READ_TOOLS, ...WRITE_TOOLS, ...DENIED_TOOLS])
+    expect(value.methods.map((method: { name: string }) => method.name)).toEqual([...READ_TOOLS, ...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS])
     for (const method of value.methods) {
       expect({ name: method.name, kind: method.kind, action: method.action, available: method.available }).toEqual({
         name: method.name,
@@ -330,17 +332,16 @@ describe.each(HOST_VERSIONS)("the tools RPC on stock OpenCode %s", (version) => 
         action: `ashby_${method.name}`,
         available: true,
       })
-      expect(method.class).toBe(DENIED_TOOLS.includes(method.name) ? "destructive" : WRITE_TOOLS.includes(method.name) ? "write" : "read")
+      expect(method.class).toBe(DESTRUCTIVE_TOOLS.includes(method.name) ? "destructive" : WRITE_TOOLS.includes(method.name) ? "write" : "read")
       expect(method.input).toEqual({ type: "object", properties: { query: { type: "string" } } })
     }
   })
 
-  test("with a session, describe reports each method's permission: reads allow, writes ask, the denied tools deny", async () => {
+  // R18: the default allows every method, so a session with the block may call a read, a write or a destructive tool.
+  test("with a session, describe reports every method's permission as allow, and the unknown tool as unclassified", async () => {
     const { value } = await script("describe", { sessionID: sessions.build })
     const permission = Object.fromEntries(value.methods.map((method: { name: string; permission: string }) => [method.name, method.permission]))
-    for (const name of READ_TOOLS) expect({ name, permission: permission[name] }).toEqual({ name, permission: "allow" })
-    for (const name of WRITE_TOOLS) expect({ name, permission: permission[name] }).toEqual({ name, permission: "ask" })
-    for (const name of DENIED_TOOLS) expect({ name, permission: permission[name] }).toEqual({ name, permission: "deny" })
+    for (const name of [...READ_TOOLS, ...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS]) expect({ name, permission: permission[name] }).toEqual({ name, permission: "allow" })
     expect(value.unclassified).toEqual([NEW_TOOL.name])
   })
 
@@ -358,32 +359,23 @@ describe.each(HOST_VERSIONS)("the tools RPC on stock OpenCode %s", (version) => 
     expect(await call("build", READ_B, { query: "text" })).toEqual({ value: { output: `text from ${READ_B}`, text: `text from ${READ_B}` } })
   })
 
-  test("a write that would ask is refused before dispatch; a denied tool likewise; an unknown tool is no method", async () => {
-    const from = fake.calls.length
-    for (const name of WRITE_TOOLS) {
-      const result = await call("build", name, { query: "q" })
-      expect({ name, type: result.type, code: result.code }).toEqual({ name, type: "failed", code: "PERMISSION_DENIED" })
-      expect(result.message).toContain("would ask")
-    }
-    for (const name of DENIED_TOOLS) {
-      const result = await call("build", name, { query: "q" })
-      expect({ name, type: result.type, code: result.code }).toEqual({ name, type: "failed", code: "PERMISSION_DENIED" })
-    }
-    expect(await call("build", NEW_TOOL.name, { query: "q" })).toMatchObject({ type: "rpc.method_not_found" })
-    expect(toolCalls(from)).toEqual([])
-  })
-
-  test("runs a write in a session that names an allow for it, and nowhere else", async () => {
+  test("runs a write and a destructive tool under the default, refuses an unknown name, and never calls Ashby for it", async () => {
     const write = WRITE_TOOLS[0]!
+    const from = fake.calls.length
+    expect((await call("build", write, { query: "q" })).value).toMatchObject({ output: { tool: write } })
+    for (const name of DESTRUCTIVE_TOOLS) expect((await call("build", name, { query: "q" })).value).toMatchObject({ output: { tool: name } })
+    // An unknown name is not a method at all.
+    expect(await call("build", NEW_TOOL.name, { query: "q" })).toMatchObject({ type: "rpc.method_not_found" })
+    expect(toolCalls(from)).toEqual([write, ...DESTRUCTIVE_TOOLS])
+    // A session's own rules come last: a deny there still refuses, before Ashby is called.
     const create = async (body: Record<string, unknown>) => {
       const created = await host.api<Record<string, any>>("POST", "/api/session", body)
       return (created.id ?? created.data?.id) as string
     }
-    const granted = await create({ agent: "build", permissions: [rule("ashby_*", "deny"), rule(`ashby_${write}`, "allow")] })
-    const from = fake.called.length
-    expect((await call(granted, write, { query: "q" })).value).toMatchObject({ output: { tool: write } })
-    expect(fake.called.slice(from)).toEqual([{ tool: write, path: "/mcp" }])
-    expect(await call("build", write, { query: "q" })).toMatchObject({ type: "failed", code: "PERMISSION_DENIED" })
+    const denied = await create({ agent: "build", permissions: [rule(`ashby_${write}`, "deny")] })
+    const before = fake.calls.length
+    expect(await call(denied, write, { query: "q" })).toMatchObject({ type: "failed", code: "PERMISSION_DENIED" })
+    expect(fake.calls.length).toBe(before)
   })
 
   test("refuses a session whose agent denies Ashby, before Ashby is called", async () => {

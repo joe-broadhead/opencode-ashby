@@ -12,14 +12,14 @@
 // session turn that calls Ashby's tools.
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http"
 import type { AddressInfo } from "node:net"
-import { DENIED_TOOLS, READ_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
+import { DESTRUCTIVE_TOOLS, READ_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
 
 const schema = { type: "object", properties: { query: { type: "string" } } }
 /** A tool the plugin has never seen. */
 export const NEW_TOOL = { name: "shiny_new_tool", description: "A tool added upstream after the tool lists were written", annotations: {} }
 const tool = (name: string, readOnlyHint: boolean) => ({ name, description: `Ashby ${name}`, annotations: { readOnlyHint }, inputSchema: schema })
-const TOOLS = [tool("search_records_by_name", true), tool("get_pending_tasks", true), ...WRITE_TOOLS.map((name) => tool(name, false)), ...DENIED_TOOLS.map((name) => tool(name, false)), { ...NEW_TOOL, inputSchema: schema }]
-const CATALOG = [...READ_TOOLS.map((name) => tool(name, true)), ...[...WRITE_TOOLS, ...DENIED_TOOLS].map((name) => tool(name, false)), { ...NEW_TOOL, inputSchema: schema }]
+const TOOLS = [tool("search_records_by_name", true), tool("get_pending_tasks", true), ...WRITE_TOOLS.map((name) => tool(name, false)), ...DESTRUCTIVE_TOOLS.map((name) => tool(name, false)), { ...NEW_TOOL, inputSchema: schema }]
+const CATALOG = [...READ_TOOLS.map((name) => tool(name, true)), ...[...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS].map((name) => tool(name, false)), { ...NEW_TOOL, inputSchema: schema }]
 
 /** The upstream error a "fail" query gets: two lines, the first with a signed URL. */
 export const UPSTREAM_FAILURE = "Ashby refused https://files.ashbyhq.com/a.pdf?signature=fake-signature-123 for this input\nTraceback: second line"

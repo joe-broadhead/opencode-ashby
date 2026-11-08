@@ -10,7 +10,7 @@ import { tmpdir } from "node:os"
 import { join, sep } from "node:path"
 import { Plugin } from "@opencode/plugin"
 import { SUPPORTED_HOST, TESTED_HOSTS } from "../../src/constants.js"
-import { DENIED_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
+import { DESTRUCTIVE_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
 import { defaultRules, type Rule } from "../../src/permissions.js"
 import { SKILL_NAMES } from "../../src/skills.js"
 import { StatusRpc } from "../../src/status.js"
@@ -18,11 +18,11 @@ import { TOOLS_RPC_ID } from "../../src/host/tools-rpc.js"
 import { ASHBY_SCOPES, MODEL_ID } from "./fake-mcp.js"
 import { agentRules, attempt, cleanup, effect, HOST_VERSION, session, startHost, unattended, until, type Host } from "./harness.js"
 
-const AGENT_RULES = defaultRules().map((rule, index, rules) => `  ${JSON.stringify(rule)}${index < rules.length - 1 ? "," : ""}`).join("\n")
-const AGENTS_NEXT_STEP = "Put the default rules shown by /ashby-status first in each listed agent's own permissions, in opencode.json or the agent's Markdown file, followed by your top-level rules for Ashby tools."
 const KEY = "sk-fake-host-test-0123456789"
 const SIGN_IN = "Run /connect and choose Ashby, then press o or Enter to open the link (in a terminal, opencode mcp auth ashby opens it automatically in this project's folder; if it answers MCP server not found: ashby, wait a few seconds and run it again)."
 const OFF = "change_application_stage and submit_mcp_feedback"
+/** The tools `access: "read-only"` denies, which are the destructive class. */
+const DENY_READ_ONLY = DESTRUCTIVE_TOOLS
 const SIGN_IN_AGAIN = "Ashby needs a new sign-in. Choose this account to sign in again."
 
 // Starting a host takes several seconds, more on a busy machine.
@@ -61,7 +61,7 @@ async function status(host: Host, sessionID: string) {
 /** Enough of the tools RPC's contract for the client to call describe and the methods these tests use. */
 const TOOLS_CONTRACT = {
   id: TOOLS_RPC_ID,
-  methods: Object.fromEntries(["describe", "get_pending_tasks", "search_records_by_name", "create_candidate", ...DENIED_TOOLS].map((name) => [name, { input: { type: "object" }, output: { type: "object" } }])),
+  methods: Object.fromEntries(["describe", "get_pending_tasks", "search_records_by_name", "create_candidate", ...DESTRUCTIVE_TOOLS].map((name) => [name, { input: { type: "object" }, output: { type: "object" } }])),
   events: {},
 }
 type ToolsClient = Record<string, (input: object, options: object) => Promise<unknown>>
@@ -99,7 +99,7 @@ describe(`the plugin on OpenCode ${HOST_VERSION}`, () => {
     expect(plugins.find((plugin) => plugin.id === "ashby.recruiting")?.state.status).toBe("active")
     const { data: servers } = await host.client.mcp.list({ location: host.location })
     expect(servers.find((server) => server.name === "ashby")?.status).toEqual({ status: "connected" })
-    expect(await ashbyTools(host)).toEqual([...["get_pending_tasks", "search_records_by_name", "shiny_new_tool", ...WRITE_TOOLS, ...DENIED_TOOLS].map((tool) => `ashby_${tool}`)].sort())
+    expect(await ashbyTools(host)).toEqual([...["get_pending_tasks", "search_records_by_name", "shiny_new_tool", ...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS].map((tool) => `ashby_${tool}`)].sort())
     const { data: skills } = await host.client.skill.list({ location: host.location })
     expect(skills.map((skill) => skill.id).filter((id) => id.startsWith("ashby")).sort()).toEqual([...SKILL_NAMES].sort())
     const { data: commands } = await host.client.command.list({ location: host.location })
@@ -122,51 +122,85 @@ describe(`the plugin on OpenCode ${HOST_VERSION}`, () => {
     expect(await effect(host, "explore", "ashby_search_records_by_name")).toBe("deny")
     const explore = await session(host, "explore")
     expect(await attempt(host, explore, "explore", "search_records_by_name")).toEqual({ asked: undefined, ok: false, error: "Tool.Error: Permission denied: ashby_search_records_by_name" })
-    const plan = await session(host, "plan")
-    expect(await attempt(host, plan, "plan", "shiny_new_tool")).toMatchObject({ asked: "ashby_shiny_new_tool", ok: false })
+    // R18: the block allows Ashby tools in every agent, Plan included; only the agent's own rules can refuse one.
+    expect(await effect(host, "plan", "ashby_shiny_new_tool")).toBe("allow")
   })
 
-  test("P2 and H2: known reads run without a prompt, everything else asks, and the two denied tools are hidden", async () => {
+  // R18: the default is `access: "all"`, so every tool runs without a prompt, nothing is hidden, and a tool Ashby adds
+  // later is allowed at once by the namespace pattern.
+  test("P2 and H2: under access all every known tool runs without a prompt, nothing is hidden, and a new tool is allowed", async () => {
     const build = await session(host)
     const before = host.fake.calls.length
     expect(await attempt(host, build, "build", "search_records_by_name")).toMatchObject({ asked: undefined, ok: true })
-    expect(await attempt(host, build, "build", "shiny_new_tool")).toEqual({ asked: "ashby_shiny_new_tool", ok: false, error: "Permission.DeclinedError: " })
-    // Every known write asks, and a declined ask never reaches Ashby. consider_candidate_for_job matters most: its
-    // first stage's automations can email the candidate.
-    for (const tool of WRITE_TOOLS) {
-      expect({ tool, result: await attempt(host, build, "build", tool) }).toEqual({ tool, result: { asked: `ashby_${tool}`, ok: false, error: "Permission.DeclinedError: " } })
+    for (const tool of [...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS, "shiny_new_tool"]) {
+      expect({ tool, result: await attempt(host, build, "build", tool) }).toMatchObject({ tool, result: { asked: undefined, ok: true } })
     }
-    expect(host.fake.calls.slice(before)).toEqual(["search_records_by_name"])
+    expect(host.fake.calls.slice(before)).toEqual(["search_records_by_name", ...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS, "shiny_new_tool"])
     const rules = (await agentRules(host)).get("build")!
-    expect(["ashby_search_records_by_name", "ashby_add_note_to_candidate", "ashby_shiny_new_tool"].filter((action) => hidden(rules, action))).toEqual([])
-    // Each denied tool is hidden, refused with no prompt even when "always" would be the answer, and never reaches
-    // Ashby, in every built-in agent.
-    const all = await agentRules(host)
-    for (const tool of DENIED_TOOLS) {
-      for (const id of BUILT_IN) expect({ id, tool, hidden: hidden(all.get(id)!, `ashby_${tool}`) }).toEqual({ id, tool, hidden: true })
-      expect(await effect(host, "build", `ashby_${tool}`)).toBe("deny")
-      expect(await attempt(host, build, "build", tool, "always")).toEqual({ asked: undefined, ok: false, error: `Tool.Error: Permission denied: ashby_${tool}` })
-      expect(host.fake.calls).not.toContain(tool)
+    expect(["ashby_search_records_by_name", "ashby_add_note_to_candidate", "ashby_change_application_stage", "ashby_shiny_new_tool"].filter((action) => hidden(rules, action))).toEqual([])
+    for (const tool of [...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS, "shiny_new_tool"]) expect(await effect(host, "build", `ashby_${tool}`)).toBe("allow")
+  })
+
+  test("access ask-changes runs a read and refuses a script's write before dispatch", async () => {
+    const asking = await startHost({ options: { access: "ask-changes" } })
+    try {
+      const build = await session(asking)
+      expect(await attempt(asking, build, "build", "search_records_by_name")).toMatchObject({ asked: undefined, ok: true })
+      const before = asking.fake.calls.length
+      for (const tool of [...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS, "shiny_new_tool"]) {
+        expect({ tool, result: await attempt(asking, build, "build", tool) }).toEqual({ tool, result: { asked: `ashby_${tool}`, ok: false, error: "Permission.DeclinedError: " } })
+      }
+      expect(asking.fake.calls.length).toBe(before)
+      // A script gets the same answer: an ask is refused with no call, and the error names the rule to add.
+      const refused = JSON.parse(await scriptCall(asking, "create_candidate", { sessionID: build, input: { query: "Example Candidate" } })) as { message: string }
+      expect(refused.message).toContain("PERMISSION_DENIED: ashby_create_candidate would ask")
+      expect(asking.fake.calls.length).toBe(before)
+    } finally {
+      await asking.close()
     }
   })
 
-  test("a script's read runs, and a write runs only in a session that names an allow for it", async () => {
+  test("access read-only runs a read and denies every change, hidden from the model and refused to a script", async () => {
+    const readOnly = await startHost({ options: { access: "read-only" } })
+    try {
+      const build = await session(readOnly)
+      expect(await attempt(readOnly, build, "build", "search_records_by_name")).toMatchObject({ asked: undefined, ok: true })
+      const rules = (await agentRules(readOnly)).get("build")!
+      for (const tool of [...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS, "shiny_new_tool"]) {
+        expect({ tool, hidden: hidden(rules, `ashby_${tool}`) }).toEqual({ tool, hidden: true })
+        expect({ tool, effect: await effect(readOnly, "build", `ashby_${tool}`) }).toEqual({ tool, effect: "deny" })
+      }
+      const before = readOnly.fake.calls.length
+      for (const tool of [...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS]) {
+        expect(await attempt(readOnly, build, "build", tool, "always")).toEqual({ asked: undefined, ok: false, error: `Tool.Error: Permission denied: ashby_${tool}` })
+      }
+      const call = (readOnly.client.rpc as unknown as { call: (input: object) => Promise<unknown> }).call
+      const outcome = await call({ rpcID: TOOLS_RPC_ID, method: "create_candidate", input: { sessionID: build, input: { query: "Example Candidate" } }, location: readOnly.location }).then(
+        (output) => ({ ran: true, output }),
+        (error: unknown) => ({ ran: false, error: JSON.stringify(error, Object.getOwnPropertyNames(error ?? {})) }),
+      )
+      expect(outcome).toMatchObject({ ran: false })
+      expect(JSON.stringify(outcome)).toContain("PERMISSION_DENIED")
+      expect(readOnly.fake.calls.length).toBe(before)
+    } finally {
+      await readOnly.close()
+    }
+  })
+
+  test("a script can call a read and a write under the default, and a session's own deny still refuses one", async () => {
     const reader = await session(host)
     const before = host.fake.calls.length
     const read = JSON.parse(await scriptCall(host, "get_pending_tasks", { sessionID: reader, input: {} })) as { text: string }
     expect(read.text).toBe("called get_pending_tasks")
     expect(host.fake.calls.slice(before)).toEqual(["get_pending_tasks"])
-    const writer = await grantedSession(host, [{ action: "*", resource: "*", effect: "deny" }, { action: "ashby_create_candidate", resource: "*", effect: "allow" }])
-    const write = JSON.parse(await scriptCall(host, "create_candidate", { sessionID: writer, input: { query: "Example Candidate" } })) as { text: string }
+    // The default block allows every method, so a write needs no further rule.
+    const write = JSON.parse(await scriptCall(host, "create_candidate", { sessionID: reader, input: { query: "Example Candidate" } })) as { text: string }
     expect(write.text).toBe("called create_candidate")
     expect(host.fake.calls.at(-1)).toBe("create_candidate")
-  })
-
-  test("a write that would ask is refused before dispatch, with no Ashby call", async () => {
-    const before = host.fake.calls.length
-    const refused = JSON.parse(await scriptCall(host, "create_candidate", { sessionID: await session(host), input: { query: "Example Candidate" } })) as { message: string }
-    expect(refused.message).toContain("PERMISSION_DENIED: ashby_create_candidate would ask")
-    expect(host.fake.calls.length).toBe(before)
+    // A session's own rules come last and still win.
+    const narrowed = await grantedSession(host, [{ action: "ashby_create_candidate", resource: "*", effect: "deny" }])
+    const refused = JSON.parse(await scriptCall(host, "create_candidate", { sessionID: narrowed, input: { query: "Example Candidate" } })) as { message: string }
+    expect(refused.message).toContain("PERMISSION_DENIED")
   })
 
   test("describe with a session reports each method's class and permission, and without one no permission", async () => {
@@ -177,8 +211,8 @@ describe(`the plugin on OpenCode ${HOST_VERSION}`, () => {
     }
     const find = (name: string) => described.methods.find((method) => method.name === name)!
     expect(find("get_pending_tasks")).toMatchObject({ class: "read", permission: "allow" })
-    expect(find("create_candidate")).toMatchObject({ class: "write", permission: "ask" })
-    expect(find("change_application_stage")).toMatchObject({ class: "destructive", permission: "deny" })
+    expect(find("create_candidate")).toMatchObject({ class: "write", permission: "allow" })
+    expect(find("change_application_stage")).toMatchObject({ class: "destructive", permission: "allow" })
     expect(described.location).toBe(host.location.directory)
     expect(described.locationHint).toContain("x-opencode-directory")
     const plain = JSON.parse(await scriptCall(host, "describe", {})) as { methods: { permission?: string }[] }
@@ -196,32 +230,6 @@ describe(`the plugin on OpenCode ${HOST_VERSION}`, () => {
     expect(fallback.location).not.toBe(host.location.directory)
   })
 
-  test("a denied tool is a method but never runs: a script call is refused before dispatch, and describe shows it denied", async () => {    const sessionID = await session(host)
-    const described = JSON.parse(await scriptCall(host, "describe", { sessionID })) as { methods: { name: string; class: string; permission: string }[] }
-    const call = (host.client.rpc as unknown as { call: (input: object) => Promise<unknown> }).call
-    for (const tool of DENIED_TOOLS) {
-      expect(described.methods.find((method) => method.name === tool)).toMatchObject({ class: "destructive", permission: "deny" })
-      const before = host.fake.calls.length
-      const outcome = await call({ rpcID: TOOLS_RPC_ID, method: tool, input: { sessionID, input: { query: "archive the candidate" } }, location: host.location }).then(
-        (output) => ({ ran: true, output }),
-        (error: unknown) => ({ ran: false, error: JSON.stringify(error, Object.getOwnPropertyNames(error ?? {})) }),
-      )
-      expect(outcome).toMatchObject({ ran: false })
-      expect(JSON.stringify(outcome)).toContain("PERMISSION_DENIED")
-      expect(host.fake.calls.length).toBe(before)
-      expect(host.fake.calls).not.toContain(tool)
-    }
-  })
-
-  test("P4: a saved 'Always allow' removes the prompt", async () => {
-    const build = await session(host)
-    expect(await attempt(host, build, "build", "shiny_new_tool", "always")).toMatchObject({ asked: "ashby_shiny_new_tool", ok: true })
-    expect(await attempt(host, build, "build", "shiny_new_tool")).toMatchObject({ asked: undefined, ok: true })
-    const { projectID } = await host.client.sessions.get({ sessionID: build })
-    const saved = await host.client.permission.saved.list({ projectID })
-    expect(saved.map(({ action, resource }) => ({ action, resource }))).toEqual([{ action: "ashby_shiny_new_tool", resource: "*" }])
-  })
-
   test("P5: an agent defined only in user config gets no rules, and Ashby tools run there unprompted", async () => {
     const reviewer = (await agentRules(host)).get("reviewer")!
     expect(reviewer.some((rule) => rule.action.startsWith("ashby_"))).toBe(false)
@@ -229,20 +237,23 @@ describe(`the plugin on OpenCode ${HOST_VERSION}`, () => {
     expect(await attempt(host, sessionID, "reviewer", "add_note_to_candidate")).toMatchObject({ asked: undefined, ok: true })
   })
 
-  test("H5: /ashby-status reports the connection, the tools, the denied ones, the unguarded agent and its fix", async () => {
+  test("H5: /ashby-status reports the connection, the access, the tools and the agent without the block", async () => {
     await ashbyTools(host)
     const text = await status(host, await session(host))
     expect(text).toContain(`- Connection: connected (${host.fake.url}, registered by this plugin)`)
     // A server without OAuth has no sign-in, so no label: Ashby's MCP has no account tool.
     expect(text).toContain("- Account: account name not reported by Ashby's MCP\n")
-    expect(text).toContain(`- Access: reads run without asking; the ${WRITE_TOOLS.length} writes ask first; ${DENIED_TOOLS.join(" and ")} are off; default rules missing in the agents listed below\n`)
-    expect(text).toContain(`- Tools: 6 available, 1 unknown: shiny_new_tool (unknown tools ask before running); off by default: ${OFF}\n`)
-    expect(text).toContain(`- Agents without default rules: reviewer\n${AGENT_RULES}\n`)
-    expect(text).toContain(`- Next step: ${AGENTS_NEXT_STEP}`)
+    // A host with a config-only agent still names it under the restricting values; this host runs the default `all`.
+    expect(text).toContain("- Access: access all: every Ashby tool is allowed, reads and changes alike; every agent has the block\n")
+    // Every tool OpenCode lists counts now, the destructive ones and the unknown one included.
+    const listed = (await ashbyTools(host)).length
+    expect(text).toContain(`- Tools: ${listed} available, 1 unknown: shiny_new_tool (a tool Ashby adds is allowed at once); ${OFF} allowed like everything else\n`)
+    expect(text).toContain("- Agents without default rules: none\n")
+    expect(text).toContain("- Next step: Nothing to do.")
     expect(text).toContain(`- OpenCode: ${HOST_VERSION} (${TESTED_HOSTS.includes(HOST_VERSION) ? "tested" : "untested"}; supported range ${SUPPORTED_HOST})`)
     expect(text).not.toContain("Plan")
     const output = await statusRpc(host)
-    expect(output).toMatchObject({ state: "connected", tools: 6, deniedTools: [...DENIED_TOOLS], unknownCount: 1, listing: false, unguardedAgents: ["reviewer"] })
+    expect(output).toMatchObject({ state: "connected", access: "all", tools: listed, deniedTools: [...DESTRUCTIVE_TOOLS], unknownCount: 1, listing: false, unguardedAgents: [] })
     expect(output).not.toHaveProperty("account")
   })
 
@@ -271,7 +282,9 @@ describe("the user's own ashby server, with a secret in its headers", () => {
 
   test("H4: is adopted unchanged: the host sends its headers, and the plugin's rules still apply", async () => {
     expect(await attempt(host, await session(host), "build", "search_records_by_name")).toMatchObject({ asked: undefined, ok: true })
-    expect(await attempt(host, await session(host), "build", "add_note_to_candidate")).toMatchObject({ asked: "ashby_add_note_to_candidate", ok: false })
+    // The block still governs: under the default `all` a write runs, and a user's own deny still wins.
+    expect(await effect(host, "build", "ashby_create_candidate")).toBe("allow")
+    expect(await attempt(host, await session(host), "build", "add_note_to_candidate")).toMatchObject({ asked: undefined, ok: true })
     expect(host.fake.markers.length).toBeGreaterThan(0)
     expect(new Set(host.fake.markers)).toEqual(new Set(["user"]))
     expect(new Set(host.fake.authorizations)).toEqual(new Set([`Bearer ${KEY}`]))
@@ -309,8 +322,9 @@ const scripted = (host: Host) => host.client.sessions as unknown as {
 }
 
 /** A host whose own `ashby` entry points at the fake, whose model is the fake's scripted model, with Code Mode on or off. */
-async function modelHost(codemode: boolean) {
+async function modelHost(codemode: boolean, access?: "ask-changes" | "read-only") {
   const host = await startHost({
+    ...(access ? { options: { access } } : {}),
     config: (url) => ({
       mcp: { servers: { ashby: { type: "remote", url, oauth: false, ...(codemode ? {} : { codemode: false }) } } },
       // No model leaves the machine: LM Studio's local API is the fake; the other local providers are off.
@@ -323,40 +337,40 @@ async function modelHost(codemode: boolean) {
   return host
 }
 
-describe("a model turn that asks for the denied tools, with Code Mode off", () => {
+describe("a model turn that asks for the tools access read-only denies, with Code Mode off", () => {
   let host: Host
   beforeAll(async () => {
-    host = await modelHost(false)
+    host = await modelHost(false, "read-only")
   })
   afterAll(() => host?.close())
 
   test("the model's own calls to the two denied tools never reach Ashby, and neither is offered to it", async () => {
-    host.fake.model.script = DENIED_TOOLS.map((tool) => ({ tool: `ashby_${tool}`, arguments: { query: "archive the candidate" } }))
+    host.fake.model.script = DESTRUCTIVE_TOOLS.map((tool) => ({ tool: `ashby_${tool}`, arguments: { query: "archive the candidate" } }))
     const before = host.fake.model.requests.length
     const sessionID = (await scripted(host).create({ agent: "build", location: host.location, model: { providerID: "lmstudio", id: MODEL_ID } })).id
     await scripted(host).prompt({ sessionID, text: "Archive the candidate for the backend role and tell Ashby." })
     const turns = () => host.fake.model.requests.slice(before) as { tools?: { function?: { name?: string } }[]; messages?: { role: string }[] }[]
-    await until("the model's final turn", async () => turns().some((request) => (request.messages ?? []).filter((message) => message.role === "tool").length >= DENIED_TOOLS.length))
+    await until("the model's final turn", async () => turns().some((request) => (request.messages ?? []).filter((message) => message.role === "tool").length >= DESTRUCTIVE_TOOLS.length))
     const offered = turns().flatMap((request) => (request.tools ?? []).map((item) => item.function?.name ?? ""))
     expect(offered.filter((name) => name.startsWith("ashby_"))).toContain("ashby_get_pending_tasks")
-    for (const tool of DENIED_TOOLS) {
+    for (const tool of DESTRUCTIVE_TOOLS) {
       expect(offered).not.toContain(`ashby_${tool}`)
       expect(host.fake.calls).not.toContain(tool)
     }
   })
 })
 
-describe("a Code Mode turn that asks for the denied tools", () => {
+describe("a Code Mode turn that asks for the tools access read-only denies", () => {
   let host: Host
   beforeAll(async () => {
-    host = await modelHost(true)
+    host = await modelHost(true, "read-only")
   })
   afterAll(() => host?.close())
 
   test("an inner tools.ashby call to a denied tool fails inside the program and never reaches Ashby; a read runs", async () => {
     const code = [
       "const results = []",
-      `for (const name of ${JSON.stringify(DENIED_TOOLS)}) {`,
+      `for (const name of ${JSON.stringify(DESTRUCTIVE_TOOLS)}) {`,
       "  try { await tools.ashby[name]({ query: 'archive the candidate' }); results.push(name + ': ran') } catch (error) { results.push(name + ': refused') }",
       "}",
       "results.push(String((await tools.ashby.get_pending_tasks({})) !== undefined))",
@@ -368,55 +382,87 @@ describe("a Code Mode turn that asks for the denied tools", () => {
     await scripted(host).prompt({ sessionID, text: "Archive the candidate for the backend role and tell Ashby." })
     await until("the model's final turn", async () => host.fake.model.requests.slice(before).some((request) => (request as { messages?: { role: string }[] }).messages?.some((message) => message.role === "tool")))
     expect(host.fake.calls).toContain("get_pending_tasks")
-    for (const tool of DENIED_TOOLS) expect(host.fake.calls).not.toContain(tool)
+    for (const tool of DESTRUCTIVE_TOOLS) expect(host.fake.calls).not.toContain(tool)
   })
 })
 
 // R2, Code Mode path: unattended code is compiled and checked as the session's agent, with no model and no one to
 // answer a prompt. A read runs; an ask, a deny and an unknown name are refused, and none of them reaches Ashby.
 describe("unattended Code Mode", () => {
-  let host: Host
-  beforeAll(async () => {
-    host = await modelHost(true)
-  })
-  afterAll(() => host?.close())
-
-  test("a read runs, an ask and a deny are refused, and an unknown name is denied, with no Ashby call", async () => {
-    const sessionID = await session(host)
-    const ask = WRITE_TOOLS[0]!
-    const before = host.fake.calls.length
-    // A code check returns a boolean; the call it makes is what the host checks and runs.
-    expect(await unattended(host, sessionID, `const read = await tools.ashby.get_pending_tasks({}); return read !== undefined`)).toEqual({ ok: true })
-    expect(await unattended(host, sessionID, `const note = await tools.ashby.${ask}({ query: "a note" }); return note !== undefined`)).toMatchObject({ ok: false })
-    for (const tool of DENIED_TOOLS) expect(await unattended(host, sessionID, `const denied = await tools.ashby.${tool}({ query: "q" }); return denied !== undefined`)).toMatchObject({ ok: false })
-    expect(await unattended(host, sessionID, `const unknown = await tools.ashby.shiny_new_tool({ query: "q" }); return unknown !== undefined`)).toMatchObject({ ok: false })
-    expect(host.fake.calls.slice(before)).toEqual(["get_pending_tasks"])
+  // R2 with R18: unattended code is compiled and checked as the session's agent, with no model and no one to answer a
+  // prompt. Under `all` every call runs; `ask-changes` refuses an ask; `read-only` refuses a deny; a name outside the
+  // table is refused under every value.
+  test("runs every call under access all, and refuses an ask and a deny under the restricting values", async () => {
+    const all = await modelHost(true)
+    try {
+      const sessionID = await session(all)
+      const before = all.fake.calls.length
+      const read = `const read = await tools.ashby.get_pending_tasks({}); return read !== undefined`
+      const write = `const note = await tools.ashby.${WRITE_TOOLS[0]}({ query: "a note" }); return note !== undefined`
+      expect(await unattended(all, sessionID, read)).toEqual({ ok: true })
+      expect(await unattended(all, sessionID, write)).toEqual({ ok: true })
+      expect(all.fake.calls.slice(before)).toEqual(["get_pending_tasks", WRITE_TOOLS[0]!])
+    } finally {
+      await all.close()
+    }
+    const asking = await modelHost(true, "ask-changes")
+    try {
+      const sessionID = await session(asking)
+      const before = asking.fake.calls.length
+      expect(await unattended(asking, sessionID, `const read = await tools.ashby.get_pending_tasks({}); return read !== undefined`)).toEqual({ ok: true })
+      expect(await unattended(asking, sessionID, `const note = await tools.ashby.${WRITE_TOOLS[0]}({ query: "a note" }); return note !== undefined`)).toMatchObject({ ok: false })
+      expect(await unattended(asking, sessionID, `const unknown = await tools.ashby.shiny_new_tool({ query: "q" }); return unknown !== undefined`)).toMatchObject({ ok: false })
+      expect(asking.fake.calls.slice(before)).toEqual(["get_pending_tasks"])
+    } finally {
+      await asking.close()
+    }
+    const readOnly = await modelHost(true, "read-only")
+    try {
+      const sessionID = await session(readOnly)
+      const before = readOnly.fake.calls.length
+      for (const tool of [...DENY_READ_ONLY, "shiny_new_tool"]) expect(await unattended(readOnly, sessionID, `const call = await tools.ashby.${tool}({ query: "q" }); return call !== undefined`)).toMatchObject({ ok: false })
+      expect(readOnly.fake.calls.slice(before)).toEqual([])
+    } finally {
+      await readOnly.close()
+    }
   })
 })
 
-describe("the documented opt-in for a denied tool", () => {
-  // DP-1's recipe: the ask goes in the agent's own permissions, which come after the plugin's block in that agent.
-  const optIn: Rule = { action: "ashby_change_application_stage", resource: "*", effect: "ask" }
+describe("access ask-changes in an agent", () => {
+  // R18: with `access: "ask-changes"` a change asks; a saved "Always allow" removes the prompt for that tool only.
   let host: Host
   beforeAll(async () => {
-    host = await startHost({ config: () => ({ agents: { build: { permissions: [optIn] } } }) })
+    host = await startHost({ options: { access: "ask-changes" } })
   })
   afterAll(() => host?.close())
 
-  test("turns that one tool into a per-call ask in that agent, never an allow, and leaves the rest denied", async () => {
-    await ashbyTools(host)
-    const rules = (await agentRules(host)).get("build")!
-    expect(rules.indexOf(rules.find((rule) => JSON.stringify(rule) === JSON.stringify(optIn))!)).toBeGreaterThan(rules.findIndex((rule) => rule.action === "ashby_change_application_stage" && rule.effect === "deny"))
-    expect(await effect(host, "build", "ashby_change_application_stage")).toBe("ask")
+  test("P4: a saved 'Always allow' removes the prompt for that one tool", async () => {
     const build = await session(host)
-    expect(await attempt(host, build, "build", "change_application_stage")).toEqual({ asked: "ashby_change_application_stage", ok: false, error: "Permission.DeclinedError: " })
-    expect(host.fake.calls).not.toContain("change_application_stage")
-    // Each call asks again: a "once" answer runs one call and saves nothing.
-    expect(await attempt(host, build, "build", "change_application_stage", "once")).toMatchObject({ asked: "ashby_change_application_stage", ok: true })
-    expect(await attempt(host, build, "build", "change_application_stage")).toMatchObject({ asked: "ashby_change_application_stage", ok: false })
-    // The other agents, Explore included, and the other two tools stay denied.
-    for (const id of BUILT_IN.filter((id) => id !== "build")) expect({ id, effect: await effect(host, id, "ashby_change_application_stage") }).toEqual({ id, effect: "deny" })
-    for (const tool of DENIED_TOOLS.filter((tool) => tool !== "change_application_stage")) expect(await effect(host, "build", `ashby_${tool}`)).toBe("deny")
+    expect(await attempt(host, build, "build", "shiny_new_tool", "always")).toMatchObject({ asked: "ashby_shiny_new_tool", ok: true })
+    expect(await attempt(host, build, "build", "shiny_new_tool")).toMatchObject({ asked: undefined, ok: true })
+    // Another change still asks: the approval covers one action.
+    expect(await attempt(host, build, "build", "add_note_to_candidate")).toMatchObject({ asked: "ashby_add_note_to_candidate", ok: false })
+    const { projectID } = await host.client.sessions.get({ sessionID: build })
+    const saved = await host.client.permission.saved.list({ projectID })
+    expect(saved.map(({ action, resource }) => ({ action, resource }))).toEqual([{ action: "ashby_shiny_new_tool", resource: "*" }])
+  })
+
+  test("an agent's own allow or deny still wins over the plugin's block", async () => {
+    const own = await startHost({
+      options: { access: "ask-changes" },
+      config: () => ({ agents: { build: { permissions: [allow("add_note_to_candidate"), deny("create_candidate")] } } }),
+    })
+    try {
+      await ashbyTools(own)
+      expect(await effect(own, "build", "ashby_add_note_to_candidate")).toBe("allow")
+      expect(await effect(own, "build", "ashby_create_candidate")).toBe("deny")
+      const build = await session(own)
+      expect(await attempt(own, build, "build", "add_note_to_candidate")).toMatchObject({ asked: undefined, ok: true })
+      expect(await attempt(own, build, "build", "create_candidate")).toEqual({ asked: undefined, ok: false, error: "Tool.Error: Permission denied: ashby_create_candidate" })
+      expect(await attempt(own, build, "build", "consider_candidate_for_job")).toMatchObject({ asked: "ashby_consider_candidate_for_job", ok: false })
+    } finally {
+      await own.close()
+    }
   })
 })
 
@@ -439,12 +485,13 @@ describe("user permissions", () => {
     expect(await attempt(host, build, "build", "add_note_to_candidate")).toMatchObject({ asked: undefined, ok: true })
     expect(await attempt(host, build, "build", "search_records_by_name")).toEqual({ asked: undefined, ok: false, error: "Tool.Error: Permission denied: ashby_search_records_by_name" })
     expect(hidden((await agentRules(host)).get("build")!, "ashby_search_records_by_name")).toBe(true)
-    expect(await attempt(host, build, "build", "shiny_new_tool")).toMatchObject({ asked: "ashby_shiny_new_tool", ok: false })
+    // The user's rules win both ways; a tool the user says nothing about runs under the default `all`.
+    expect(await attempt(host, build, "build", "shiny_new_tool")).toMatchObject({ asked: undefined, ok: true })
   })
 
-  test("P5: the per-agent fix guards a config-only agent and keeps the user's rules winning", async () => {
+  test("P5: the per-agent fix puts the block in a config-only agent and keeps the user's rules winning", async () => {
     const reviewer = await session(host, "reviewer")
-    expect(await attempt(host, reviewer, "reviewer", "shiny_new_tool")).toMatchObject({ asked: "ashby_shiny_new_tool", ok: false })
+    expect(await attempt(host, reviewer, "reviewer", "shiny_new_tool")).toMatchObject({ asked: undefined, ok: true })
     expect(await attempt(host, reviewer, "reviewer", "add_note_to_candidate")).toMatchObject({ asked: undefined, ok: true })
     expect(await attempt(host, reviewer, "reviewer", "search_records_by_name")).toMatchObject({ asked: undefined, ok: false })
     expect(await status(host, reviewer)).toContain("- Agents without default rules: none\n")

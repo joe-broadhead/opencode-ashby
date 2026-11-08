@@ -4,21 +4,20 @@ import { defaultRules } from "../../src/permissions.js"
 import { buildStatus, formatStatus, readStatus, registerStatusCommand, registerStatusRpc, StatusRpc, type Status, type StatusContext, type StatusFacts } from "../../src/status.js"
 import { shortReason } from "../../src/redact.js"
 import { VERSION } from "../../src/version.js"
-import { DENIED_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
 import { allow } from "./fake.js"
 
 const SIGN_IN = "Run /connect and choose Ashby, then press o or Enter to open the link (in a terminal, opencode mcp auth ashby opens it automatically in this project's folder; if it answers MCP server not found: ashby, wait a few seconds and run it again)."
 const NOTHING_TO_DO = "Nothing to do."
 /** The default rules as /ashby-status shows them: one rule a line, a JSON array body. */
-const AGENT_RULES = defaultRules().map((rule, index, rules) => `  ${JSON.stringify(rule)}${index < rules.length - 1 ? "," : ""}`).join("\n")
+const AGENT_RULES = (access: "all" | "ask-changes" | "read-only" = "all") => defaultRules(access).map((rule, index, rules) => `  ${JSON.stringify(rule)}${index < rules.length - 1 ? "," : ""}`).join("\n")
 
 const host = checkHost("2.2.3", false)
 const URL = "https://mcp.ashbyhq.com/mcp/v1"
 const base: StatusFacts = { server: { status: "connected" }, source: { type: "plugin", url: URL, signIn: "oauth" }, host, tools: ["search_records_by_name"] }
 const guarded = { id: "build", permissions: [allow("*"), ...defaultRules()] }
-const RULES = "no agent runs new Ashby tools unasked"
-const POSTURE = `reads run without asking; the ${WRITE_TOOLS.length} writes ask first; ${DENIED_TOOLS.join(" and ")} are off`
-const ACCESS = `${POSTURE}; ${RULES}`
+const RULES = "every agent has the block"
+const POSTURE = "every Ashby tool is allowed, reads and changes alike"
+const ACCESS = `access all: ${POSTURE}; ${RULES}`
 
 describe("buildStatus", () => {
   test("connected, with the sign-in's label, and nothing left to do", () => {
@@ -28,7 +27,9 @@ describe("buildStatus", () => {
       state: "connected",
       source: { type: "plugin", url: URL, signIn: "oauth" },
       account: "Example Recruiter",
+      access: "all",
       tools: 1,
+      destructiveTools: [],
       deniedTools: [],
       listing: false,
       unknownCount: 0,
@@ -113,14 +114,15 @@ describe("buildStatus", () => {
 
   test("counts the available tools, names the unknown ones, and counts denied ones apart; missing known tools are normal", () => {
     const status = buildStatus({ ...base, tools: ["search_records_by_name", "add_note_to_candidate", "submit_mcp_feedback", "shiny_new_tool", "schedule_interview"] })
-    expect(status.tools).toBe(4)
-    expect(status.deniedTools).toEqual(["submit_mcp_feedback"])
+    expect(status.tools).toBe(5)
+    expect(status.destructiveTools).toEqual(["submit_mcp_feedback"])
+    expect(status.deniedTools).toEqual(status.destructiveTools)
     expect(status.unknownCount).toBe(2)
     expect(status.unknownTools).toEqual(["shiny_new_tool", "schedule_interview"])
-    expect(formatStatus(status)).toContain("- Tools: 4 available, 2 unknown: shiny_new_tool, schedule_interview (unknown tools ask before running); off by default: submit_mcp_feedback\n")
+    expect(formatStatus(status)).toContain("- Tools: 5 available, 2 unknown: shiny_new_tool, schedule_interview (a tool Ashby adds is allowed at once); submit_mcp_feedback allowed like everything else\n")
     expect(status.nextStep).toBe(NOTHING_TO_DO)
     const denied = buildStatus({ ...base, tools: ["search_records_by_name", "change_application_stage", "submit_mcp_feedback"] })
-    expect(formatStatus(denied)).toContain("- Tools: 1 available, 0 unknown; off by default: change_application_stage and submit_mcp_feedback\n")
+    expect(formatStatus(denied)).toContain("- Tools: 3 available, 0 unknown; change_application_stage and submit_mcp_feedback allowed like everything else\n")
   })
 
   test("a server that just connected and lists no tools yet is still listing them, with no advice to ask an admin", () => {
@@ -136,16 +138,18 @@ describe("buildStatus", () => {
     expect(buildStatus({ ...base, tools: [], settling: true, server: { status: "pending" } })).toMatchObject({ listing: false, state: "connecting" })
   })
 
-  test("the Access row says whether the default rules are in place, from what status can see", () => {
+  // R18: the Access row names the value, then the posture that value gives, then whether the block is in place.
+  test("the Access row names the access value and whether the default rules are in place", () => {
     expect(formatStatus(buildStatus(base))).toContain(`- Access: ${ACCESS}\n`)
-    // The posture is the tool lists': 3 writes ask, 2 tools are off.
-    expect(ACCESS).toContain("the 3 writes ask first; change_application_stage and submit_mcp_feedback are off")
-    const missing = buildStatus({ ...base, agents: [{ id: "reviewer", permissions: [allow("*")] }] })
-    expect(formatStatus(missing)).toContain(`- Access: ${POSTURE}; default rules missing in the agents listed below\n`)
-    const problem = "RULES_NOT_ADDED: Ashby's default permission rules could not be added (boom), so Ashby tools may run without asking. Next step: Restart OpenCode."
+    expect(ACCESS).toBe("access all: every Ashby tool is allowed, reads and changes alike; every agent has the block")
+    const restrictive = { ...base, access: "read-only" as const }
+    expect(formatStatus(buildStatus(restrictive))).toContain("- Access: access read-only: reads run without asking; the 3 writes and the 2 destructive tools are denied; every agent has the block\n")
+    const missing = buildStatus({ ...restrictive, agents: [{ id: "reviewer", permissions: [allow("*")] }] })
+    expect(formatStatus(missing)).toContain("- Access: access read-only: reads run without asking; the 3 writes and the 2 destructive tools are denied; default rules missing in the agents listed below\n")
+    const problem = "RULES_NOT_ADDED: Ashby's default permission rules could not be added (boom). Next step: Restart OpenCode."
     // DR-7: with the rules not added, restarting is the fault's own step, even though an agent is listed too.
     expect(buildStatus({ ...base, problems: [problem], agents: [{ id: "reviewer", permissions: [allow("*")] }] }).nextStep).toBe("Restart OpenCode.")
-    expect(formatStatus(buildStatus({ ...base, problems: [problem] }))).toContain(`- Access: ${POSTURE}; default rules not added (see the OpenCode row)\n`)
+    expect(formatStatus(buildStatus({ ...base, problems: [problem] }))).toContain("- Access: access all: every Ashby tool is allowed, reads and changes alike; default rules not added (see the OpenCode row)\n")
   })
 
   test("a failure's reason never carries a token or key the host's text echoed", () => {
@@ -160,18 +164,19 @@ describe("buildStatus", () => {
     const status = buildStatus({ ...base, tools: ["search_records_by_name", ...odd, ...many] })
     expect(status.unknownCount).toBe(29)
     expect(status.unknownTools).toEqual(many.slice(0, 20))
-    expect(formatStatus(status)).toContain(`- Tools: 30 available, 29 unknown: ${many.slice(0, 20).join(", ")} and 9 more (unknown tools ask before running)`)
-    expect(formatStatus(buildStatus({ ...base, tools: odd }))).toContain("- Tools: 4 available, 4 unknown (unknown tools ask before running)")
+    expect(formatStatus(status)).toContain(`- Tools: 30 available, 29 unknown: ${many.slice(0, 20).join(", ")} and 9 more (a tool Ashby adds is allowed at once)`)
+    expect(formatStatus(buildStatus({ ...base, tools: odd }))).toContain("- Tools: 4 available, 4 unknown (a tool Ashby adds is allowed at once)")
   })
 
   test("names agents without the default rules, with the block to paste, and points the next step at it", () => {
-    const status = buildStatus({ ...base, agents: [guarded, { id: "reviewer", permissions: [allow("*")] }] })
+    const readOnly = { ...base, access: "read-only" as const }
+    const status = buildStatus({ ...readOnly, agents: [{ id: "build", permissions: [allow("*"), ...defaultRules("read-only")] }, { id: "reviewer", permissions: [allow("*")] }] })
     expect(status.unguardedAgents).toEqual(["reviewer"])
     expect(status.nextStep).toBe(
       "Put the default rules shown by /ashby-status first in each listed agent's own permissions, in opencode.json or the agent's Markdown file, followed by your top-level rules for Ashby tools.",
     )
-    expect(JSON.parse(`[${AGENT_RULES}]`)).toEqual(defaultRules())
-    expect(formatStatus(status)).toContain(`- Agents without default rules: reviewer\n${AGENT_RULES}\n- OpenCode:`)
+    expect(JSON.parse(`[${AGENT_RULES("read-only")}]`)).toEqual(defaultRules("read-only"))
+    expect(formatStatus(status)).toContain(`- Agents without default rules: reviewer\n${AGENT_RULES("read-only")}\n- OpenCode:`)
   })
 
   test("an agent whose own rules already ask or deny for every Ashby tool is not listed", () => {
@@ -180,11 +185,11 @@ describe("buildStatus", () => {
       { id: "denies-ashby", permissions: [allow("*"), { action: "ashby_*", resource: "*", effect: "deny" as const }] },
       { id: "reviewer", permissions: [allow("*")] },
     ]
-    expect(buildStatus({ ...base, agents }).unguardedAgents).toEqual(["reviewer"])
+    expect(buildStatus({ ...base, access: "read-only", agents }).unguardedAgents).toEqual(["reviewer"])
   })
 
   test("the sign-in step comes before the agent fix, which still shows, and there is one next step", () => {
-    const status = buildStatus({ ...base, server: { status: "needs_auth", error: "x" }, agents: [{ id: "reviewer", permissions: [allow("*")] }] })
+    const status = buildStatus({ ...base, access: "read-only", server: { status: "needs_auth", error: "x" }, agents: [{ id: "reviewer", permissions: [allow("*")] }] })
     expect(status.nextStep).toBe(SIGN_IN)
     const text = formatStatus(status)
     expect(text).toContain(`- Connection: sign-in required (${URL}, registered by this plugin)`)
@@ -206,7 +211,8 @@ describe("buildStatus", () => {
       'Rename or move the "ashby" skill at /projects/acme/.opencode/skills/ashby/SKILL.md, which OpenCode loads instead of the plugin\'s skill of the same name.',
     )
     expect(buildStatus({ ...base, skills: { own, listed: own } })).not.toHaveProperty("shadowedSkills")
-    expect(buildStatus({ ...base, skills: { own, listed }, agents: [{ id: "reviewer", permissions: [allow("*")] }] }).nextStep).toStartWith("Put the default rules")
+    // With a restricting access, an agent missing the block comes before the skill: the order says which matters first.
+    expect(buildStatus({ ...base, access: "read-only", skills: { own, listed }, agents: [{ id: "reviewer", permissions: [allow("*")] }] }).nextStep).toStartWith("Put the default rules")
   })
 
   test("an untested host and setup problems show on the OpenCode row; a problem's own next step comes first", () => {
@@ -246,8 +252,12 @@ function statusContext(server: string, skills: Promise<unknown> = Promise.resolv
 
 describe("readStatus", () => {
   test("reads connection, the sign-in's label, tools and agents through public APIs", async () => {
+    // `access` reaches the status through readStatus; under "all" no agent needs the block.
     const status = await readStatus(statusContext("connected"), { source: { type: "plugin", url: URL, signIn: "oauth" }, host, problems: [], listing: { changedAt: () => 0 } })
-    expect(status).toMatchObject({ state: "connected", account: "Example Recruiter", tools: 2, unknownTools: ["shiny_new_tool"], unguardedAgents: ["reviewer"], listing: false })
+    expect(status).toMatchObject({ state: "connected", account: "Example Recruiter", access: "all", tools: 2, unknownCount: 1, unguardedAgents: [], listing: false })
+    const readOnly = await readStatus(statusContext("connected"), { host, access: "read-only" })
+    expect(readOnly).toMatchObject({ access: "read-only" })
+    expect(readOnly.unguardedAgents).toEqual(expect.arrayContaining(["reviewer"]))
   })
 
   test("a sign-in without a label, another kind of connection, or a failed lookup leaves the account out", async () => {

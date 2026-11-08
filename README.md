@@ -15,8 +15,8 @@ Unofficial; not affiliated with Ashby.
 - Your Ashby user has **Elevated Access**. What you can read and change follows your Ashby access roles: offers need
   Org Admin or Admin - Private, moving or archiving a candidate needs Hiring Manager or higher, and confidential jobs
   stay hidden unless you were granted them.
-- Ashby's MCP server is in beta, and Ashby may change its tools without notice. A tool Ashby adds asks before it runs
-  until a release of this plugin knows it.
+- Ashby's MCP server is in beta, and Ashby may change its tools without notice. A tool Ashby adds is allowed at once
+  under `access: "all"`, and is counted as unknown until a release knows it.
 - The 12 read, 3 write and 2 denied tools, and their classes, come from Ashby's own help page, which gives no
   annotations: treat a class as Ashby's description of the tool, not as its annotation. A tool Ashby adds asks before
   it runs, and status names it as unknown.
@@ -92,9 +92,9 @@ Two skills teach the model to use Ashby well:
 
 A script or a cron job can call every known Ashby tool with no model, through `opencode api`. It runs as a session
 and its agent, under that agent's permission rules and the session's own. Only a rule that resolves to `allow` runs: a
-write, whose default rule asks, needs an explicit `allow` in the session's or the agent's rules, and the two denied
-tools need their deny removed. An `ask` is refused before anything reaches Ashby, and a saved "Always allow" does not
-authorise a script.
+write included, runs under the default rules; a session that restricts with `ask-changes` or `read-only` needs an
+explicit `allow` for the method in the session's or the agent's rules. An `ask` is refused before anything reaches
+Ashby, and a saved "Always allow" does not authorise a script.
 
 ```sh
 opencode api post /api/rpc/ashby.recruiting.tools/get_pending_tasks \
@@ -106,36 +106,153 @@ See [Scripting](https://github.com/joe-broadhead/opencode-ashby/blob/HEAD/docs/s
 
 ## Permissions
 
-The plugin adds these rules to every agent, directly after the agent's base rule that allows everything:
+**Every tool is allowed by default.** The plugin adds one block to every agent, right after the agent's base rule that
+allows everything, and that block allows Ashby's tools: reads, writes, stage moves and feedback to Ashby's team alike.
+An agent can therefore create a candidate, add a note, or move an application without a prompt. `/ashby` and
+`/ashby-status` show the block, the access value and the tools involved.
 
-1. `{ "action": "ashby_*", "resource": "*", "effect": "ask" }`: every Ashby tool asks, including tools Ashby adds
-   later.
-2. One `allow` rule for each of Ashby's 12 read tools, listed in
-   [`src/ashby-tools.ts`](https://github.com/joe-broadhead/opencode-ashby/blob/HEAD/src/ashby-tools.ts). These run
-   without a prompt.
-3. Two `deny` rules, for tools that are off until you turn them on. A deny also hides the tool from the model.
-   - `{ "action": "ashby_change_application_stage", "resource": "*", "effect": "deny" }`: moves a candidate to another
-     stage, or archives them. Archiving runs the Archived stage's automatic activities, so the candidate still gets any
-     automated archive email.
-   - `{ "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "deny" }`: sends text to Ashby's team.
+There are three ways to restrict it.
 
-   To turn one on for an agent, add a rule that makes it **ask** to that agent's own `permissions`, which come after
-   the plugin's block. For the build agent:
+### 1. The `access` option
 
-   ```json
-   {
-     "agents": {
-       "build": {
-         "permissions": [{ "action": "ashby_change_application_stage", "resource": "*", "effect": "ask" }]
-       }
-     }
-   }
-   ```
+```json
+{
+  "plugins": [
+    { "package": "@joe-broadhead/opencode-ashby", "options": { "access": "ask-changes" } }
+  ]
+}
+```
 
-   Not in the top-level `permissions`: a top-level rule reaches every agent, Explore included. Never make a denied
-   tool `allow`, and don't answer "Always allow" for it: that would save an allow for every agent in the project.
+| `access` | What runs |
+| --- | --- |
+| `all` (the default) | every Ashby tool runs without a prompt |
+| `ask-changes` | a read runs; every other tool asks, including one Ashby adds later |
+| `read-only` | a read runs; every other tool is denied, and hidden from the model |
 
-So reads run, the 3 write tools ask before they run, and the two above don't run at all. Each write reaches people:
+The block is generated from the tool table and the value, so `/ashby` always shows what is in force. The three
+blocks:
+
+#### `all` (the default)
+
+The plugin adds these rules for `access: "all"`:
+
+```json
+[
+    { "action": "ashby_*", "resource": "*", "effect": "allow" },
+    { "action": "ashby_describe_object_fields", "resource": "*", "effect": "allow" },
+    { "action": "ashby_filter_records", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_candidate", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_interview_details", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_interview_plan", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_job_pipeline", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_pending_tasks", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_record_details", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_submitted_feedback", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_upcoming_interviews", "resource": "*", "effect": "allow" },
+    { "action": "ashby_search_product_docs", "resource": "*", "effect": "allow" },
+    { "action": "ashby_search_records_by_name", "resource": "*", "effect": "allow" },
+    { "action": "ashby_add_note_to_candidate", "resource": "*", "effect": "allow" },
+    { "action": "ashby_consider_candidate_for_job", "resource": "*", "effect": "allow" },
+    { "action": "ashby_create_candidate", "resource": "*", "effect": "allow" },
+    { "action": "ashby_change_application_stage", "resource": "*", "effect": "allow" },
+    { "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "allow" }
+]
+```
+
+#### `ask-changes`
+
+The plugin adds these rules for `access: "ask-changes"`:
+
+```json
+[
+    { "action": "ashby_*", "resource": "*", "effect": "ask" },
+    { "action": "ashby_describe_object_fields", "resource": "*", "effect": "allow" },
+    { "action": "ashby_filter_records", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_candidate", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_interview_details", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_interview_plan", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_job_pipeline", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_pending_tasks", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_record_details", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_submitted_feedback", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_upcoming_interviews", "resource": "*", "effect": "allow" },
+    { "action": "ashby_search_product_docs", "resource": "*", "effect": "allow" },
+    { "action": "ashby_search_records_by_name", "resource": "*", "effect": "allow" },
+    { "action": "ashby_add_note_to_candidate", "resource": "*", "effect": "ask" },
+    { "action": "ashby_consider_candidate_for_job", "resource": "*", "effect": "ask" },
+    { "action": "ashby_create_candidate", "resource": "*", "effect": "ask" },
+    { "action": "ashby_change_application_stage", "resource": "*", "effect": "ask" },
+    { "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "ask" }
+]
+```
+
+#### `read-only`
+
+The plugin adds these rules for `access: "read-only"`:
+
+```json
+[
+    { "action": "ashby_*", "resource": "*", "effect": "deny" },
+    { "action": "ashby_describe_object_fields", "resource": "*", "effect": "allow" },
+    { "action": "ashby_filter_records", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_candidate", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_interview_details", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_interview_plan", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_job_pipeline", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_pending_tasks", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_record_details", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_submitted_feedback", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_upcoming_interviews", "resource": "*", "effect": "allow" },
+    { "action": "ashby_search_product_docs", "resource": "*", "effect": "allow" },
+    { "action": "ashby_search_records_by_name", "resource": "*", "effect": "allow" },
+    { "action": "ashby_add_note_to_candidate", "resource": "*", "effect": "deny" },
+    { "action": "ashby_consider_candidate_for_job", "resource": "*", "effect": "deny" },
+    { "action": "ashby_create_candidate", "resource": "*", "effect": "deny" },
+    { "action": "ashby_change_application_stage", "resource": "*", "effect": "deny" },
+    { "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "deny" }
+]
+```
+
+### 2. An agent's own rules
+
+A rule in an agent's own `permissions` comes after the plugin's block, so it wins for that agent. A read-only agent
+that keeps Ashby's reads and asks for one change:
+
+```json
+{
+  "agents": {
+    "build": {
+      "permissions": [
+        { "action": "ashby_*", "resource": "*", "effect": "ask" },
+        { "action": "ashby_get_candidate", "resource": "*", "effect": "allow" },
+        { "action": "ashby_get_job_pipeline", "resource": "*", "effect": "allow" },
+        { "action": "ashby_add_note_to_candidate", "resource": "*", "effect": "ask" }
+      ]
+    }
+  }
+}
+```
+
+### 3. A per-tool rule
+
+Every action is `ashby_` followed by the tool's name. A later rule wins, so this denies one tool in the top-level
+`permissions`, for every agent:
+
+```json
+{
+  "permissions": [
+    { "action": "ashby_change_application_stage", "resource": "*", "effect": "deny" }
+  ]
+}
+```
+
+`ashby_change_application_stage` moves an application to another stage, or archives it: archiving runs the Archived
+stage's automatic activities, so the candidate still gets any automated archive email. `ashby_submit_mcp_feedback`
+sends text to Ashby's team.
+
+### What each change reaches
+
+Say what a change does and whom it reaches before you make it. These change people's records:
 
 - `ashby_create_candidate`: a new candidate record that everyone with access to candidates sees.
 - `ashby_consider_candidate_for_job`: adds the candidate to a job's pipeline, which its hiring team sees. The job's
@@ -144,38 +261,12 @@ So reads run, the 3 write tools ask before they run, and the two above don't run
   to confirm; once saved, everyone with access to the profile sees it, and a mentioned colleague is notified.
 
 Everything that comes later than these rules still wins: an agent's own stricter rules (Explore cannot use Ashby),
-your `permissions` in `opencode.json`, and your saved "Always allow" answers. In an unattended run such as
-`opencode run`, a tool that asks is refused.
+your `permissions` in `opencode.json`, and your saved "Always allow" answers.
 
 Agents that exist only in your own config, and agents added by plugins that load later, are created after the plugin
-adds its rules, so Ashby tools run there without asking. `/ashby-status` and `/ashby` name those agents and show the
-default rules to put first in each one's own `permissions`. Do not put them in the top-level `permissions`, which would
-loosen Explore.
-
-The whole block, in the order the plugin inserts it. `/ashby-status` prints the same list for the agents it names, so
-you can paste it into an agent's own `permissions`:
-
-```json
-[
-  { "action": "ashby_*", "resource": "*", "effect": "ask" },
-  { "action": "ashby_describe_object_fields", "resource": "*", "effect": "allow" },
-  { "action": "ashby_filter_records", "resource": "*", "effect": "allow" },
-  { "action": "ashby_get_candidate", "resource": "*", "effect": "allow" },
-  { "action": "ashby_get_interview_details", "resource": "*", "effect": "allow" },
-  { "action": "ashby_get_interview_plan", "resource": "*", "effect": "allow" },
-  { "action": "ashby_get_job_pipeline", "resource": "*", "effect": "allow" },
-  { "action": "ashby_get_pending_tasks", "resource": "*", "effect": "allow" },
-  { "action": "ashby_get_record_details", "resource": "*", "effect": "allow" },
-  { "action": "ashby_get_submitted_feedback", "resource": "*", "effect": "allow" },
-  { "action": "ashby_get_upcoming_interviews", "resource": "*", "effect": "allow" },
-  { "action": "ashby_search_product_docs", "resource": "*", "effect": "allow" },
-  { "action": "ashby_search_records_by_name", "resource": "*", "effect": "allow" },
-  { "action": "ashby_change_application_stage", "resource": "*", "effect": "deny" },
-  { "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "deny" }
-]
-```
-[Configuration](https://github.com/joe-broadhead/opencode-ashby/blob/HEAD/docs/configuration.md#permissions) has a
-worked example and permission recipes.
+adds its rules, so they get no block. With `access: "all"` that changes nothing; with `ask-changes` or `read-only` they
+stay unrestricted, and `/ashby-status` and `/ashby` name them with the block to put first in each one's own
+`permissions`. Do not put an `ask` or an `allow` in the top-level `permissions`, which would loosen Explore.
 
 ## Configure
 
@@ -231,18 +322,18 @@ Run `/ashby-status` first. Its last line is the next step.
 | Ashby refuses the sign-in | An Org Admin must turn on **MCP Server** (Admin > Organization Setup > Opt-In Features), and your user needs **Elevated Access**. |
 | Tools: none listed yet | Ashby connected moments ago and is still listing its tools. Run `/ashby-status` again, or press `r` in the dialog, in a few seconds. |
 | Tools: 0 available | Ashby lists no tools for your account. Ask an Org Admin to turn on **MCP Server**, and to give you **Elevated Access**. |
-| Tools: off by default | The tools the default rules deny, listed by name. See [Permissions](#permissions) to turn one on, as an ask. |
+| Tools: a tool Ashby adds | Every tool is allowed by default, so it runs at once. See [Permissions](#permissions) to restrict it. |
 | Tools: unknown | Ashby added tools the plugin does not know yet. They ask before they run. A known tool missing from the count is normal: Ashby may list fewer tools for less access. |
 | Access: default rules missing or not added | Some agents lack the default rules (see the agents row), or OpenCode could not add them (see the OpenCode row). Follow the next step. |
 | Account: account name not reported | Nothing is wrong: Ashby's MCP has no account tool, and OpenCode keeps no name on this sign-in. Ashby's answers follow the user you signed in as. |
 | Answers miss jobs or candidates | Ashby returns only what your access roles allow, and confidential jobs stay hidden unless you were granted them. Ask an Ashby admin for access. |
 | Rate limited | Ashby allows 120 requests a minute per sign-in. Wait a minute, and make fewer calls at once. |
-| A move or archive is refused | `ashby_change_application_stage` is off by default. See [Permissions](#permissions) to turn it on as an ask, or make the change in Ashby. |
+| A move or archive needs a prompt | Under `access: "ask-changes"` every change asks. See [Permissions](#permissions) for the three values. |
 | Agents without default rules | Put the default rules shown by `/ashby-status` first in each listed agent's own permissions, in `opencode.json` or the agent's Markdown file, followed by your top-level rules for Ashby tools. |
 | OpenCode: untested | OpenCode is not 2.2.3, 2.2.4, 2.2.5 or 2.2.6. Inside `>=2.2.3 <2.3.0` the plugin runs normally; outside it, it runs only because `allowUntestedHost` is set. If Ashby misbehaves, use a tested release. |
 | Signed in to the wrong Ashby account | Run `opencode mcp logout ashby` from the project folder (or remove the account in `/connect` → Ashby); if it answers `MCP server not found: ashby`, wait a few seconds and run it again. Then sign in again. |
 | Asked to sign in again after about an hour | Ashby may issue no refresh token, so the sign-in cannot be renewed. Sign in again with `/connect` → Ashby; your Ashby session may still be open in the browser. |
-| An Ashby tool is refused in `opencode run` | Nobody could answer its prompt. A read runs if you add an `allow` rule for it to the agent's own `permissions`. A write needs an interactive session: this plugin documents no `allow` for one, and a saved one would run it unasked in every agent of the project. |
+| An Ashby tool is refused in `opencode run` | Nobody could answer its prompt, so the session's own rules asked for the call. Under `access: "all"` (the default) nothing asks. |
 | A skill seems ignored, and status names a skill to rename or move | A skill of yours with the same id, such as `ashby`, replaces the plugin's. Rename or move it. |
 | `/ashby` is missing | The plugin did not start. Run `/plugins` to see the error. |
 | An error code such as `OPTIONS_INVALID` | See [Errors](#errors) for the code, where it comes from and what to do. |
@@ -279,8 +370,8 @@ The status RPC's own error is `unavailable`, with a next step, when the status c
 ## Known limits
 
 - **The tool table comes from Ashby's help page.** Ashby publishes no annotations, so a class is a judgement from
-  Ashby's description of the tool. A tool Ashby adds asks before it runs and is counted as unknown; a tool Ashby marks
-  as changing data could run here as a read until a release knows it. `CONTRIBUTING.md` has the check that reconciles
+  Ashby's description of the tool. A tool Ashby adds is allowed at once and counted as unknown; a tool Ashby marks as
+  changing data could run here as a read until a release knows it. `CONTRIBUTING.md` has the check that reconciles
   the table with a saved tool list.
 - **A script's read can cross projects.** A script's session may belong to another directory than the OpenCode server
   answering it, and the read then runs under the serving location's agent rules; only a `deny` is refused in between.

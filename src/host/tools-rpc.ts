@@ -32,21 +32,20 @@ import type { Plugin } from "@opencode/plugin"
 import { Rpc } from "@opencode/plugin/rpc"
 
 // >>> PLUGIN-SPECIFIC >>>
-import { DENIED_TOOLS, READ_TOOLS, WRITE_TOOLS } from "../ashby-tools.js"
+import { DESTRUCTIVE_TOOLS, READ_TOOLS, WRITE_TOOLS } from "../ashby-tools.js"
 import { PLUGIN_ID as ASHBY_PLUGIN_ID, SERVER_NAME } from "../constants.js"
 
 /** The plugin's id. The RPC id is `<PLUGIN_ID>.tools`. */
 export const PLUGIN_ID = ASHBY_PLUGIN_ID
 
 /**
- * Every known Ashby tool, by exact name, from the plugin's one table: the reads, the writes that ask, and the two tools
- * the default rules deny. A tool Ashby adds later is never a method until it is classified in `src/ashby-tools.ts`;
+ * Every known Ashby tool, by exact name, from the plugin's one table: the reads, the writes, and the destructive class. A tool Ashby adds later is never a method until it is classified in `src/ashby-tools.ts`;
  * `describe` lists it as unclassified. The class never decides whether a call runs: the rules do.
  */
 export const METHODS: readonly MethodSpec[] = [
   ...READ_TOOLS.map((name): MethodSpec => ({ kind: "mcp", name, class: "read" })),
   ...WRITE_TOOLS.map((name): MethodSpec => ({ kind: "mcp", name, class: "write" })),
-  ...DENIED_TOOLS.map((name): MethodSpec => ({ kind: "mcp", name, class: "destructive" })),
+  ...DESTRUCTIVE_TOOLS.map((name): MethodSpec => ({ kind: "mcp", name, class: "destructive" })),
 ]
 
 /** What the model path's `execute.before` hooks do to an MCP call's arguments. Ashby has no such hook. */

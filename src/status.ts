@@ -1,8 +1,8 @@
 import type { Plugin, Rpc } from "@opencode/plugin"
 import { codeText, DISPLAY_NAME, PLUGIN_ID, SERVER_NAME, TESTED_HOSTS } from "./constants.js"
 import { isSupportedHost, type HostCheck } from "./host-version.js"
-import { classify, DENIED_TOOLS, WRITE_TOOLS } from "./ashby-tools.js"
-import { defaultRules, unguardedAgents, type Rule } from "./permissions.js"
+import { classify, DESTRUCTIVE_TOOLS, WRITE_TOOLS } from "./ashby-tools.js"
+import { ACCESS, defaultRules, unguardedAgents, type Access, type Rule } from "./permissions.js"
 import { cut, oneLine, shortReason } from "./redact.js"
 import { VERSION } from "./version.js"
 
@@ -39,6 +39,8 @@ export interface StatusFacts {
   readonly settling?: boolean
   readonly agents?: readonly { readonly id: string; readonly permissions: readonly Rule[] }[]
   readonly problems?: readonly string[]
+  /** How much the default rules restrict: `all` allows every tool, the other values restrict by class. */
+  readonly access?: Access
   /** The plugin's own skills, and the skills OpenCode lists; the listed one wins when both have an id. */
   readonly skills?: { readonly own: readonly SkillPath[]; readonly listed: readonly SkillPath[] }
 }
@@ -51,6 +53,8 @@ export interface Status {
   /** The plugin's version. */
   readonly version: string
   readonly state: State
+  /** How much the default rules restrict: `all` allows every tool, `ask-changes` asks for a change, `read-only` denies it. */
+  readonly access: Access
   /** For a failed connection only: OpenCode's reason, on one line of at most 160 characters, URLs without their query. */
   readonly error?: string
   readonly source?: ServerSource
@@ -59,9 +63,14 @@ export interface Status {
    * Ashby's MCP has no account tool, so the plugin learns nothing else about the account.
    */
   readonly account?: string
-  /** How many Ashby tools OpenCode lists and the default rules let run or ask: the listed ones that are not denied. */
+  /** How many Ashby tools OpenCode lists the plugin knows. */
   readonly tools: number
-  /** The listed tools that the default rules deny, such as submit_mcp_feedback; a later rule of the user's can turn one on. */
+  /**
+   * The listed tools of the destructive class, such as submit_mcp_feedback: `access: "all"` allows them, `ask-changes`
+   * asks for each, and `read-only` denies them. A later rule of the user's still wins.
+   */
+  readonly destructiveTools: readonly string[]
+  /** @deprecated The family field's old name; it carries the same list as `destructiveTools`. */
   readonly deniedTools: readonly string[]
   /** True while a server that just connected may still be listing its tools. */
   readonly listing: boolean
@@ -81,10 +90,11 @@ export interface Status {
 
 const SIGN_IN = `Run /connect and choose Ashby, then press o or Enter to open the link (in a terminal, opencode mcp auth ${SERVER_NAME} opens it automatically in this project's folder; if it answers MCP server not found: ${SERVER_NAME}, wait a few seconds and run it again).`
 
-/** The default rules to paste into an agent's own permissions, one rule a line, as a JSON array body. */
-const AGENT_RULES = defaultRules()
-  .map((rule, index, rules) => `  ${JSON.stringify(rule)}${index < rules.length - 1 ? "," : ""}`)
-  .join("\n")
+/** The default rules to paste into an agent's own permissions, one rule a line, as a JSON array body, for `access`. */
+const agentRules = (access: Access) =>
+  defaultRules(access)
+    .map((rule, index, rules) => `  ${JSON.stringify(rule)}${index < rules.length - 1 ? "," : ""}`)
+    .join("\n")
 
 /** The next step while agents lack the rules: the family's one fixed sentence. */
 const AGENTS_NEXT_STEP =
@@ -114,7 +124,8 @@ export function buildStatus(facts: StatusFacts): Status {
   const state: State = facts.source?.type === "conflict" ? "conflict" : facts.server ? STATE_OF[facts.server.status] : "not_configured"
   const listed = facts.tools ?? []
   const unknown = listed.filter((tool) => classify(tool) === "unknown")
-  const denied = listed.filter((tool) => classify(tool) === "denied")
+  const access = facts.access ?? "all"
+  const destructive = listed.filter((tool) => classify(tool) === "destructive")
   // OpenCode's text for a needed sign-in can hold an authorization URL, so only a failure's reason is kept.
   const error = facts.server?.status === "failed" && facts.server.error ? shortReason(facts.server.error) : undefined
   const shadowed = shadowedOf(facts)
@@ -122,15 +133,17 @@ export function buildStatus(facts: StatusFacts): Status {
   const status = {
     version: VERSION,
     state,
+    access,
     ...(error ? { error } : {}),
     ...(facts.source ? { source: facts.source } : {}),
     ...(account ? { account } : {}),
-    tools: listed.length - denied.length,
-    deniedTools: denied,
+    tools: listed.length,
+    destructiveTools: destructive,
+    deniedTools: destructive,
     listing: state === "connected" && listed.length === 0 && facts.settling === true,
     unknownCount: unknown.length,
     unknownTools: unknown.filter((name) => SAFE_NAME.test(name)).slice(0, LISTED_UNKNOWN),
-    unguardedAgents: unguardedAgents(facts.agents ?? []),
+    unguardedAgents: unguardedAgents(facts.agents ?? [], access),
     ...(shadowed.length ? { shadowedSkills: shadowed } : {}),
     host: facts.host,
     problems: facts.problems ?? [],
@@ -161,7 +174,7 @@ function nextStepOf(status: Omit<Status, "nextStep">): string {
       return "Check your network, then run /ashby-status again."
   }
   if (status.listing) return "Ashby is still listing its tools. Run /ashby-status again in a few seconds."
-  if (status.tools === 0 && status.deniedTools.length === 0) {
+  if (status.tools === 0) {
     return "Ashby lists no tools for this account. Ask an Ashby Org Admin to turn on MCP Server in Admin > Organization Setup > Opt-In Features, and to give you Elevated Access."
   }
   // The rules not being added is the fault, even when agents are also unlisted: pasting the block cannot fix it, and
@@ -199,13 +212,16 @@ function serverText(source: ServerSource) {
   return `your mcp.servers.${SERVER_NAME} points at ${source.url}`
 }
 
-function toolsText({ tools, unknownCount, unknownTools, deniedTools, listing }: Status) {
+function toolsText({ tools, unknownCount, unknownTools, destructiveTools, listing, access }: Status) {
   if (listing) return "none listed yet (Ashby is still listing them)"
-  const off = deniedTools.length ? `; off by default: ${list(deniedTools)}` : ""
-  if (unknownCount === 0) return `${tools} available, 0 unknown${off}`
+  // What the destructive class resolves to, named only when one is listed.
+  const posture = destructiveTools.length
+    ? `; ${list(destructiveTools)} ${access === "all" ? "allowed like everything else" : access === "ask-changes" ? "ask" : "denied"}`
+    : ""
+  if (unknownCount === 0) return `${tools} available, 0 unknown${posture}`
   const more = unknownCount - unknownTools.length
   const names = unknownTools.length ? `: ${unknownTools.join(", ")}${more > 0 ? ` and ${more} more` : ""}` : ""
-  return `${tools} available, ${unknownCount} unknown${names} (unknown tools ask before running)${off}`
+  return `${tools} available, ${unknownCount} unknown${names} (a tool Ashby adds is ${access === "all" ? "allowed at once" : access === "ask-changes" ? "asked about" : "denied"})${posture}`
 }
 
 const list = (names: readonly string[]) => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`)
@@ -214,15 +230,20 @@ const list = (names: readonly string[]) => (names.length < 2 ? names.join("") : 
  * The permission posture the default rules fix, derived from the tool lists so it cannot go stale, and whether those
  * rules are in place: facts status can check, not a fixed claim.
  */
-const POSTURE = `reads run without asking; the ${WRITE_TOOLS.length} writes ask first; ${DENIED_TOOLS.join(" and ")} are off`
+const postureOf = (access: Access) =>
+  access === "all"
+    ? "every Ashby tool is allowed, reads and changes alike"
+    : access === "ask-changes"
+      ? `reads run without asking; the ${WRITE_TOOLS.length} writes and the ${DESTRUCTIVE_TOOLS.length} destructive tools ask first`
+      : `reads run without asking; the ${WRITE_TOOLS.length} writes and the ${DESTRUCTIVE_TOOLS.length} destructive tools are denied`
 
-function accessText({ problems, unguardedAgents }: Status) {
+function accessText({ access, problems, unguardedAgents }: Status) {
   const rules = problems.some((problem) => problem.startsWith(RULES_NOT_ADDED))
     ? "default rules not added (see the OpenCode row)"
     : unguardedAgents.length
       ? "default rules missing in the agents listed below"
-      : "no agent runs new Ashby tools unasked"
-  return `${POSTURE}; ${rules}`
+      : "every agent has the block"
+  return `access ${access}: ${postureOf(access)}; ${rules}`
 }
 
 /** The OpenCode row: the version, whether it is tested, the supported range, then any setup problems. */
@@ -245,7 +266,7 @@ export function formatStatus(status: Status) {
     `- Account: ${status.account ?? `account name not reported by ${DISPLAY_NAME}'s MCP`}`,
     `- Access: ${accessText(status)}`,
     `- Tools: ${toolsText(status)}`,
-    `- Agents without default rules: ${agents.length ? `${agents.join(", ")}\n${AGENT_RULES}` : "none"}`,
+    `- Agents without default rules: ${agents.length ? `${agents.join(", ")}\n${agentRules(status.access)}` : "none"}`,
     `- OpenCode: ${hostText(status)}`,
     `- Next step: ${status.nextStep}`,
   ].join("\n")
@@ -270,7 +291,7 @@ const LISTING_MS = 15_000
 /** Reads the live facts through public host APIs; never calls Ashby. Optional lookups that fail leave their field empty. */
 export async function readStatus(
   ctx: StatusContext,
-  facts: Pick<StatusFacts, "source" | "host" | "problems"> & { readonly skills?: readonly SkillPath[]; readonly listing?: ListingState },
+  facts: Pick<StatusFacts, "source" | "host" | "problems"> & { readonly skills?: readonly SkillPath[]; readonly listing?: ListingState; readonly access?: Access },
 ) {
   const [servers, agents, tools, listed] = await Promise.all([
     ctx.mcp.list(),
@@ -284,10 +305,11 @@ export async function readStatus(
   ])
   const server = servers.data.find((entry) => entry.name === SERVER_NAME)
   const connection = server?.integrationID ? await ctx.integration.connection.active(server.integrationID).catch(() => undefined) : undefined
-  const { skills: own, listing, ...rest } = facts
+  const { skills: own, listing, access, ...rest } = facts
   const settling = listing !== undefined && Date.now() - listing.changedAt() < LISTING_MS
   return buildStatus({
     ...rest,
+    access: access ?? "all",
     ...(server ? { server: server.status } : {}),
     ...(connection?.type === "credential" && connection.label ? { account: connection.label } : {}),
     tools: tools.filter((tool) => tool.options?.namespace === SERVER_NAME).map((tool) => tool.name),
@@ -321,9 +343,10 @@ export const StatusRpc = {
       input: { type: "object" },
       output: {
         type: "object",
-        required: ["version", "state", "tools", "deniedTools", "listing", "unknownCount", "unknownTools", "unguardedAgents", "host", "problems", "nextStep"],
+        required: ["version", "access", "state", "tools", "destructiveTools", "deniedTools", "listing", "unknownCount", "unknownTools", "unguardedAgents", "host", "problems", "nextStep"],
         properties: {
           version: { type: "string" },
+          access: { enum: [...ACCESS] },
           state: { enum: ["connected", "sign_in_required", "connecting", "disabled", "failed", "not_configured", "conflict"] },
           error: { type: "string" },
           source: {
@@ -333,6 +356,7 @@ export const StatusRpc = {
           },
           account: { type: "string" },
           tools: count,
+          destructiveTools: strings,
           deniedTools: strings,
           listing: { type: "boolean" },
           unknownCount: count,

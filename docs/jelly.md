@@ -27,19 +27,22 @@ family's own drawing, not Ashby's logo, shape or brand colour.
 
 ## Tools and permissions
 
-17 tools are declared (12 read-only), every tool in `src/ashby-tools.ts`: each read tool as read-only with
-`allow`, each write tool with `ask`, and each denied tool with `deny`. Jelly's agents have no base "allow
-everything" rule, so this plugin's own default rules, which it puts after that rule, never reach them. Jelly
-writes each declared `ask` or `deny` as that tool's default instead (the person's own choice replaces it), and
-denies a read-only helper every tool not marked `readOnly`. A declared `allow` changes nothing in Jelly.
+17 tools are declared (12 read-only), every tool in `src/ashby-tools.ts`: each read tool read-only, and every tool,
+reads and changes alike, `allow`. That matches the family's default, where nothing is denied until the user restricts
+it. Jelly's agents have no base "allow everything" rule, so this plugin's own default rules, which it puts after that
+rule, never reach them: Jelly writes each declared effect as that tool's default, and the person's own choice replaces
+it.
 
-- Ask: `ashby_create_candidate` (a new candidate record), `ashby_consider_candidate_for_job` (adds the candidate to
-  a job's pipeline, whose first stage may email them) and `ashby_add_note_to_candidate` (a note the hiring team sees).
-- Off: `ashby_change_application_stage` (moves or archives a candidate; archiving can send the automated archive
-  email) and `ashby_submit_mcp_feedback` (text sent to Ashby's team).
-- Everything else runs, as the plugin's own rules let it.
+- `ashby_create_candidate` adds a candidate record that everyone with access to candidates sees.
+- `ashby_consider_candidate_for_job` adds the candidate to a job's pipeline, whose first stage's automatic activities
+  may email them.
+- `ashby_add_note_to_candidate` adds a note the profile's readers see.
+- `ashby_change_application_stage` moves or archives a candidate; archiving can send them an automated archive email.
+- `ashby_submit_mcp_feedback` sends text to Ashby's team.
 
-A tool Ashby adds later, a write included, is not declared, so in Jelly it is not asked about: it runs without asking,
+A Jelly admin restricts one tool by setting its effect to `ask` or `deny` in the card.
+
+A tool Ashby adds later, a write included, is not declared, so in Jelly it runs with the plugin's own default: allowed,
 even if it changes something such as a candidate's stage or a pipeline, until a new version of this plugin declares it.
 Ashby says it adds tools over time, write actions included. A Jelly admin can set such a tool to ask. Keep
 `jelly.tools` in step with `src/ashby-tools.ts`; `test/unit/jelly.test.ts` checks the list against it, and each

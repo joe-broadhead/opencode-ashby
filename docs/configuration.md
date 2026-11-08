@@ -18,6 +18,24 @@ To set options, use the object form:
 
 ## Options
 
+Set options with the object form of the plugin entry:
+
+```json
+{
+  "plugins": [{ "package": "@joe-broadhead/opencode-ashby", "options": { "access": "ask-changes" } }]
+}
+```
+
+### `access`
+
+- Type: `"all"`, `"ask-changes"` or `"read-only"`.
+- Default: `"all"`.
+
+How much the default rules restrict. `all` allows every Ashby tool; `ask-changes` allows a read and asks for every
+other tool; `read-only` allows a read and denies every other tool, which also hides it from the model. The classes come
+from `src/ashby-tools.ts`, so the value decides a tool Ashby adds later too. [Permissions](#permissions) has the three
+generated blocks.
+
 ### `allowUntestedHost`
 
 - Type: `true` or `false`.
@@ -103,37 +121,21 @@ The write tools, which ask:
   draft for you to confirm; once saved, everyone with access to the profile sees it, and a mentioned colleague is
   notified.
 
-The last two rules turn tools off:
+**Every tool is allowed by default**, so nothing is switched off for you. Two tools deserve their own sentence before
+you decide:
 
 - `ashby_change_application_stage` moves an application to another stage, or archives it. Archiving runs the Archived
   stage's automatic activities, so the candidate still gets any automated archive email; that can't be taken back.
 - `ashby_submit_mcp_feedback` sends text to Ashby's team. Ashby invites it whenever something doesn't work, so a model
   could send it unasked, and text written after a failed lookup could carry candidate data.
 
-To turn one on, add a rule that makes it ask to the agent's own `permissions`, which come after the plugin's block in
-that agent. Each call then asks. For the build agent:
+There are three ways to restrict the block, and everything later still wins:
 
-```json
-{
-  "agents": {
-    "build": {
-      "permissions": [
-        { "action": "ashby_change_application_stage", "resource": "*", "effect": "ask" },
-        { "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "ask" }
-      ]
-    }
-  }
-}
-```
+1. the `access` option, for the whole plugin;
+2. the agent's own `permissions`, for one agent;
+3. your top-level `permissions`, which OpenCode adds to every agent.
 
-Don't put these in the top-level `permissions`: a top-level rule comes after every agent's own rules, so it would
-reach every agent, Explore included, which otherwise can't use Ashby. For an agent that exists only in your config, put
-them after the plugin's block (see [Agents that miss the rules](#agents-that-miss-the-rules)).
-
-Use only the rules you need. Never make a denied tool `allow`, and don't answer "Always allow" when it asks: OpenCode
-would save an allow for every agent in the project, and every later stage move or archive would run unasked.
-
-OpenCode uses the last rule that matches, so everything after the plugin's rules wins:
+OpenCode uses the last rule that matches, so:
 
 1. the agent's own rules, such as Explore's, which turn Ashby off there;
 2. your top-level `permissions`, which OpenCode adds to every agent;
@@ -142,10 +144,36 @@ OpenCode uses the last rule that matches, so everything after the plugin's rules
 A `deny` on resource `*` also hides the tool from the model. In an unattended run such as `opencode run`, a tool that
 asks is refused. An agent without the base rule gets no Ashby rules and keeps its own behaviour.
 
+### `access`
+
+| Value | What runs |
+| --- | --- |
+| `all` (the default) | every Ashby tool runs without a prompt |
+| `ask-changes` | a read runs; every other tool asks, including one Ashby adds later |
+| `read-only` | a read runs; every other tool is denied, and hidden from the model |
+
+The value generates the block from the tool table's classes, so `/ashby` and `/ashby-status` always show what is in
+force; the README prints the three blocks in full. A namespace rule (`ashby_*`) comes first, and each known tool's own
+rule after it, so a tool Ashby adds later takes the value's own effect.
+
 ### Recipes
 
-A `deny` can go in the top-level `permissions` of `opencode.json`: it applies to every agent, and only tightens. An
-`allow` or `ask` goes in the agent's own `permissions`: a top-level one would reach every agent, Explore included.
+To restrict one agent, put the rules in that agent's own `permissions`; a top-level `ask` or `allow` would reach every
+agent, Explore included. A read-only agent that asks for one change:
+
+```json
+{
+  "agents": {
+    "build": {
+      "permissions": [
+        { "action": "ashby_*", "resource": "*", "effect": "ask" },
+        { "action": "ashby_get_candidate", "resource": "*", "effect": "allow" },
+        { "action": "ashby_get_job_pipeline", "resource": "*", "effect": "allow" }
+      ]
+    }
+  }
+}
+```
 
 Never create candidates, in any agent (a `deny` also hides the tool):
 
@@ -153,20 +181,10 @@ Never create candidates, in any agent (a `deny` also hides the tool):
 [{ "action": "ashby_create_candidate", "resource": "*", "effect": "deny" }]
 ```
 
-Every write asks, and no recipe removes that. An `allow` rule, or one "Always allow" answer, would let a change that
-reaches candidates and the hiring team run without a prompt, in every agent of the project. In an unattended run, run
-the write from an interactive session instead.
-
-A strict agent where every Ashby tool asks, reads included: put these in that agent's own `permissions`, after the
-block. The last match wins, so the `ashby_*` ask alone would turn the two denied tools into asks too; repeating their
-denies after it keeps them off:
+A single tool off for everyone, in the top-level `permissions`:
 
 ```json
-[
-  { "action": "ashby_*", "resource": "*", "effect": "ask" },
-  { "action": "ashby_change_application_stage", "resource": "*", "effect": "deny" },
-  { "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "deny" }
-]
+{ "action": "ashby_change_application_stage", "resource": "*", "effect": "deny" }
 ```
 
 ### Agents that miss the rules
@@ -241,11 +259,13 @@ model. It holds no token, no header and no URL query, and makes no Ashby call. `
 | `error` | For a failed connection only: OpenCode's reason, on one line of at most 160 characters, with any URL cut before its query. The text for a needed sign-in can hold an authorization URL, so it is never shown. |
 | `source` | `type` (`plugin`, `adopted` or `conflict`), `url`, `signIn` (`oauth`, or `own` for your own entry with `"oauth": false`), and for a conflict the `expected` URL |
 | `account` | The name OpenCode keeps on the active sign-in, on one line of at most 80 characters; absent when it keeps none. Ashby's MCP has no account tool, so the plugin learns nothing else about the account. |
-| `tools` | How many Ashby tools OpenCode lists that the default rules let run or ask: the listed ones, without the denied ones |
-| `deniedTools` | The listed tools that the default rules deny, such as `submit_mcp_feedback`. The `Tools` row shows them as "off by default"; your own later `ask` rule may have turned one on. |
+| `tools` | How many Ashby tools OpenCode lists that the plugin knows |
+| `access` | `all`, `ask-changes` or `read-only`: the value the default rules were generated for. |
+| `destructiveTools` | The listed tools of the destructive class, such as `submit_mcp_feedback`. Under `all` they run like everything else, `ask-changes` asks for each, and `read-only` denies them. |
+| `deniedTools` | The family field's old name; it carries the same list as `destructiveTools`. |
 | `listing` | True while a server that connected moments ago lists no tools yet. The next step is then to run `/ashby-status` again in a few seconds, not to ask an admin. |
 | `unknownCount`, `unknownTools` | How many of them the plugin does not know, and at most 20 of their names, only those made of lowercase letters, digits and `_` |
-| `unguardedAgents` | Agents where a new Ashby tool would run without asking; empty when there are none. An agent whose own rules already ask or deny for every Ashby tool is not listed. |
+| `unguardedAgents` | Agents with a base allow and no block, under `ask-changes` or `read-only`; empty under `all`, and empty for an agent whose own rules already ask or deny for every Ashby tool. |
 | `shadowedSkills` | Present only when a skill with one of the plugin's ids, such as your own `ashby` skill, replaces the plugin's: each `id` and the `path` OpenCode loads instead |
 | `host` | `version` (`null` if OpenCode reports none), `range` (the supported range) and `tested` (true only for 2.2.3, 2.2.4, 2.2.5 and 2.2.6) |
 | `problems` | Setup problems, each `CODE: What happened. Next step: What to do.` |

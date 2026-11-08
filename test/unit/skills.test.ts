@@ -4,11 +4,11 @@
 import { describe, expect, test } from "bun:test"
 import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
-import { DENIED_TOOLS, PARAMETERS, READ_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
+import { DESTRUCTIVE_TOOLS, PARAMETERS, READ_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
 import { parseSkill, SKILL_NAMES, SKILLS_DIR } from "../../src/skills.js"
 
 const NAMES = [...SKILL_NAMES]
-const KNOWN = [...READ_TOOLS, ...WRITE_TOOLS, ...DENIED_TOOLS]
+const KNOWN = [...READ_TOOLS, ...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS]
 const MAX_LINES = 100
 // Words from the plugin's own process that mean nothing to the model or the user.
 const JARGON = /manifest|attest|quarantin|acceptance|harness|fixture|\bfork\b|dispatch|lease|catalog|allowlist|capabilit|\bWS-[A-Z0-9]|PLAN\.md|drift|provisional|\bTODO\b|\bevals?\b/i
@@ -217,23 +217,18 @@ describe("skills", () => {
     }
   })
 
-  test("ashby-write names every denied tool as off, gives the ask rule that turns it on, and never works around it", () => {
-    const off = (read("ashby-write").split("## Off by default")[1]?.split("\n## ")[0] ?? "").replace(/\s+/g, " ")
-    for (const name of DENIED_TOOLS) expect(off).toContain(`\`${name}\``)
-    expect(off).toContain("the candidate still gets any automated archive email")
-    expect(off).toContain("Both change what the hiring team sees, and either can start that stage's automatic activities")
-    expect(off).toContain("A note is never a way to record a stage.")
-    expect(off).toContain("Moving, archiving, rejecting and hiring are off in this plugin and done in Ashby.")
-    expect(off).toContain("There is no tool here to hire, to make or send an offer, or to email a candidate")
-    expect(off).toContain("the user can add a later `ask` rule in the agent's own `permissions`")
-    expect(off).toContain("Don't edit their configuration yourself.")
-    expect(off).toContain('{ "action": "ashby_change_application_stage", "resource": "*", "effect": "ask" }')
-    expect(off).toMatch(/a later `ask` rule in the agent's own `permissions`/)
-    expect(off).toMatch(/Never work\s+around the deny/)
-    expect(off).toMatch(/say exactly what to change in Ashby's web app/i)
-    expect(off).toMatch(/Don't `search\(\)` for these tools: a missing one is the deny/)
-    expect(off).not.toMatch(/"effect": "allow"/)
-    expect(flat("ashby-write")).toContain('{ "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "ask" }')
+  // R18: nothing is off by default, so the skill's own rules carry the safety. It names every destructive tool, says
+  // whom each reaches, keeps hiring and offers in Ashby, and never works around a refusal.
+  test("ashby-write names every destructive tool, says whom it reaches, and never works around a refusal", () => {
+    const section = (read("ashby-write").split("## Stage moves, archives and feedback")[1]?.split("\n## ")[0] ?? "").replace(/\s+/g, " ")
+    for (const name of DESTRUCTIVE_TOOLS) expect(section).toContain(`\`${name}\``)
+    expect(section).toContain("Every Ashby tool is allowed by default, so a change can run without a prompt")
+    expect(section).toContain("the candidate still gets any automated archive email")
+    expect(section).toContain("Both change what the hiring team sees, and either can start that stage's automatic activities")
+    expect(section).toContain("never as a way to record a note")
+    expect(section).toContain("There is no tool here to hire, to make or send an offer, or to email a candidate")
+    expect(section).toContain("don't edit it, and never work around a refusal")
+    expect(section).toContain("Don't suggest `allow` or \"Always allow\"")
   })
 
   test("ashby-write leaves every decision on a candidate to the user", () => {

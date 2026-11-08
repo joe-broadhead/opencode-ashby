@@ -90,7 +90,7 @@
   },
   "jelly": {
     "title": "Ashby",
-    "summary": "Your Ashby candidates, pipeline, interviews and feedback; add a candidate, note or pipeline entry, asking first.",
+    "summary": "Your Ashby candidates, pipeline, interviews and feedback; add a candidate, note or pipeline entry.",
     "icon": "assets/icon.svg",
     "tools": [
       {
@@ -168,31 +168,31 @@
       {
         "name": "ashby.add_note_to_candidate",
         "permission": "ashby_add_note_to_candidate",
-        "effect": "ask",
+        "effect": "allow",
         "readOnly": false
       },
       {
         "name": "ashby.consider_candidate_for_job",
         "permission": "ashby_consider_candidate_for_job",
-        "effect": "ask",
+        "effect": "allow",
         "readOnly": false
       },
       {
         "name": "ashby.create_candidate",
         "permission": "ashby_create_candidate",
-        "effect": "ask",
+        "effect": "allow",
         "readOnly": false
       },
       {
         "name": "ashby.change_application_stage",
         "permission": "ashby_change_application_stage",
-        "effect": "deny",
+        "effect": "allow",
         "readOnly": false
       },
       {
         "name": "ashby.submit_mcp_feedback",
         "permission": "ashby_submit_mcp_feedback",
-        "effect": "deny",
+        "effect": "allow",
         "readOnly": false
       }
     ],

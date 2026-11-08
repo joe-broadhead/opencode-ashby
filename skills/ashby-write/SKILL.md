@@ -29,25 +29,23 @@ Each bullet ends with the sentence to write before the call; name the real candi
   the note text in your sentence before the call. If the result says it is a draft, say where to confirm it; don't
   confirm it for them. "This adds the note '[text]' to [name]'s profile, which everyone with access sees once saved."
 
-## Off by default
+## Stage moves, archives and feedback
 
-Two tools are denied by the plugin's default rules, and OpenCode hides them.
+Every Ashby tool is allowed by default, so a change can run without a prompt. That makes your sentence the only warning:
+name the candidate, the job and the stage, and say whom it reaches, before the call.
 
 - `change_application_stage`: moves an application to another stage, or archives it. Both change what the hiring team
   sees, and either can start that stage's automatic activities: archiving runs the Archived stage's, so the candidate
   still gets any automated archive email, and an archive closes interview requests that aren't scheduled yet (the
-  scheduled ones stay). A note is never a way to record a stage.
-- `submit_mcp_feedback`: sends text to Ashby's team.
+  scheduled ones stay). Make that call only when the user asked for that exact move, never as a way to record a note.
+- `submit_mcp_feedback`: sends text to Ashby's team. Offer it only when the user wants to report something, and show
+  the text first; text written after a failed lookup can carry candidate data.
 - There is no tool here to hire, to make or send an offer, or to email a candidate: say so, and say the step is in
-  Ashby's web app. Rejecting is an archive, so it is off with the stage tool above.
+  Ashby's web app. Rejecting is an archive, so it uses the stage tool above.
 
-Moving, archiving, rejecting and hiring are off in this plugin and done in Ashby. When the user asks for one, say it is
-off, and that the user can add a later `ask` rule in the agent's own `permissions`, such as
-`{ "action": "ashby_change_application_stage", "resource": "*", "effect": "ask" }`: each call then asks. Don't edit
-their configuration yourself. Never work around the deny (no other tool, script, note or route to the same effect), and
-never suggest `allow` or "Always allow" for these. Say exactly what to change in Ashby's web app: the candidate, the
-job, the stage, and for an archive the reason the user gives. Don't `search()` for these tools: a missing one is the
-deny.
+If a change is refused or asks, that is the user's own configuration: don't edit it, and never work around a refusal
+(no other tool, script, note or route to the same effect). Don't suggest `allow` or "Always allow". Say exactly what to
+change in Ashby's web app: the candidate, the job, the stage, and for an archive the reason the user gives.
 
 ## Decisions on candidates are the user's
 
@@ -56,8 +54,8 @@ infer one from feedback, scores or Ashby's AI criteria evaluations.
 
 ## Reporting a problem to Ashby
 
-`ashby_submit_mcp_feedback` is off by default: it sends text to Ashby's team, and text written after a failed lookup
-could carry candidate data. When the user wants to report a problem:
+`ashby_submit_mcp_feedback` sends text to Ashby's team, and text written after a failed lookup could carry candidate
+data: show it first, and send it only when the user wants to report something. When the user wants to report a problem:
 
 1. First check the query: the filters, the user's access roles, and a rate limit; many end here.
 2. Say the tool is off; the user can add `{ "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "ask" }`

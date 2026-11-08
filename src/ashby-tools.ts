@@ -33,14 +33,17 @@ export const READ_TOOLS: readonly string[] = [
 export const WRITE_TOOLS: readonly string[] = ["add_note_to_candidate", "consider_candidate_for_job", "create_candidate"]
 
 /**
- * Off by default; a deny also hides them. A user or organisation turns one back on with a later `ask` rule for it.
+ * The destructive class: allowed like every other tool by default, and what `access: "read-only"` denies and
+ * `access: "ask-changes"` asks for each call.
  * - `change_application_stage`: moves an application to another stage, or archives it. Archiving runs the Archived
  *   stage's automatic activities, so the candidate still gets any automated archive email. A decision on a person,
  *   which can't be taken back once the email has gone.
- * - `submit_mcp_feedback`: sends text to Ashby's team, and Ashby invites it whenever something doesn't work, so a model
- *   could send it unasked, with candidate details from a failed call.
+ * - `submit_mcp_feedback`: sends text to Ashby's team, and Ashby invites it whenever something doesn't work.
  */
-export const DENIED_TOOLS: readonly string[] = ["change_application_stage", "submit_mcp_feedback"]
+export const DESTRUCTIVE_TOOLS: readonly string[] = ["change_application_stage", "submit_mcp_feedback"]
+
+/** Every known tool, in the order the default rules list them: the reads, the writes, then the destructive class. */
+export const ALL_TOOLS: readonly string[] = [...READ_TOOLS, ...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS]
 
 /**
  * Each known tool's input parameters, as `name:type`, with `*` after a required name, in the input schema's order. Empty
@@ -50,11 +53,11 @@ export const DENIED_TOOLS: readonly string[] = ["change_application_stage", "sub
  */
 export const PARAMETERS: Readonly<Record<string, readonly string[]>> = {}
 
-type ToolClass = "read" | "write" | "denied" | "unknown"
+type ToolClass = "read" | "write" | "destructive" | "unknown"
 
 export function classify(name: string): ToolClass {
   if (READ_TOOLS.includes(name)) return "read"
   if (WRITE_TOOLS.includes(name)) return "write"
-  if (DENIED_TOOLS.includes(name)) return "denied"
+  if (DESTRUCTIVE_TOOLS.includes(name)) return "destructive"
   return "unknown"
 }

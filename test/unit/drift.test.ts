@@ -6,8 +6,8 @@ import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSy
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { classify, DENIED_TOOLS, PARAMETERS, READ_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
-import { defaultRules, evaluate, type Rule } from "../../src/permissions.js"
+import { classify, DESTRUCTIVE_TOOLS, PARAMETERS, READ_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
+import { ACCESS, defaultRules, effectOf, evaluate, type Rule } from "../../src/permissions.js"
 
 const SCRIPT = fileURLToPath(new URL("../../scripts/check-ashby-tools.mjs", import.meta.url))
 const TOOLS = fileURLToPath(new URL("../../src/ashby-tools.ts", import.meta.url))
@@ -15,7 +15,7 @@ const FIXTURE = fileURLToPath(new URL("./ashby-tools.json", import.meta.url))
 const dir = mkdtempSync(join(tmpdir(), "ashby-drift-"))
 afterAll(() => rmSync(dir, { recursive: true, force: true }))
 
-const ALL = [...READ_TOOLS, ...WRITE_TOOLS, ...DENIED_TOOLS]
+const ALL = [...READ_TOOLS, ...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS]
 const BASE_ALLOW: Rule = { action: "*", resource: "*", effect: "allow" }
 const wildcard = (pattern: string) => new RegExp(`^${pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*")}$`)
 /** The host hides a tool when the last rule matching its action on every resource denies. */
@@ -56,21 +56,28 @@ describe("npm run drift", () => {
   })
 
   // The reconcile is a drop-in: save the server's `tools/list` response over this fixture, then fix what `npm run
-  // drift -- --strict` and this test report. Each tool the list holds must land on exactly one rule with that class's
-  // effect, every deny must be hidden, and every known tool must still be listed; a difference is named here, one tool
-  // at a time, so the failing message is the work list.
+  // drift -- --strict` and this test report. Each tool the list holds must land on exactly one class, at that class's
+  // effect for every `access` value, and every known tool must still be listed; a difference is named here, one tool at
+  // a time, so the failing message is the work list.
   test("replacing test/unit/ashby-tools.json with a saved tools/list is the whole reconcile", () => {
-    const rules = [BASE_ALLOW, ...defaultRules()]
     const live = recorded().map((tool) => tool.name)
     const unclassified = live.filter((name) => classify(name) === "unknown")
     const unlisted = ALL.filter((name) => !live.includes(name))
-    const listsOf = (name: string) => [READ_TOOLS, WRITE_TOOLS, DENIED_TOOLS].filter((list) => list.includes(name)).length
+    const listsOf = (name: string) => [READ_TOOLS, WRITE_TOOLS, DESTRUCTIVE_TOOLS].filter((list) => list.includes(name)).length
     const misplaced = live.filter((name) => listsOf(name) !== 1).map((name) => ({ name, lists: listsOf(name) }))
-    const wrongEffect = live
-      .filter((name) => classify(name) !== "unknown")
-      .map((name) => ({ name, effect: evaluate(rules, `ashby_${name}`) }))
-      .filter(({ name, effect }) => effect !== (classify(name) === "denied" ? "deny" : classify(name) === "write" ? "ask" : "allow"))
-    const notHidden = DENIED_TOOLS.filter((name) => live.includes(name) && !hidden(rules, `ashby_${name}`))
+    // Every access value, every listed name: the block resolves to the class's own effect.
+    const wrongEffect = ACCESS.flatMap((access) => {
+      const rules = [BASE_ALLOW, ...defaultRules(access)]
+      return live
+        .filter((name) => classify(name) !== "unknown")
+        .map((name) => ({ access, name, effect: evaluate(rules, `ashby_${name}`) }))
+        .filter(({ name, effect }) => effect !== effectOf(name, access))
+    })
+    // A read-only block denies the destructive class, and a deny hides the tool from the model.
+    const notHidden = ACCESS.flatMap((access) => {
+      const rules = [BASE_ALLOW, ...defaultRules(access)]
+      return DESTRUCTIVE_TOOLS.filter((name) => live.includes(name) && access === "read-only" && !hidden(rules, `ashby_${name}`)).map((name) => ({ access, name }))
+    })
     // Each list names its own difference; an empty report means the table, the rules and the file agree.
     expect({ unclassified, unlisted, misplaced, wrongEffect, notHidden }).toEqual({ unclassified: [], unlisted: [], misplaced: [], wrongEffect: [], notHidden: [] })
   })

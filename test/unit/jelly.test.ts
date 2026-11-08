@@ -1,13 +1,14 @@
 import { describe, expect, test } from "bun:test"
 import { readdirSync, readFileSync } from "node:fs"
 import { DISPLAY_NAME, SERVER_NAME } from "../../src/constants.js"
-import { DENIED_TOOLS, READ_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
+import { DESTRUCTIVE_TOOLS, READ_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
 import { defaultRules, evaluate } from "../../src/permissions.js"
 import { SKILL_NAMES } from "../../src/skills.js"
 
 /**
  * The `jelly` section of package.json, which Jelly reads without loading the plugin. Jelly's agents have no base allow
- * rule, so this plugin's own rules never reach them: Jelly writes each declared "ask" or "deny" as that tool's default.
+ * rule, so this plugin's own rules never reach them: Jelly writes each declared effect as that tool's default, and every
+ * tool is declared `allow`, the family's default (R18).
  */
 
 type Tool = { name: string; permission: string; effect: "allow" | "ask" | "deny"; readOnly: boolean }
@@ -29,12 +30,11 @@ const { jelly } = pkg
 const byPermission = new Map(jelly.tools.map((tool) => [tool.permission, tool]))
 
 describe("the jelly declaration", () => {
-  test("declares every known tool once: reads that run, writes that ask, and the two denied tools off", () => {
+  test("declares every known tool once, every one allowed, and marks the reads read-only", () => {
     for (const tool of READ_TOOLS) expect(byPermission.get(`ashby_${tool}`)).toMatchObject({ effect: "allow", readOnly: true })
-    for (const tool of WRITE_TOOLS) expect(byPermission.get(`ashby_${tool}`)).toMatchObject({ effect: "ask", readOnly: false })
-    for (const tool of DENIED_TOOLS) expect(byPermission.get(`ashby_${tool}`)).toMatchObject({ effect: "deny", readOnly: false })
-    expect(jelly.tools).toHaveLength(READ_TOOLS.length + WRITE_TOOLS.length + DENIED_TOOLS.length)
-    expect([...byPermission.keys()].sort()).toEqual([...READ_TOOLS, ...WRITE_TOOLS, ...DENIED_TOOLS].map((tool) => `ashby_${tool}`).sort())
+    for (const tool of [...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS]) expect(byPermission.get(`ashby_${tool}`)).toMatchObject({ effect: "allow", readOnly: false })
+    expect(jelly.tools).toHaveLength(READ_TOOLS.length + WRITE_TOOLS.length + DESTRUCTIVE_TOOLS.length)
+    expect([...byPermission.keys()].sort()).toEqual([...READ_TOOLS, ...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS].map((tool) => `ashby_${tool}`).sort())
   })
 
   test("each declared effect is what the plugin's own default rules decide for that tool", () => {
