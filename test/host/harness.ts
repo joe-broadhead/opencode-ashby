@@ -72,6 +72,8 @@ export async function startHost(input: HostInput = {}) {
   const config = {
     // Keep the built-in local providers from probing their default ports.
     providers: { lmstudio: { settings: { baseURL: "" } }, ollama: { settings: { baseURL: "" } }, vllm: { settings: { baseURL: "" } } },
+    // Code checks are the host's unattended Code Mode path, which needs no model and no one to answer a prompt.
+    experimental: { schedules: true },
     ...input.config?.(fake.url),
   }
   const { OpenCode } = (await import(pathToFileURL(join(SDK, "dist", "index.js")).href)) as typeof import("@opencode/sdk")
@@ -167,4 +169,26 @@ export const agentRules = async (host: Host) =>
 export async function effect(host: Host, agent: string, action: string) {
   const sessionID = await session(host, agent)
   return (await host.client.permission.create({ sessionID, agent, action, resources: ["*"] })).effect
+}
+
+/**
+ * Runs Code Mode unattended: a schedule's `if` code is compiled and checked as the session's agent, with no model and
+ * no one to answer a prompt. The schedule is deleted before it can fire. Returns whether the code was accepted, or the
+ * refusal.
+ */
+export async function unattended(host: Host, sessionID: string, code: string) {
+  const schedules = host.client as unknown as { experimental: { schedule: { create: (input: object) => Promise<{ id: string }>; delete: (input: object) => Promise<unknown> } } }
+  try {
+    const schedule = await schedules.experimental.schedule.create({
+      sessionID,
+      name: "ashby-host-test",
+      when: { in: "6 hours" },
+      if: { code },
+      prompt: "Deleted by the host test before it can run.",
+    })
+    await schedules.experimental.schedule.delete({ scheduleID: schedule.id })
+    return { ok: true as const }
+  } catch (error) {
+    return { ok: false as const, error: error instanceof Error ? error.message : String(error) }
+  }
 }

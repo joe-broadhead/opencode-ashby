@@ -1,8 +1,8 @@
 // Pack, install and load the published shape. The tarball holds exactly the files whitelist and installs with
 // lifecycle scripts disabled. Installed alone, it loads in each stock OpenCode release it is tested on, which provides
 // @opencode/plugin, OpenTUI and Solid itself; next to those packages, both entry points also import under Bun.
-// OPENCODE_BIN_2_2_3, OPENCODE_BIN_2_2_4 and OPENCODE_BIN_2_2_5 name stock binaries; otherwise each release is
-// installed with npm, once per run. Every temp folder is a git repository under the system's /tmp, never under TMPDIR
+// OPENCODE_BIN_2_2_3 to OPENCODE_BIN_2_2_6 name stock binaries; otherwise each release in TESTED_HOSTS is
+// installed with npm, once per run, and a release that did not run fails this suite. Every temp folder is a git repository under the system's /tmp, never under TMPDIR
 // or HOME, so OpenCode's upward search for `.opencode` folders never reaches the agents of whoever runs the test.
 // PACK_TARBALL names a tarball that was already packed, such as the one the release publishes, to test it instead.
 // On each release a script also calls every known Ashby tool through the tools RPC, against a loopback fake Ashby, and the
@@ -464,8 +464,11 @@ describe.each(HOST_VERSIONS)("the tools RPC on stock OpenCode %s", (version) => 
  * OPENCODE_BIN_<version>, or the unmodified npm release with its platform binary, installed with scripts disabled.
  * Installed once per version: several describe blocks serve the same release.
  */
+/** The tested releases that really loaded a stock binary in this run: the guard below fails when one did not. */
+const ran = new Set<string>()
 const installed = new Map<string, string>()
 function stockBinary(version: string): string {
+  ran.add(version)
   const given = process.env[`OPENCODE_BIN_${version.replaceAll(".", "_")}`]
   if (given) return given
   const cached = installed.get(version)
@@ -591,3 +594,11 @@ function run(command: string, args: string[], cwd: string, env: NodeJS.ProcessEn
   if (result.status !== 0) throw new Error(`${command} ${args.join(" ")} failed (${result.status}):\n${result.stderr}\n${result.stdout}`)
   return result.stdout
 }
+
+// R11: a release that did not run is a failure, never a silent skip: every tested release must have loaded a stock
+// binary, so a suite that quietly tested only one of them cannot pass.
+describe("the tested releases", () => {
+  test("every release in TESTED_HOSTS ran the stock binary in this run", () => {
+    expect([...ran].sort()).toEqual([...TESTED_HOSTS].sort())
+  })
+})

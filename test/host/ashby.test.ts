@@ -16,7 +16,7 @@ import { SKILL_NAMES } from "../../src/skills.js"
 import { StatusRpc } from "../../src/status.js"
 import { TOOLS_RPC_ID } from "../../src/host/tools-rpc.js"
 import { ASHBY_SCOPES, MODEL_ID } from "./fake-mcp.js"
-import { agentRules, attempt, cleanup, effect, HOST_VERSION, session, startHost, until, type Host } from "./harness.js"
+import { agentRules, attempt, cleanup, effect, HOST_VERSION, session, startHost, unattended, until, type Host } from "./harness.js"
 
 const AGENT_RULES = defaultRules().map((rule, index, rules) => `  ${JSON.stringify(rule)}${index < rules.length - 1 ? "," : ""}`).join("\n")
 const AGENTS_NEXT_STEP = "Put the default rules shown by /ashby-status first in each listed agent's own permissions, in opencode.json or the agent's Markdown file, followed by your top-level rules for Ashby tools."
@@ -369,6 +369,28 @@ describe("a Code Mode turn that asks for the denied tools", () => {
     await until("the model's final turn", async () => host.fake.model.requests.slice(before).some((request) => (request as { messages?: { role: string }[] }).messages?.some((message) => message.role === "tool")))
     expect(host.fake.calls).toContain("get_pending_tasks")
     for (const tool of DENIED_TOOLS) expect(host.fake.calls).not.toContain(tool)
+  })
+})
+
+// R2, Code Mode path: unattended code is compiled and checked as the session's agent, with no model and no one to
+// answer a prompt. A read runs; an ask, a deny and an unknown name are refused, and none of them reaches Ashby.
+describe("unattended Code Mode", () => {
+  let host: Host
+  beforeAll(async () => {
+    host = await modelHost(true)
+  })
+  afterAll(() => host?.close())
+
+  test("a read runs, an ask and a deny are refused, and an unknown name is denied, with no Ashby call", async () => {
+    const sessionID = await session(host)
+    const ask = WRITE_TOOLS[0]!
+    const before = host.fake.calls.length
+    // A code check returns a boolean; the call it makes is what the host checks and runs.
+    expect(await unattended(host, sessionID, `const read = await tools.ashby.get_pending_tasks({}); return read !== undefined`)).toEqual({ ok: true })
+    expect(await unattended(host, sessionID, `const note = await tools.ashby.${ask}({ query: "a note" }); return note !== undefined`)).toMatchObject({ ok: false })
+    for (const tool of DENIED_TOOLS) expect(await unattended(host, sessionID, `const denied = await tools.ashby.${tool}({ query: "q" }); return denied !== undefined`)).toMatchObject({ ok: false })
+    expect(await unattended(host, sessionID, `const unknown = await tools.ashby.shiny_new_tool({ query: "q" }); return unknown !== undefined`)).toMatchObject({ ok: false })
+    expect(host.fake.calls.slice(before)).toEqual(["get_pending_tasks"])
   })
 })
 
