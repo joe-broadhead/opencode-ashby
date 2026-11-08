@@ -17,9 +17,10 @@ Unofficial; not affiliated with Ashby.
   stay hidden unless you were granted them.
 - Ashby's MCP server is in beta, and Ashby may change its tools without notice. A tool Ashby adds is allowed at once
   under `access: "all"`, and is counted as unknown until a release knows it.
-- The 12 read, 3 write and 2 denied tools, and their classes, come from Ashby's own help page, which gives no
-  annotations: treat a class as Ashby's description of the tool, not as its annotation. A tool Ashby adds asks before
-  it runs, and status names it as unknown.
+- The 12 read, 3 write and 2 destructive tools, and their classes, come from Ashby's own help page, which gives no
+  annotations: treat a class as Ashby's description of the tool, not as its annotation. A tool Ashby adds follows
+  `access`: allowed at once at `"all"`, asked for at `"ask-changes"`, denied at `"read-only"`, and status names it as
+  unknown.
 - Ashby stores and processes its data in the United States.
 
 ## Install
@@ -323,12 +324,12 @@ Run `/ashby-status` first. Its last line is the next step.
 | Tools: none listed yet | Ashby connected moments ago and is still listing its tools. Run `/ashby-status` again, or press `r` in the dialog, in a few seconds. |
 | Tools: 0 available | Ashby lists no tools for your account. Ask an Org Admin to turn on **MCP Server**, and to give you **Elevated Access**. |
 | Tools: a tool Ashby adds | Every tool is allowed by default, so it runs at once. See [Permissions](#permissions) to restrict it. |
-| Tools: unknown | Ashby added tools the plugin does not know yet. They ask before they run. A known tool missing from the count is normal: Ashby may list fewer tools for less access. |
+| Tools: unknown | Ashby added tools the plugin does not know yet. They follow `access`: allowed at `"all"`, asked for at `"ask-changes"`, denied at `"read-only"`. A known tool missing from the count is normal: Ashby may list fewer tools for less access. |
 | Access: default rules missing or not added | Some agents lack the default rules (see the agents row), or OpenCode could not add them (see the OpenCode row). Follow the next step. |
 | Account: account name not reported | Nothing is wrong: Ashby's MCP has no account tool, and OpenCode keeps no name on this sign-in. Ashby's answers follow the user you signed in as. |
 | Answers miss jobs or candidates | Ashby returns only what your access roles allow, and confidential jobs stay hidden unless you were granted them. Ask an Ashby admin for access. |
 | Rate limited | Ashby allows 120 requests a minute per sign-in. Wait a minute, and make fewer calls at once. |
-| A move or archive needs a prompt | Under `access: "ask-changes"` every change asks. See [Permissions](#permissions) for the three values. |
+| A move or archive asks | Only under `access: "ask-changes"`; the default lets it run. See [Permissions](#permissions) for the three values. |
 | Agents without default rules | Put the default rules shown by `/ashby-status` first in each listed agent's own permissions, in `opencode.json` or the agent's Markdown file, followed by your top-level rules for Ashby tools. |
 | OpenCode: untested | OpenCode is not 2.2.3, 2.2.4, 2.2.5 or 2.2.6. Inside `>=2.2.3 <2.3.0` the plugin runs normally; outside it, it runs only because `allowUntestedHost` is set. If Ashby misbehaves, use a tested release. |
 | Signed in to the wrong Ashby account | Run `opencode mcp logout ashby` from the project folder (or remove the account in `/connect` → Ashby); if it answers `MCP server not found: ashby`, wait a few seconds and run it again. Then sign in again. |

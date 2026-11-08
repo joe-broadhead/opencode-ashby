@@ -100,10 +100,10 @@ CI (`.github/workflows/ci.yml`) runs `npm ci --ignore-scripts` and `npm run chec
 
 ## Ashby's tools
 
-`src/ashby-tools.ts` is the one record of the Ashby tools the plugin knows: `READ_TOOLS` run without a prompt and are
-the tools RPC's methods, `WRITE_TOOLS` ask, `DENIED_TOOLS` are off, and `PARAMETERS` holds each tool's input
-parameters. The default rules, the tools RPC, status's unknown and denied tools, the fake server in the host and pack
-tests, and the checks of `jelly.tools`, the docs and the skills all derive from it. Ashby's MCP server is in beta and
+`src/ashby-tools.ts` is the one record of the Ashby tools the plugin knows: `READ_TOOLS` are the reads, and run at every
+`access` value; `WRITE_TOOLS` and `DESTRUCTIVE_TOOLS` are the changes, and follow `access`; and `PARAMETERS` holds each
+tool's input parameters. The default rules, the tools RPC, status's unknown and destructive tools, the fake server in the
+host and pack tests, and the checks of `jelly.tools`, the docs and the skills all derive from it. Ashby's MCP server is in beta and
 Ashby may add, rename or remove tools without notice. It may also list fewer tools for a user with less access, so a
 known tool missing from one account's list is not drift.
 
@@ -163,8 +163,8 @@ a deny that is not hidden (`notHidden`). Fix each in `src/ashby-tools.ts`, then 
    without a prompt and each one is also a method of the tools RPC for scripts. Add tools that change anything to
    `WRITE_TOOLS`. A tool that emails, messages, moves, rejects, archives or hires a candidate, touches offers, deletes,
    changes users, permissions or sharing, sends data to Ashby unasked, or reads EEO, diversity or demographic data per
-   person goes to `DENIED_TOOLS`. Leave a tool out if you are not sure: it then asks before every call, and scripts
-   cannot call it.
+   person goes to `DESTRUCTIVE_TOOLS`. Leave a tool out if you are not sure: the namespace rule then decides it under
+   `access`, and scripts cannot call it by name.
 4. Update `PARAMETERS` from the schemas, `jelly.tools` in `package.json`, and any skill text that names a changed tool.
    With parameters recorded, a skill may give a literal call such as `get_candidate({ … })`, and the skills test checks
    its keys against `PARAMETERS`. Run `npm run check`: the Jelly test fails if `jelly.tools` differs from the lists, the

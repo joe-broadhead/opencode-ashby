@@ -158,8 +158,8 @@ describe("setup", () => {
     tool.run({ namespace: (namespace: { name: string; description?: string }) => void namespaces.push(namespace), add: (info: unknown) => void tools.push(info) } as never)
     expect(namespaces).toEqual([{ name: "ashby", description: NAMESPACE_DESCRIPTION }])
     expect(tools).toEqual([])
-    // The always-visible rules: read the skill, Metaview's part, no ranking, whose a change may reach, the two tools that
-    // are off, untrusted text.
+    // The always-visible rules: read the skill, Metaview's part, no ranking, whose a change may reach, what `access`
+    // does, untrusted text.
     for (const words of [
       "Read the ashby skill before the first call",
       "Interview recordings and transcripts are Metaview's when it is connected; the pipeline, applications, jobs and records are Ashby's",
@@ -169,10 +169,10 @@ describe("setup", () => {
       "decline in one sentence",
       "Never search mail",
       "load ashby-write and say in your reply what it does and whom it reaches",
-      "(change_application_stage) is off, because archiving can email the candidate",
-      "submit_mcp_feedback is off: don't offer it",
+      "Moving or archiving a candidate (change_application_stage) can email the candidate",
+      "submit_mcp_feedback sends text to Ashby's team",
       "Never rank candidates or recommend a hire or no-hire, even when asked.",
-      "Changes ask first, and may reach candidates or the hiring team",
+      "Every tool is allowed by default, so a change runs without a prompt",
     ]) {
       expect(NAMESPACE_DESCRIPTION).toContain(words)
     }

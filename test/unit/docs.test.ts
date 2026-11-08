@@ -5,7 +5,7 @@ import { describe, expect, test } from "bun:test"
 import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { CODES, TESTED_HOSTS, UNTESTED_EXAMPLE } from "../../src/constants.js"
+import { CODES, NAMESPACE_DESCRIPTION, TESTED_HOSTS, UNTESTED_EXAMPLE } from "../../src/constants.js"
 import { DESTRUCTIVE_TOOLS, PARAMETERS, READ_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
 import { METHODS, NEXT_STEPS, TOOLS_RPC_ID } from "../../src/host/tools-rpc.js"
 import { ACCESS, defaultRules } from "../../src/permissions.js"
@@ -92,16 +92,18 @@ describe("docs", () => {
   })
 
   // R18: the `all` block allows everything, and no other example in the docs or the skills hands a destructive tool an
-  // allow: a reader who restricts must not be told to reopen one.
+  // allow: a reader who restricts must not be told to reopen one. The one exception is the ashby-write skill's
+  // documented way to opt `submit_mcp_feedback` back in at `ask-changes`, which an agent only needs once restricted.
   test("no doc or skill gives a destructive tool an allow rule outside the generated block", () => {
     for (const file of FILES) {
       const source = raw(file)
       for (const tool of DESTRUCTIVE_TOOLS) {
         const rules = [...source.matchAll(/\{[^{}]*\}/g)].map((match) => match[0])
         const allowed = rules.filter((rule) => rule.includes(`"action": "ashby_${tool}"`) && /"effect"\s*:\s*"allow"/.test(rule))
-        // The one exception is the README's generated `all` block, whose line is a literal allow for every tool.
+        // The other exception is the README's generated `all` block, whose line is a literal allow for every tool.
         const generated = file === "README.md" && source.includes(`{ "action": "ashby_${tool}", "resource": "*", "effect": "allow" }`)
-        expect({ file, tool, allowed: allowed.length, generated }).toEqual({ file, tool, allowed: generated ? 1 : 0, generated })
+        const optIn = file === "skills/ashby-write/SKILL.md" && tool === "submit_mcp_feedback" ? 1 : 0
+        expect({ file, tool, allowed: allowed.length, generated }).toEqual({ file, tool, allowed: (generated ? 1 : 0) + optIn, generated })
       }
     }
   })
@@ -115,23 +117,28 @@ describe("docs", () => {
     for (const name of DESTRUCTIVE_TOOLS) expect(recipe).not.toContain(`"action": "ashby_${name}", "resource": "*", "effect": "allow"`)
   })
 
-  // R18: the `all` block allows everything, and no other example in the docs or the skills hands a destructive tool an
-  // allow: a reader who restricts must not be told to reopen one.
-  test("no doc or skill gives a destructive tool an allow rule outside the generated block", () => {
-    for (const file of FILES) {
-      const source = raw(file)
-      for (const tool of DESTRUCTIVE_TOOLS) {
-        const rules = [...source.matchAll(/\{[^{}]*\}/g)].map((match) => match[0])
-        const allowed = rules.filter((rule) => rule.includes(`"action": "ashby_${tool}"`) && /"effect"\s*:\s*"allow"/.test(rule))
-        // The one exception is the README's generated `all` block, whose line is a literal allow for every tool.
-        const generated = file === "README.md" && source.includes(`{ "action": "ashby_${tool}", "resource": "*", "effect": "allow" }`)
-        expect({ file, tool, allowed: allowed.length, generated }).toEqual({ file, tool, allowed: generated ? 1 : 0, generated })
+  // R18, the model-facing rule: at `access: "all"` nothing the model reads may say a tool asks, waits for approval or is
+  // off, unless the sentence names `access` or the value it describes, so a reader can tell the claim depends on the
+  // value.
+  test("no model-facing sentence says a tool asks or is off unless it names the value", () => {
+    const jelly = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as { jelly: { summary: string } }
+    const texts: [string, string][] = [
+      ["src/constants.ts (namespace)", NAMESPACE_DESCRIPTION],
+      ["package.json (jelly summary)", jelly.jelly.summary],
+      ...FILES.filter((file) => file.startsWith("skills/") || file.startsWith("docs/") || file.endsWith(".md")).map((file) => [file, raw(file)] as [string, string]),
+    ]
+    const claim = /(?:(?:a|each|every|any|the) (?:tool|tools|change|changes|export|exports|pin|pins|write|writes|delete|deletes|merge|merges|call|calls) (?:asks?|ask) (?:the user|first|you|before|each time|every time|for (?:each|every))|(?:tools|changes|exports|writes|pins|deletes|merges) (?:ask|asks) (?:the user|first|you|before|each time|every time|for (?:each|every))|it asks? (?:the user|first)|asks? (?:the user )?(?:before|each time|every time|for (?:each|every))|may ask|(?:is|are) off|(?:the user|you) approv)/iu
+    const value = /\baccess\b|\bask-changes\b|\bread-only\b/u
+    for (const [file, text] of texts) {
+      for (const sentence of text.replace(/\s+/g, " ").split(/(?<=[.!?])\s+/)) {
+        if (!claim.test(sentence)) continue
+        expect({ file, sentence, namesValue: value.test(sentence) }).toEqual({ file, sentence, namesValue: true })
       }
     }
   })
 
   // DR-5: the two one-liners a person sees before installing say the plugin can change records, and that it asks.
-  test("the README's first line and the Jelly summary say the plugin changes records, with a prompt for each", () => {
+  test("the README's first line and the Jelly summary say the plugin changes records", () => {
     expect(text("README.md")).toContain("Every tool is allowed by default")
     const { jelly } = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as { jelly: { summary: string } }
     expect(jelly.summary).toMatch(/add a candidate, note or pipeline entry/)

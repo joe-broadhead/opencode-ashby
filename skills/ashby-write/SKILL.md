@@ -7,9 +7,10 @@ description: Load before any Ashby change - creating a candidate, adding or repl
 
 Make an Ashby change only when the user asked for it. Before each write call, write one sentence in your reply on what
 the call does and **whom it reaches** (candidates and the hiring team), then make the call in the same turn. That
-sentence is chat text, not a question: the permission prompt shows only the tool input and is the user's yes. Ask in
-chat first only when something must be chosen: which candidate, which job. Declined: say nothing changed and whom it
-would have reached, and offer your drafted text or a retry, never a workaround.
+sentence is chat text, not a question: by default the call runs at once. With `access: "ask-changes"` the permission
+prompt is the user's yes, and `read-only` denies the call. Ask in chat first only when something must be chosen: which
+candidate, which job. Declined: say nothing changed and whom it would have reached, and offer your drafted text or a
+retry, never a workaround.
 
 ## Whom each change reaches
 
@@ -39,7 +40,8 @@ name the candidate, the job and the stage, and say whom it reaches, before the c
   still gets any automated archive email, and an archive closes interview requests that aren't scheduled yet (the
   scheduled ones stay). Make that call only when the user asked for that exact move, never as a way to record a note.
 - `submit_mcp_feedback`: sends text to Ashby's team. Offer it only when the user wants to report something, and show
-  the text first; text written after a failed lookup can carry candidate data.
+  the text first; text written after a failed lookup can carry candidate data. It is allowed like every other tool;
+  `read-only` denies it.
 - There is no tool here to hire, to make or send an offer, or to email a candidate: say so, and say the step is in
   Ashby's web app. Rejecting is an archive, so it uses the stage tool above.
 
@@ -58,7 +60,8 @@ infer one from feedback, scores or Ashby's AI criteria evaluations.
 data: show it first, and send it only when the user wants to report something. When the user wants to report a problem:
 
 1. First check the query: the filters, the user's access roles, and a rate limit; many end here.
-2. Say the tool is off; the user can add `{ "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "ask" }`
-   to the agent's own `permissions`, or contact Ashby support.
-3. If it is turned on, write it for an engineer (the tool, the inputs and the result, with no candidate names, emails
-   or record content), show it, and make the call: the permission prompt is the user's yes.
+2. Say it is available; under `access: "ask-changes"` the user can add
+   `{ "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "allow" }` to the agent's own `permissions`, or
+   contact Ashby support instead.
+3. Write it for an engineer (the tool, the inputs and the result, with no candidate names, emails or record content),
+   show it, and make the call. At `ask-changes` the permission prompt is the user's yes.

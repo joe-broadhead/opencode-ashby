@@ -65,7 +65,7 @@ It has no tool of its own. Read [docs/architecture.md](docs/architecture.md) bef
 - **TypeScript.** No enums, namespaces or parameter properties. `import type` for types, `.js` in relative imports.
 - **The tools RPC.** `src/host/tools-rpc.ts` is a copy of a module shared by several plugins. Change only its block
   between the `PLUGIN-SPECIFIC` markers here; change the rest in the shared copy first. Its methods are every known tool
-  in `src/ashby-tools.ts`, by exact name and with its class, and never an unknown tool. A write or a denied tool is a
+  in `src/ashby-tools.ts`, by exact name and with its class, and never an unknown tool. A write or a destructive tool is a
   method but runs only on a resolved `allow`. Keep the RPC id `ashby.recruiting.tools` and its method names stable:
   scripts call them by name.
 - **Tests.** Unit tests use narrow `Pick<Plugin.Context, ...>` fakes. Host tests use the public `@opencode/sdk` with

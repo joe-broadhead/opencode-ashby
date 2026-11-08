@@ -80,7 +80,7 @@ calls in flight at most; on a rate limit wait a minute and call less, on a timeo
   mail plugin's send only if the user asks for it, with the address confirmed and nothing from the record attached.
 - Posting a summary anywhere is that plugin's write, on request only: counts and stages, no names, unless asked.
 - Any change, or a request to move, archive, reject or hire a candidate: load `ashby-write` first.
-- `submit_mcp_feedback` is off: never offer it or call it.
+- `submit_mcp_feedback` sends text to Ashby's team: it is allowed like every other tool, and offered only on request.
 
 ## Sign-in and status
 

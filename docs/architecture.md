@@ -15,7 +15,7 @@ adds no tool of its own, makes no Ashby call of its own, and has no runtime depe
 | `src/listing.ts` | When the `ashby` server's status last changed, so status can tell a server still listing its tools from one that lists none |
 | `src/options.ts` | Option parsing and validation |
 | `src/host-version.ts` | The host check: the supported range, and the tested releases |
-| `src/ashby-tools.ts` | `READ_TOOLS`, `WRITE_TOOLS`, `DENIED_TOOLS`, `PARAMETERS` and `classify()`: every fact the plugin keeps about Ashby's tools. No runtime imports, so `scripts/check-ashby-tools.mjs` (`npm run drift`) can load it. `PARAMETERS` is used by that script and the tests only, and the build leaves it out; it stays empty until a tool list from a signed-in server is recorded, because Ashby publishes no schemas |
+| `src/ashby-tools.ts` | `READ_TOOLS`, `WRITE_TOOLS`, `DESTRUCTIVE_TOOLS`, `PARAMETERS` and `classify()`: every fact the plugin keeps about Ashby's tools. No runtime imports, so `scripts/check-ashby-tools.mjs` (`npm run drift`) can load it. `PARAMETERS` is used by that script and the tests only, and the build leaves it out; it stays empty until a tool list from a signed-in server is recorded, because Ashby publishes no schemas |
 | `src/permissions.ts` | The default rules, their placement, and detection of agents without them |
 | `src/status.ts` | The status model and text, `/ashby-status`, and the status RPC method |
 | `src/redact.ts` | Redaction for everything status shows: URL credentials, queries and token shapes removed, one line, controls and bidi characters stripped, cut by whole characters |
@@ -80,7 +80,7 @@ sign-in is required. `connection.active` returns the credential alone, so the pl
 rules (`ctx.agent.list()`) and the skills OpenCode lists (`ctx.skill.list()`). `buildStatus` turns them into one model,
 and `formatStatus` renders it in a fixed order: Connection (state and server), Account (the sign-in's label, or "account
 name not reported by Ashby's MCP"), Access (Ashby's access roles, and what the default rules let run), Tools (counts,
-the denied tools, and up to 20 unknown names), Agents without default rules (names, then the default rules to paste, one
+the destructive tools, and up to 20 unknown names), Agents without default rules (names, then the default rules to paste, one
 rule a line), OpenCode (version, tested or not, the supported range, and setup problems), and exactly one Next step,
 "Nothing to do." when nothing is needed. For 15 seconds after the server's status changes, no tools means "still
 listing", not "none for this account", so the advice to ask an Org Admin never shows while a server that just connected
@@ -98,7 +98,7 @@ reason is cut to one line of 160 characters with no URL query.
 ## Tools RPC
 
 `ashby.recruiting.tools` lets a script call every known tool with no model; [Scripting](scripting.md) is the user's
-view. Its methods are `describe` and one per name in `READ_TOOLS`, `WRITE_TOOLS` and `DENIED_TOOLS`, named after the
+view. Its methods are `describe` and one per name in `READ_TOOLS`, `WRITE_TOOLS` and `DESTRUCTIVE_TOOLS`, named after the
 upstream tool, each with its class. A tool that Ashby adds later is never a method. The rules are resolved before
 dispatch: an `ask` or a `deny` is refused with no call, and only an `allow` runs. `describe` reports each method's
 class, and — given a session — its permission, and whether OpenCode lists it now.

@@ -14,7 +14,7 @@ class: the worst thing that tool can do.
 | `describe` | none: lists the methods, their class, their permission action, whether OpenCode lists each tool now, each tool's input as JSON Schema, and — given a session — whether that session may call it |
 
 The methods come from the plugin's one tool table, `src/ashby-tools.ts`: the known reads (`READ_TOOLS` in
-`src/ashby-tools.ts`), the writes in `WRITE_TOOLS`, and the two denied tools in `DENIED_TOOLS`. Call `describe` for the list. Ashby may list fewer tools for a user with less
+`src/ashby-tools.ts`), the writes in `WRITE_TOOLS`, and the two destructive tools in `DESTRUCTIVE_TOOLS`. Call `describe` for the list. Ashby may list fewer tools for a user with less
 access, so `describe` marks a known tool that Ashby does not offer you as unavailable.
 
 The class is never the decision: the rules are. A `write` and a `destructive` method are methods too, and they run

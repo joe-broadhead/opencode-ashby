@@ -107,12 +107,13 @@ after that rule. The README prints the whole block, rule for rule, in
 [Permissions](https://github.com/joe-broadhead/opencode-ashby/blob/HEAD/README.md#permissions); `/ashby-status` prints
 it too, and its `Agents without default rules` row prints it as a list to paste.
 
-`READ_TOOLS` in `src/ashby-tools.ts` lists Ashby's read tools, `WRITE_TOOLS` its write tools, and `DENIED_TOOLS` the
-two that are off. Writes and tools that Ashby adds later match only `ashby_*`, so they ask. `/ashby-status` names the
+`READ_TOOLS` in `src/ashby-tools.ts` lists Ashby's read tools, `WRITE_TOOLS` its write tools, and `DESTRUCTIVE_TOOLS`
+the two that can move, archive or send. Reads allow at every `access` value; the writes and the destructive tools
+follow it. A tool Ashby adds later matches only `ashby_*`, so `access` decides it too. `/ashby-status` names the
 tools in no list. Ashby may list fewer tools for a user with less access, so a known tool can be missing; that is
 normal.
 
-The write tools, which ask:
+The write tools:
 
 - `ashby_create_candidate` adds a candidate record that everyone with access to candidates sees.
 - `ashby_consider_candidate_for_job` adds a candidate to a job's pipeline at its first stage, which the job's hiring
@@ -271,8 +272,9 @@ model. It holds no token, no header and no URL query, and makes no Ashby call. `
 | `problems` | Setup problems, each `CODE: What happened. Next step: What to do.` |
 | `nextStep` | Exactly one next step: the `Next step` row, `Nothing to do.` when nothing is needed |
 
-The `Access` row states the posture the default rules fix, from the tool lists: "reads run without asking; the 3 writes
-ask first; change_application_stage and submit_mcp_feedback are off". Then it says whether those rules are in place:
+The `Access` row states the posture the default rules fix, from the tool lists: at `all` "every Ashby tool is allowed,
+reads and changes alike"; at `ask-changes` "reads run without asking; the 3 writes and the 2 destructive tools ask
+first"; at `read-only` the same list "are denied". Then it says whether those rules are in place:
 "no agent runs new Ashby tools unasked", "default rules missing in the agents listed below", or "default rules not
 added (see the OpenCode row)".
 
