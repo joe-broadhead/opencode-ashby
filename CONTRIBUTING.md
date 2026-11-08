@@ -127,8 +127,7 @@ npx -y @modelcontextprotocol/inspector --cli https://mcp.ashbyhq.com/mcp/v1 \
   --method tools/list --header "Authorization: Bearer $ASHBY_TOKEN" > tools-list.json
 ```
 
-A list written from an OpenCode project signed in to Ashby, `ctx.tool.list()`'s `ashby` tools as
-`{ "tools": [ { "name", "description", "inputSchema" } ] }`, is the same form and works too. Then:
+Then:
 
 ```sh
 npm run drift -- tools-list.json
