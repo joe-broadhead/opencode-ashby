@@ -373,8 +373,8 @@ The status RPC's own error is `unavailable`, with a next step, when the status c
 
 - **The tool table comes from Ashby's help page.** Ashby publishes no annotations, so a class is a judgement from
   Ashby's description of the tool. A tool Ashby adds is allowed at once and counted as unknown; a tool Ashby marks as
-  changing data could run here as a read until a release knows it. `CONTRIBUTING.md` has the check that reconciles
-  the table with a saved tool list.
+  changing data could run here as a read until a release knows it. The table has not been checked against a signed-in
+  server's tool list yet: `npm run drift` compares a saved list with it, and `CONTRIBUTING.md` has the steps.
 - **A script's read can cross projects.** A script's session may belong to another directory than the OpenCode server
   answering it, and the read then runs under the serving location's agent rules; only a `deny` is refused in between.
   Run scripts in the project whose agent you mean. This is in the module shared with the other plugins, not in this
