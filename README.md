@@ -1,7 +1,8 @@
 # Ashby for OpenCode
 
 Find and read your Ashby candidates, pipeline, interviews and feedback from OpenCode, and add a candidate, a note or
-a pipeline entry, each asking first, through Ashby's official MCP server.
+a pipeline entry, through Ashby's official MCP server. Every tool is allowed by default; the `access` option can make
+each change ask first, or deny it.
 
 Unofficial; not affiliated with Ashby.
 

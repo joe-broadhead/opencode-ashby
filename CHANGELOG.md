@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.0.0] - Unreleased
+## [Unreleased]
 
 ### Added
 
@@ -21,7 +21,7 @@ All notable changes to this project are documented here. The format follows [Kee
   and its agent, each method under a prior explicit allow.
 - Two skills: `ashby` (finding candidates, jobs and applications, filters and counts, interview prep, what you owe,
   citing, and the rules for candidate data) and `ashby-write` (whom each change reaches, said before the call, with
-  OpenCode's permission prompt as the yes).
+  the permission prompt as the yes under `access: "ask-changes"`).
 - The option `allowUntestedHost`, and a host check for OpenCode `>=2.2.3 <2.3.0`, tested on 2.2.3, 2.2.4, 2.2.5 and
   2.2.6.
 - A `jelly` declaration for Jelly: the tools with their default effects, the skills, the sign-in, a summary and an

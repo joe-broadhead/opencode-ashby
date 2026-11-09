@@ -258,6 +258,9 @@ describe("docs", () => {
     for (const value of blocks) if (Array.isArray(value)) for (const rule of value) expect(typeof rule).toBe("object")
     // The Permissions section opens with the family sentence.
     expect(/## Permissions\n\n\*\*Every tool is allowed by default\.\*\*/.test(raw("README.md"))).toBe(true)
+    // The intro says the same: a write is allowed by default, and the `access` option is what makes it ask.
+    expect(raw("README.md").slice(0, 600)).toMatch(/Every tool is allowed by default/)
+    expect(raw("README.md").slice(0, 600)).not.toMatch(/asking first|asks first/)
   })
 
   // R8: every "tested on ..." mention is TESTED_HOSTS, and the untested example is a version that is not a release.
@@ -272,7 +275,8 @@ describe("docs", () => {
       }
     }
     for (const file of ["README.md", "AGENTS.md", "SECURITY.md", "docs/configuration.md"]) check(file, raw(file))
-    const changelog = /## \[[\s\S]*?\] - Unreleased\n([\s\S]*?)(?:\n## \[|$)/.exec(raw("CHANGELOG.md"))?.[1] ?? ""
+    const changelog = /## \[Unreleased\]\n([\s\S]*?)(?:\n## \[|$)/.exec(raw("CHANGELOG.md"))?.[1] ?? ""
+    expect(changelog.length).toBeGreaterThan(0)
     check("CHANGELOG.md (Unreleased)", changelog)
     expect(mentions).toBeGreaterThanOrEqual(2)
     // The places that list the releases without the words "tested on" name the same four.

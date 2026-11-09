@@ -26,7 +26,8 @@ export const READ_TOOLS: readonly string[] = [
 ]
 
 /**
- * Known writes: they ask before they run. Each changes records the hiring team sees, and one can reach the candidate:
+ * Known writes: allowed by default, asked for under `access: "ask-changes"`, and denied under `access: "read-only"`. Each
+ * changes records the hiring team sees, and one can reach the candidate:
  * `consider_candidate_for_job` starts an application at the job's first stage, whose automatic activities run, and
  * some organisations email candidates there.
  */
