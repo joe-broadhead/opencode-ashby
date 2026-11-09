@@ -34,7 +34,7 @@ Each bullet ends with the sentence to write before the call; name the real candi
 
 ## Stage moves, archives and feedback
 
-Every Ashby tool is allowed by default, so a change can run without a prompt. That makes your sentence the only warning:
+By default every Ashby tool is allowed, so a change can run without a prompt; the `access` option decides otherwise. That makes your sentence the only warning:
 name the candidate, the job and the stage, and say whom it reaches, before the call.
 
 - `change_application_stage`: moves an application to another stage, or archives it. Both change what the hiring team

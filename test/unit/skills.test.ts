@@ -5,6 +5,7 @@ import { describe, expect, test } from "bun:test"
 import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { DESTRUCTIVE_TOOLS, PARAMETERS, READ_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
+import { NAMESPACE_DESCRIPTION } from "../../src/constants.js"
 import { parseSkill, SKILL_NAMES, SKILLS_DIR } from "../../src/skills.js"
 
 const NAMES = [...SKILL_NAMES]
@@ -198,6 +199,16 @@ describe("skills", () => {
     expect(text).not.toMatch(/wait for a yes|get a yes|only after a yes|wait for (?:the user's )?(?:confirmation|approval)/i)
   })
 
+  test("wherever the model is told tools are allowed by default, the same text says what the access option decides", () => {
+    // Item 6: "allowed by default" is true only with the default `access`; the text must say what an installed value does.
+    const ALLOWED_BY_DEFAULT = /\ballowed\b.*\bby default\b|\bby default\b.*\ballowed\b/i
+    const texts: Record<string, string> = { namespace: NAMESPACE_DESCRIPTION, ...Object.fromEntries(NAMES.map((name) => [name, flat(name)])) }
+    const claims = Object.keys(texts).filter((where) => ALLOWED_BY_DEFAULT.test(texts[where]!))
+    expect(claims).toContain("namespace")
+    expect(claims).toContain("ashby-write")
+    for (const where of claims) expect({ where, names: /\baccess\b/.test(texts[where]!) }).toEqual({ where, names: true })
+  })
+
   test("ashby-write names whom each write reaches, and that a job's first stage may email the candidate", () => {
     const text = flat("ashby-write")
     const reach = text.split("## Whom each change reaches")[1]?.split(" ## ")[0] ?? ""
@@ -222,7 +233,7 @@ describe("skills", () => {
   test("ashby-write names every destructive tool, says whom it reaches, and never works around a refusal", () => {
     const section = (read("ashby-write").split("## Stage moves, archives and feedback")[1]?.split("\n## ")[0] ?? "").replace(/\s+/g, " ")
     for (const name of DESTRUCTIVE_TOOLS) expect(section).toContain(`\`${name}\``)
-    expect(section).toContain("Every Ashby tool is allowed by default, so a change can run without a prompt")
+    expect(section).toContain("By default every Ashby tool is allowed, so a change can run without a prompt; the `access` option decides otherwise")
     expect(section).toContain("the candidate still gets any automated archive email")
     expect(section).toContain("Both change what the hiring team sees, and either can start that stage's automatic activities")
     expect(section).toContain("never as a way to record a note")
