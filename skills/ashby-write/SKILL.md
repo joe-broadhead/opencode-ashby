@@ -3,6 +3,8 @@ name: ashby-write
 description: Load before any Ashby change - creating a candidate, adding or replying to a note on a candidate, considering a candidate for a job (adding them to a pipeline), moving a candidate to another stage, archiving, rejecting or hiring, or emailing a candidate - or before reporting a problem with Ashby's MCP to Ashby. Not for interview notes, clips or other changes in Metaview (metaview-write).
 ---
 
+If Ashby's tools are absent, run `/connect` and choose Ashby, or on Jelly call jelly_connection_request. An Org Admin must enable Ashby's MCP Server first.
+
 # Changes in Ashby
 
 Make an Ashby change only when the user asked for it. Before each write call, write one sentence in your reply on what
