@@ -44,15 +44,17 @@ decide what its model sees: the agent's rules, then the session's, and the last 
 Create the session once, with the agent the script runs as, and keep its id. Never reuse a session found through
 history or a list: the script would run as that session's agent, under its rules.
 
+Give the project as the session's `location`: a session made without one belongs to the service's default location, where the project's agents may not exist, and each call then fails `Agent not found`.
+
 ```sh
-opencode api post /api/session -d '{"title":"weekly pipeline","agent":"build"}'
+opencode api post /api/session -d '{"title":"weekly pipeline","agent":"build","location":{"directory":"/path/to/project"}}'
 ```
 
 Session rules come after the agent's, so a session can narrow what its script may do, or grant one action in a
 narrowly written session:
 
 ```sh
-opencode api post /api/session -d '{"title":"weekly pipeline","agent":"build","permissions":[
+opencode api post /api/session -d '{"title":"weekly pipeline","agent":"build","location":{"directory":"/path/to/project"},"permissions":[
   {"action":"ashby_*","resource":"*","effect":"deny"},
   {"action":"ashby_get_job_pipeline","resource":"*","effect":"allow"},
   {"action":"ashby_get_pending_tasks","resource":"*","effect":"allow"}
