@@ -16,9 +16,7 @@ import { SKILL_NAMES } from "../../src/skills.js"
 import { StatusRpc } from "../../src/status.js"
 import { TOOLS_RPC_ID } from "../../src/host/tools-rpc.js"
 import { ASHBY_SCOPES, MODEL_ID } from "./fake-mcp.js"
-import { agentRules, attempt, effect, HOST_VERSION, holdRoot, releaseRoot, session, startHost, unattended, until, type Host } from "./harness.js"
-
-holdRoot()
+import { agentRules, attempt, effect, HOST_VERSION, session, startHost, unattended, until, type Host } from "./harness.js"
 
 const KEY = "sk-fake-host-test-0123456789"
 const SIGN_IN = "Run /connect and choose Ashby, then press o or Enter to open the link (in a terminal, opencode mcp auth ashby opens it automatically in this project's folder; if it answers MCP server not found: ashby, wait a few seconds and run it again)."
@@ -29,7 +27,6 @@ const SIGN_IN_AGAIN = "Ashby needs a new sign-in. Choose this account to sign in
 
 // Starting a host takes several seconds, more on a busy machine.
 setDefaultTimeout(120_000)
-afterAll(releaseRoot)
 
 const BUILT_IN = ["build", "general", "explore", "compaction", "title", "summary", "plan"]
 const allow = (tool: string): Rule => ({ action: `ashby_${tool}`, resource: "*", effect: "allow" })

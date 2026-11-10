@@ -1,9 +1,6 @@
-import { afterAll, expect, test } from "bun:test"
+import { expect, test } from "bun:test"
 import * as z from "zod"
-import { holdRoot, releaseRoot, startHost, until } from "./harness.js"
-
-holdRoot()
-afterAll(releaseRoot)
+import { startHost, until } from "./harness.js"
 
 test("the forced Ashby catalogue stays under 1,000 tokens", async () => {
   let captured = "", lastSystem = ""
