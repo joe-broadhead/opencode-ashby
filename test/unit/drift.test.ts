@@ -43,7 +43,8 @@ function withParameters(parameters: Record<string, string[]>) {
   mkdirSync(join(root, "scripts"))
   mkdirSync(join(root, "src"))
   copyFileSync(SCRIPT, join(root, "scripts", "check-ashby-tools.mjs"))
-  const source = readFileSync(TOOLS, "utf8").replace(/export const PARAMETERS: Readonly<Record<string, readonly string\[\]>> = \{\}/, `export const PARAMETERS: Readonly<Record<string, readonly string[]>> = ${JSON.stringify(parameters)}`)
+  // PARAMETERS is the object literal up to the first line that is only its closing brace, so the replacement is exact.
+  const source = readFileSync(TOOLS, "utf8").replace(/export const PARAMETERS: Readonly<Record<string, readonly string\[\]>> = \{[\s\S]*?\n\}\n/, `export const PARAMETERS: Readonly<Record<string, readonly string[]>> = ${JSON.stringify(parameters)}\n`)
   expect(source).toContain(JSON.stringify(parameters))
   writeFileSync(join(root, "src", "ashby-tools.ts"), source)
   return join(root, "scripts", "check-ashby-tools.mjs")
@@ -52,7 +53,8 @@ function withParameters(parameters: Record<string, string[]>) {
 describe("npm run drift", () => {
   test("PARAMETERS records only known tools, each as name, required mark and type", () => {
     expect(Object.keys(PARAMETERS).filter((name) => !ALL.includes(name))).toEqual([])
-    for (const entries of Object.values(PARAMETERS)) for (const entry of entries) expect(entry).toMatch(/^[a-z][a-z0-9_]*\*?:[a-z<>|]+$/)
+    // Ashby's parameter names are camelCase (candidateId, noteText), so the name may start with a capital letter too.
+    for (const entries of Object.values(PARAMETERS)) for (const entry of entries) expect(entry).toMatch(/^[A-Za-z][A-Za-z0-9_]*\*?:[a-z<>|]+$/)
   })
 
   // The reconcile is a drop-in: save the server's `tools/list` response over this fixture, then fix what `npm run

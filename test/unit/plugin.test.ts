@@ -169,10 +169,10 @@ describe("setup", () => {
       "decline in one sentence",
       "Never search mail",
       "load ashby-write and say in your reply what it does and whom it reaches",
-      "Moving or archiving a candidate (change_application_stage) can email the candidate",
+      "Adding a candidate to a job (consider_candidate_for_job) can email the candidate",
       "submit_mcp_feedback sends text to Ashby's team",
       "Never rank candidates or recommend a hire or no-hire, even when asked.",
-      "Every tool is allowed by default, so a change runs without a prompt",
+      "By default every Ashby tool is allowed, so a change runs without a prompt",
     ]) {
       expect(NAMESPACE_DESCRIPTION).toContain(words)
     }

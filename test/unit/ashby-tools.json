@@ -21,8 +21,8 @@
       "description": "A candidate's profile: resume, interview feedback, emails, texts, notes, interview transcripts, referrals, follow-ups, form submissions."
     },
     {
-      "name": "get_upcoming_interviews",
-      "description": "The user's upcoming interviews: candidate, job, time, links."
+      "name": "list_interviews",
+      "description": "Search the current Ashby user's interviews by candidate name and/or date range. The window defaults to the past 7 days through the next 7 days, so both recent and upcoming interviews are included."
     },
     {
       "name": "get_interview_details",

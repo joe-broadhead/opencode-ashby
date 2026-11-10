@@ -111,9 +111,10 @@ known tool missing from one account's list is not drift.
 
 The names and classes come from Ashby's own list of its MCP tools
 ([Ashby MCP Server (Beta)](https://docs.ashbyhq.com/ashby-mcp-server-beta), "Available tools"), recorded in
-`test/unit/ashby-tools.json`. That page gives no input schemas or annotations, so `PARAMETERS` is empty, and the skills
-name tools without their inputs: in Code Mode each call's signature gives the model the parameter names. Once a tool
-list from a signed-in server is saved, reconciling is a data change, made with the drift check below.
+`test/unit/ashby-tools.json`. That page gives no input schemas or annotations. `PARAMETERS` holds the input parameters from
+the signed-in server's tool schemas (2026-11-10). Every live tool requires a `reason`, a sentence on the user's goal, so
+a script must send one. The server's list shows no annotations, so a class stays Ashby's description of the tool.
+Reconciling a changed list is a data change, made with the drift check below.
 
 ### Drift check
 

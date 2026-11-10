@@ -149,8 +149,8 @@
         "readOnly": true
       },
       {
-        "name": "ashby.get_upcoming_interviews",
-        "permission": "ashby_get_upcoming_interviews",
+        "name": "ashby.list_interviews",
+        "permission": "ashby_list_interviews",
         "effect": "allow",
         "readOnly": true
       },
@@ -215,14 +215,14 @@
       "homeWidgets": [],
       "workKinds": [],
       "settings": [
-      {
-        "key": "access",
-        "label": "Access",
-        "type": "string",
-        "default": "all",
-        "description": "all, ask-changes or read-only. Generates default rules for agents with a base allow rule."
-      }
-    ]
+        {
+          "key": "access",
+          "label": "Access",
+          "type": "string",
+          "default": "all",
+          "description": "all, ask-changes or read-only. Generates default rules for agents with a base allow rule."
+        }
+      ]
     }
   }
 }

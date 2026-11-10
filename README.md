@@ -18,8 +18,8 @@ Unofficial; not affiliated with Ashby.
   stay hidden unless you were granted them.
 - Ashby's MCP server is in beta, and Ashby may change its tools without notice. A tool Ashby adds is allowed at once
   under `access: "all"`, and is counted as unknown until a release knows it.
-- The 12 read, 3 write and 2 destructive tools, and their classes, come from Ashby's own help page, which gives no
-  annotations: treat a class as Ashby's description of the tool, not as its annotation. A tool Ashby adds follows
+- The 12 read, 3 write and 2 destructive tools, and their classes, come from Ashby's own help page and a signed-in
+  server's tool list, which gives no annotations: treat a class as Ashby's description of the tool, not as its annotation. A tool Ashby adds follows
   `access`: allowed at once at `"all"`, asked for at `"ask-changes"`, denied at `"read-only"`, and status names it as
   unknown.
 - Ashby stores and processes its data in the United States.
@@ -101,7 +101,7 @@ Ashby, and a saved "Always allow" does not authorise a script.
 ```sh
 opencode api post /api/rpc/ashby.recruiting.tools/get_pending_tasks \
   -H "x-opencode-directory:$PWD" \
-  -d '{"input":{"sessionID":"ses_…","input":{}}}'
+  -d '{"input":{"sessionID":"ses_…","input":{"reason":"list my pending Ashby tasks"}}}'
 ```
 
 See [Scripting](https://github.com/joe-broadhead/opencode-ashby/blob/HEAD/docs/scripting.md).
@@ -150,7 +150,7 @@ The plugin adds these rules for `access: "all"`:
     { "action": "ashby_get_pending_tasks", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_record_details", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_submitted_feedback", "resource": "*", "effect": "allow" },
-    { "action": "ashby_get_upcoming_interviews", "resource": "*", "effect": "allow" },
+    { "action": "ashby_list_interviews", "resource": "*", "effect": "allow" },
     { "action": "ashby_search_product_docs", "resource": "*", "effect": "allow" },
     { "action": "ashby_search_records_by_name", "resource": "*", "effect": "allow" },
     { "action": "ashby_add_note_to_candidate", "resource": "*", "effect": "allow" },
@@ -177,7 +177,7 @@ The plugin adds these rules for `access: "ask-changes"`:
     { "action": "ashby_get_pending_tasks", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_record_details", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_submitted_feedback", "resource": "*", "effect": "allow" },
-    { "action": "ashby_get_upcoming_interviews", "resource": "*", "effect": "allow" },
+    { "action": "ashby_list_interviews", "resource": "*", "effect": "allow" },
     { "action": "ashby_search_product_docs", "resource": "*", "effect": "allow" },
     { "action": "ashby_search_records_by_name", "resource": "*", "effect": "allow" },
     { "action": "ashby_add_note_to_candidate", "resource": "*", "effect": "ask" },
@@ -204,7 +204,7 @@ The plugin adds these rules for `access: "read-only"`:
     { "action": "ashby_get_pending_tasks", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_record_details", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_submitted_feedback", "resource": "*", "effect": "allow" },
-    { "action": "ashby_get_upcoming_interviews", "resource": "*", "effect": "allow" },
+    { "action": "ashby_list_interviews", "resource": "*", "effect": "allow" },
     { "action": "ashby_search_product_docs", "resource": "*", "effect": "allow" },
     { "action": "ashby_search_records_by_name", "resource": "*", "effect": "allow" },
     { "action": "ashby_add_note_to_candidate", "resource": "*", "effect": "deny" },
@@ -257,10 +257,11 @@ sends text to Ashby's team.
 Say what a change does and whom it reaches before you make it. These change people's records:
 
 - `ashby_create_candidate`: a new candidate record that everyone with access to candidates sees.
-- `ashby_consider_candidate_for_job`: adds the candidate to a job's pipeline, which its hiring team sees. The job's
-  first stage's automatic activities run, and some organisations email candidates there.
-- `ashby_add_note_to_candidate`: a note, or a reply, on the candidate's profile. Ashby may hold it as a draft for you
-  to confirm; once saved, everyone with access to the profile sees it, and a mentioned colleague is notified.
+- `ashby_consider_candidate_for_job`: adds the candidate to a job's pipeline, which its hiring team sees. If the job's
+  first stage has an automatic email, Ashby sends it to the candidate, and the tool cannot stop it.
+- `ashby_add_note_to_candidate`: a note, or a reply, on the candidate's profile. It saves at once, since the tool has no
+  draft option. Everyone with access to the profile sees it; people following the candidate may be notified, and so may
+  a colleague you @-mention.
 
 Everything that comes later than these rules still wins: an agent's own stricter rules (Explore cannot use Ashby),
 your `permissions` in `opencode.json`, and your saved "Always allow" answers.
@@ -373,8 +374,9 @@ The status RPC's own error is `unavailable`, with a next step, when the status c
 
 - **The tool table comes from Ashby's help page.** Ashby publishes no annotations, so a class is a judgement from
   Ashby's description of the tool. A tool Ashby adds is allowed at once and counted as unknown; a tool Ashby marks as
-  changing data could run here as a read until a release knows it. The table has not been checked against a signed-in
-  server's tool list yet: `npm run drift` compares a saved list with it, and `CONTRIBUTING.md` has the steps.
+  changing data could run here as a read until a release knows it. The names and parameters match a signed-in server's
+  tool list. That list shows no annotations, so `npm run drift` compares a saved list with the table, and
+  `CONTRIBUTING.md` has the steps.
 - **A script's read can cross projects.** A script's session may belong to another directory than the OpenCode server
   answering it, and the read then runs under the serving location's agent rules; only a `deny` is refused in between.
   Run scripts in the project whose agent you mean. This is in the module shared with the other plugins, not in this

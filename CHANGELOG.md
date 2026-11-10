@@ -33,6 +33,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Changed
 
+- The tool table follows a signed-in server's tool list. The upcoming-interviews tool is now `list_interviews`, a read with a date window, and every tool's parameters are recorded, each with its required mark. Every tool requires a `reason`, so a script must send one. The write warnings say what Ashby does: adding a candidate to a job can email them through the first stage's automatic email, which the tool cannot stop, and a note saves at once and can notify people following the candidate.
 - Both skills explain how to connect Ashby when its tools are absent, including the organisation's MCP prerequisite.
 
 - Default permission rules after each agent's base allow: every tool is allowed, reads and changes alike, so an agent

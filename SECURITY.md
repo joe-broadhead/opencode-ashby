@@ -35,8 +35,8 @@ OpenCode project.
 - **Every Ashby tool is allowed by default**, so an agent can create a candidate, add a note to a profile, add someone
   to a job's pipeline, move or archive an application, and send feedback to Ashby's team without a prompt. Two of those
   reach people: `ashby_change_application_stage` moves or archives a candidate, and archiving can send them an automated
-  archive email, which can't be taken back; `ashby_consider_candidate_for_job` runs a stage's automatic activities,
-  which some organisations turn into an email to the candidate. `ashby_submit_mcp_feedback` sends text to Ashby's team,
+  archive email, which can't be taken back; `ashby_consider_candidate_for_job` can email the candidate, when the first stage
+  has an automatic email, and the tool has no option to stop it. `ashby_submit_mcp_feedback` sends text to Ashby's team,
   and text written after a failed lookup could carry candidate data.
 - **One line restricts it.** Set `"access": "ask-changes"` in the plugin options and every change asks first, or
   `"access": "read-only"` and every change is denied. A rule in an agent's own `permissions` restricts one agent, and a
@@ -54,8 +54,8 @@ What the model can do in Ashby is limited by these layers, in this order:
 2. **Default permission rules.** The plugin inserts one block generated from the tool table and the `access` option.
    Its default, `all`, allows every Ashby tool, reads and changes alike. `ask-changes` allows a read and asks for
    everything else; `read-only` allows a read and denies everything else, which also hides it from the model. Some
-   changes reach people: `ashby_consider_candidate_for_job` runs the first stage's automatic activities, which may email
-   the candidate, and a note's mention notifies a colleague.
+   changes reach people: `ashby_consider_candidate_for_job` can email the candidate through the first stage's automatic
+   email, and a note can notify a colleague it mentions or the people following the candidate.
 3. **Your OpenCode permissions.** Your `permissions` rules and saved "Always allow" answers override the default
    rules. A `deny` you configure always wins.
 

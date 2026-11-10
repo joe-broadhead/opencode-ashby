@@ -4,10 +4,10 @@
 // runtime imports.
 //
 // The names and classes come from Ashby's own list of its MCP tools (docs.ashbyhq.com, "Ashby MCP Server (Beta)"),
-// recorded in test/unit/ashby-tools.json; the drift test pins them to it. That list gives no schemas or annotations,
-// so each tool's class comes from Ashby's description of it, and PARAMETERS stays empty until a tool list from a
-// signed-in server is recorded (CONTRIBUTING.md, "Drift check"). Ashby may list fewer tools for a user with less
-// access, so a known tool missing from a live list is normal and never reported.
+// recorded in test/unit/ashby-tools.json, and from the live server's tool list for a signed-in user (2026-11-10). The
+// live list gives each tool's input schema (recorded in PARAMETERS) but no annotations, so each tool's class comes from
+// Ashby's description of it. Ashby may list fewer tools for a user with less access, so a known tool missing from a live
+// list is normal and never reported.
 
 /** Known reads: each only reads, by Ashby's description, and sends nothing beyond its query. They run without asking. */
 export const READ_TOOLS: readonly string[] = [
@@ -20,7 +20,7 @@ export const READ_TOOLS: readonly string[] = [
   "get_pending_tasks",
   "get_record_details",
   "get_submitted_feedback",
-  "get_upcoming_interviews",
+  "list_interviews",
   "search_product_docs",
   "search_records_by_name",
 ]
@@ -28,8 +28,10 @@ export const READ_TOOLS: readonly string[] = [
 /**
  * Known writes: allowed by default, asked for under `access: "ask-changes"`, and denied under `access: "read-only"`. Each
  * changes records the hiring team sees, and one can reach the candidate:
- * `consider_candidate_for_job` starts an application at the job's first stage, whose automatic activities run, and
- * some organisations email candidates there.
+ * - `consider_candidate_for_job` starts an application at the job's first stage. If that stage has an automatic email (an
+ *   activity set to send on stage entry), Ashby sends it to the candidate, and the tool has no option to stop it.
+ * - `add_note_to_candidate` saves the note at once: the tool has no draft option. People following the candidate may be
+ *   notified, and so may a colleague @-mentioned in the note. The candidate is not emailed.
  */
 export const WRITE_TOOLS: readonly string[] = ["add_note_to_candidate", "consider_candidate_for_job", "create_candidate"]
 
@@ -47,12 +49,30 @@ export const DESTRUCTIVE_TOOLS: readonly string[] = ["change_application_stage",
 export const ALL_TOOLS: readonly string[] = [...READ_TOOLS, ...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS]
 
 /**
- * Each known tool's input parameters, as `name:type`, with `*` after a required name, in the input schema's order. Empty
- * until a tool list from a signed-in server is recorded: Ashby publishes no schemas. The drift script compares a saved
- * tool list with this record and lists every tool still to record; the skills test lets a skill write a literal call
- * only with parameters recorded here, so until then the skills name tools without their inputs.
+ * Each live tool's input parameters, as `name:type`, with `*` after a required name, in the input schema's order. Recorded
+ * from the signed-in server's tool schemas (2026-11-10). Every live tool requires a `reason`: one sentence on the user's
+ * goal, so a script must send one too. `search_product_docs` has no entry: the live list does not give it. The drift
+ * script compares a saved tool list with this record, and the skills test lets a skill write a literal call only with
+ * parameters recorded here.
  */
-export const PARAMETERS: Readonly<Record<string, readonly string[]>> = {}
+export const PARAMETERS: Readonly<Record<string, readonly string[]>> = {
+  add_note_to_candidate: ["candidateId*:string", "noteText*:string", "replyToNoteId:string", "reason*:string"],
+  change_application_stage: ["applicationId*:string", "stageId*:string", "archiveReasonId:string", "cancelScheduledInterviews:boolean", "reason*:string"],
+  consider_candidate_for_job: ["candidateId*:string", "jobId*:string", "interviewStageId:string", "reason*:string"],
+  create_candidate: ["name*:string", "email:string", "phoneNumber:string", "socialLinks:array<object>", "reason*:string"],
+  describe_object_fields: ["objectType*:string", "searchTerm*:string", "limit:number", "cursor:string", "reason*:string"],
+  filter_records: ["objectType*:string", "filter*:string", "sort:array<object>", "cursor:string", "resultMode:string", "reason*:string"],
+  get_candidate: ["candidateIds*:array<string>", "sections:array<string>", "offset:number", "limit:number", "applicationIds:array<string>", "reason*:string"],
+  get_interview_details: ["interviewEventId*:string", "includeInstructions:boolean", "reason*:string"],
+  get_interview_plan: ["applicationId:string", "jobId:string", "reason*:string"],
+  get_job_pipeline: ["jobIds*:array<string>", "reason*:string"],
+  get_pending_tasks: ["taskTypes:array<string>", "reason*:string"],
+  get_record_details: ["entityType*:string", "entityIds*:array<string>", "include:array<string>", "topicName:string", "sectionName:string", "reason*:string"],
+  get_submitted_feedback: ["applicationId*:string", "interviewEventId:string", "reason*:string"],
+  list_interviews: ["candidateName:string", "onOrAfterDate:string", "onOrBeforeDate:string", "reason*:string"],
+  search_records_by_name: ["entityType*:string", "query*:string", "limit:number", "cursor:string", "reason*:string"],
+  submit_mcp_feedback: ["feedback*:string", "reason*:string"],
+}
 
 type ToolClass = "read" | "write" | "destructive" | "unknown"
 

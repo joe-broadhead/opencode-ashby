@@ -36,8 +36,8 @@ calls in flight at most; on a rate limit wait a minute and call less, on a timeo
 
 ## Daily work
 
-- "My interviews": `get_upcoming_interviews`.
-- "Prep me for my next interview": `get_upcoming_interviews`, then `get_interview_details` (candidate background,
+- "My interviews": `list_interviews`, which covers the past seven days through the next seven.
+- "Prep me for my next interview": `list_interviews`, then `get_interview_details` (candidate background,
   resume summary, panel, hiring team). `metaview-candidate-brief` owns what earlier rounds said and the evidence pack;
   say which source gave what.
 - "What do I owe": `get_pending_tasks` (scorecards, approvals, follow-ups, reviews, surveys).
@@ -76,8 +76,8 @@ calls in flight at most; on a rate limit wait a minute and call less, on a timeo
   organisation that records with Ashby's own Notetaker has transcripts in `get_candidate`: label them as Ashby's.
 - Scheduling or rescheduling an interview: Ashby's tools can't, so say it is done in Ashby's web app. A calendar only
   when the user asks about their calendar; non-hiring meetings are Granola's.
-- Ashby's tools don't email or message a candidate. For "email the candidate", offer a draft to send from Ashby, or the
-  mail plugin's send only if the user asks for it, with the address confirmed and nothing from the record attached.
+- Ashby's tools don't email a candidate directly, but a stage move or a new application can trigger the stage's automatic email (see `ashby-write`).
+  For "email the candidate", offer a draft, or the mail plugin's send only if the user asks, with the address confirmed and nothing from the record attached.
 - Posting a summary anywhere is that plugin's write, on request only: counts and stages, no names, unless asked.
 - Any change, or a request to move, archive, reject or hire a candidate: load `ashby-write` first.
 - `submit_mcp_feedback` sends text to Ashby's team: it is allowed like every other tool, and offered only on request.

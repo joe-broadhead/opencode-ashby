@@ -77,7 +77,7 @@ key is allowed.
 ```sh
 opencode api post /api/rpc/ashby.recruiting.tools/get_pending_tasks -H "x-opencode-directory:$PWD" -d '{"input":{
   "sessionID":"ses_…",
-  "input":{}
+  "input":{"reason":"list my pending Ashby tasks"}
 }}'
 ```
 

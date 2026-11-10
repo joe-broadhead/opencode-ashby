@@ -135,7 +135,7 @@ describe("skills", () => {
 
   test("prep joins the two: the Ashby briefing here, and Metaview's brief for what earlier rounds said, sources named", () => {
     const text = flat("ashby")
-    expect(text).toContain("`get_upcoming_interviews`, then `get_interview_details`")
+    expect(text).toContain("`list_interviews`, then `get_interview_details`")
     expect(text).toContain("`metaview-candidate-brief` owns what earlier rounds said and the evidence pack; say which source gave what")
     expect(text).toContain("Scorecards: Ashby is the system of record; Metaview's copy is a mirror. Say which one you read.")
   })
@@ -185,7 +185,7 @@ describe("skills", () => {
 
   test("ashby says Ashby's tools cannot email or message a candidate, or schedule an interview, and routes both", () => {
     const text = flat("ashby")
-    expect(text).toContain("Ashby's tools don't email or message a candidate. For \"email the candidate\", offer a draft to send from Ashby")
+    expect(text).toContain("Ashby's tools don't email a candidate directly, but a stage move or a new application can trigger the stage's automatic email")
     expect(text).toContain("Scheduling or rescheduling an interview: Ashby's tools can't, so say it is done in Ashby's web app")
     expect(text).toContain("Posting a summary anywhere is that plugin's write, on request only: counts and stages, no names, unless asked.")
   })
@@ -213,7 +213,7 @@ describe("skills", () => {
     const text = flat("ashby-write")
     const reach = text.split("## Whom each change reaches")[1]?.split(" ## ")[0] ?? ""
     for (const name of WRITE_TOOLS) expect(reach).toContain(`\`${name}\``)
-    expect(reach).toContain("The first stage's automatic activities run, and some organisations email candidates there: say so in your sentence before the call.")
+    expect(reach).toContain("If that stage has an automatic email, Ashby sends it to the candidate, and the tool cannot stop it: say so in your sentence before the call.")
     expect(reach).toContain("First run `search_records_by_name` on the name")
     expect(reach).toContain("don't create a duplicate")
     expect(reach).toContain("Show the note text in your sentence before the call")

@@ -117,10 +117,11 @@ The write tools:
 
 - `ashby_create_candidate` adds a candidate record that everyone with access to candidates sees.
 - `ashby_consider_candidate_for_job` adds a candidate to a job's pipeline at its first stage, which the job's hiring
-  team sees. The first stage's automatic activities run, and some organisations email candidates there.
-- `ashby_add_note_to_candidate` adds a note, or a reply to one, to the candidate's profile. Ashby may hold it as a
-  draft for you to confirm; once saved, everyone with access to the profile sees it, and a mentioned colleague is
-  notified.
+  team sees. If that stage has an automatic email, Ashby sends it to the candidate, and the tool has no option to stop
+  it.
+- `ashby_add_note_to_candidate` adds a note, or a reply to one, to the candidate's profile. It saves at once: the tool
+  has no draft option. Everyone with access to the profile sees it; people following the candidate may be notified, and
+  so may a colleague you @-mention.
 
 **Every tool is allowed by default**, so nothing is switched off for you. Two tools deserve their own sentence before
 you decide:

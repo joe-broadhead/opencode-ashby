@@ -145,10 +145,11 @@ describe("docs", () => {
     expect(jelly.summary.length).toBeLessThanOrEqual(120)
   })
 
-  // DR-4: a note may be a draft Ashby holds for the user to confirm, so the reach starts once it is saved.
-  test("the note's reach says Ashby may hold it as a draft, and that saving is what makes it visible", () => {
+  // Ashby's docs and the tool's schema: a note saves at once (the tool has no draft option), and a new application at a
+  // stage with an automatic email sends that email. The three places a user reads say so, and none hedges a draft.
+  test("the note saves at once with no draft, and the first stage's automatic email is named, in every place that says what a write reaches", () => {
     for (const file of ["README.md", "docs/configuration.md", "skills/ashby-write/SKILL.md"]) {
-      expect({ file, draft: /may hold (?:it|a note)?[^.]*draft/.test(text(file)), saved: /once saved[^.]*everyone with access/.test(text(file)) }).toEqual({ file, draft: true, saved: true })
+      expect({ file, saves: /saves at once/.test(text(file)), noDraft: !/may hold (?:it|a note)?[^.]*draft/.test(text(file)), email: /automatic email/.test(text(file)) }).toEqual({ file, saves: true, noDraft: true, email: true })
     }
   })
 
