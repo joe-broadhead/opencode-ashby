@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- Jelly shows an `access` setting (`all`, `ask-changes` or `read-only`; `all` by default), the option the plugin already reads.
 - Registers Ashby's official MCP server, `https://mcp.ashbyhq.com/mcp/v1`, as `ashby`, signed in with OpenCode's own
   MCP OAuth. OpenCode registers itself with Ashby's sign-in server and requests the scopes Ashby names, refresh scope
   included. No client ID or key to configure.
