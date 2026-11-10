@@ -45,7 +45,7 @@ describe("docs", () => {
 
   // The one exception is the install spec, which names the release tag by design (the GitHub install takes `#v0.0.0`).
   test("the README names no version of the plugin, except its install spec", () => {
-    expect(text("README.md").replace("opencode-ashby#v0.0.0", "")).not.toMatch(/opencode-ashby@\d|\b0\.\d+\.\d+\b|\bv\d+\.\d+\.\d+\b/)
+    expect(text("README.md").replaceAll("opencode-ashby#v0.0.0", "")).not.toMatch(/opencode-ashby@\d|\b0\.\d+\.\d+\b|\bv\d+\.\d+\.\d+\b/)
   })
 
   // R18: nothing is denied by default, so the README shows how to restrict instead. Every destructive tool is `ask` in
@@ -176,7 +176,7 @@ describe("docs", () => {
     const logout = uninstall.indexOf("opencode mcp logout ashby")
     const connect = uninstall.indexOf("remove the account")
     const list = uninstall.indexOf("opencode auth list")
-    const remove = uninstall.indexOf("opencode plugin remove @joe-broadhead/opencode-ashby")
+    const remove = uninstall.indexOf("opencode plugin remove github:joe-broadhead/opencode-ashby#v0.0.0")
     expect(logout).toBeGreaterThanOrEqual(0)
     expect(connect).toBeGreaterThan(logout)
     expect(list).toBeGreaterThan(logout)
