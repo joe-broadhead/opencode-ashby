@@ -1,6 +1,6 @@
 {
   "name": "@joe-broadhead/opencode-ashby",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "description": "Unofficial OpenCode plugin for Ashby: find and read your candidates, pipeline, interviews and feedback, and make selected changes, through Ashby's official MCP server",
   "keywords": [

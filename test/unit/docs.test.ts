@@ -176,7 +176,7 @@ describe("docs", () => {
     const logout = uninstall.indexOf("opencode mcp logout ashby")
     const connect = uninstall.indexOf("remove the account")
     const list = uninstall.indexOf("opencode auth list")
-    const remove = uninstall.indexOf("opencode plugin remove github:joe-broadhead/opencode-ashby#v0.0.1")
+    const remove = uninstall.indexOf("opencode plugin remove github:joe-broadhead/opencode-ashby#v0.0.2")
     expect(logout).toBeGreaterThanOrEqual(0)
     expect(connect).toBeGreaterThan(logout)
     expect(list).toBeGreaterThan(logout)
