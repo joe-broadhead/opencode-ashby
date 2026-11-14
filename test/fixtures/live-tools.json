@@ -1,0 +1,1193 @@
+{
+  "schema": "opencode-family/live-tools@1",
+  "evidence": "live-observed",
+  "note": "Captured by scripts/capture-tools.mjs from the server's own tools/list. Descriptions are public tool metadata, recorded in full. No tool was called. No token, header, account id, server instructions or result text is recorded.",
+  "listedAt": "2026-11-14",
+  "server": "ashby",
+  "namespace": "ashby",
+  "endpoint": "https://mcp.ashbyhq.com/mcp/v1",
+  "auth": "signed-in",
+  "host": {
+    "opencode": "2.2.6",
+    "via": "running OpenCode server: MCP status and active credential; raw MCP tools/list"
+  },
+  "protocol": {
+    "version": "2025-06-18",
+    "server": {
+      "name": "ashby",
+      "version": "1.0.0"
+    }
+  },
+  "pages": 1,
+  "count": 16,
+  "readOnlyHints": 16,
+  "digest": "71a02c3a382089679f4529bd0aa8fdaf9dec269dc7d2b9a91e7f5e97b82044c6",
+  "tools": [
+    {
+      "name": "add_note_to_candidate",
+      "title": "Add Note to Candidate",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "candidateId": {
+            "type": "string",
+            "description": "The ID of the candidate to add a note to."
+          },
+          "noteText": {
+            "type": "string",
+            "description": "The text content of the note. Markdown formatting is supported."
+          },
+          "replyToNoteId": {
+            "description": "The ID of a note to reply to. Only provide this if you are replying to an existing note.",
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "description": "A brief, one-sentence summary of the user's underlying goal or use case for this call. Do not include raw conversation text. This value does not affect the tool's behavior or results. Values longer than 500 characters are truncated."
+          }
+        },
+        "required": [
+          "candidateId",
+          "noteText",
+          "reason"
+        ]
+      },
+      "description": {
+        "sha256": "e7bbbe5120527920fc501ee62d87c283b473fdeaed348150f981c4822106c0ce",
+        "length": 36,
+        "text": "Add a note to a candidate's profile."
+      }
+    },
+    {
+      "name": "change_application_stage",
+      "title": "Change Application Stage",
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "applicationId": {
+            "type": "string",
+            "description": "The unique identifier of the application to move to a new stage"
+          },
+          "stageId": {
+            "type": "string",
+            "description": "The id of the stage to move the application to."
+          },
+          "archiveReasonId": {
+            "description": "The archive reason ID to use when moving the application to an Archived stage. Use only a reason the user explicitly named or chose; never infer one from context. If the user hasn't named one, call search_records_by_name with entityType archive_reason and ask the user to pick from the results.",
+            "type": "string"
+          },
+          "cancelScheduledInterviews": {
+            "description": "When archiving, whether to cancel the application's upcoming scheduled interviews that have no submitted feedback. Defaults to true; set false only if the user asks to keep them.",
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "description": "A brief, one-sentence summary of the user's underlying goal or use case for this call. Do not include raw conversation text. This value does not affect the tool's behavior or results. Values longer than 500 characters are truncated."
+          }
+        },
+        "required": [
+          "applicationId",
+          "stageId",
+          "reason"
+        ]
+      },
+      "description": {
+        "sha256": "2cfd48c1b7aaca10d2b979dacf12e65fbf2e5a4324307c0b75c2b2c6c498f7d3",
+        "length": 664,
+        "text": "Move an application to a different interview stage.\n\nThe \\`stageId\\` must be a stage in the application's own interview plan. Call \\`get_interview_plan\\` with the applicationId first to list the plan's stages and their IDs, then pass the target stage's ID here.\n\nBefore you move the application, always tell the user the names of the stages it is moving from and to.\n\nArchiving also cancels the application's upcoming interviews that have no submitted feedback. Depending on how those interviews were scheduled, interviewers and the candidate may be notified through their calendar invites. Pass \\`cancelScheduledInterviews: false\\` if the user wants to keep them."
+      }
+    },
+    {
+      "name": "consider_candidate_for_job",
+      "title": "Consider Candidate for Job",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "idempotentHint": false
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "candidateId": {
+            "type": "string",
+            "description": "The unique identifier of the candidate to consider for the job."
+          },
+          "jobId": {
+            "type": "string",
+            "description": "The unique identifier of the job to consider the candidate for."
+          },
+          "interviewStageId": {
+            "description": "The initial interview stage ID. If omitted, the application starts at the first stage. Hired and Archived stages cannot be used.",
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "description": "A brief, one-sentence summary of the user's underlying goal or use case for this call. Do not include raw conversation text. This value does not affect the tool's behavior or results. Values longer than 500 characters are truncated."
+          }
+        },
+        "required": [
+          "candidateId",
+          "jobId",
+          "reason"
+        ]
+      },
+      "description": {
+        "sha256": "6f015b5e8bd93cf07afc6a732c56592673982734aeaf3aa8b4b57560ee23cfb3",
+        "length": 286,
+        "text": "Create a new application for a candidate on a specific job.\n\nOptionally provide an \\`interviewStageId\\` to place the application at a specific stage. Call \\`get_interview_plan\\` with the jobId first to discover available stage IDs. If omitted, the application starts at the first stage."
+      }
+    },
+    {
+      "name": "create_candidate",
+      "title": "Create Candidate",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The full name of the candidate."
+          },
+          "email": {
+            "description": "The candidate's email address.",
+            "type": "string"
+          },
+          "phoneNumber": {
+            "description": "The candidate's phone number.",
+            "type": "string"
+          },
+          "socialLinks": {
+            "description": "Social profile links for the candidate. Each entry has a url and a type.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "description": "The profile URL."
+                },
+                "type": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "LINKEDIN"
+                    },
+                    {
+                      "type": "string",
+                      "const": "GITHUB"
+                    },
+                    {
+                      "type": "string",
+                      "const": "TWITTER"
+                    },
+                    {
+                      "type": "string",
+                      "const": "MEDIUM"
+                    },
+                    {
+                      "type": "string",
+                      "const": "STACK_OVERFLOW"
+                    },
+                    {
+                      "type": "string",
+                      "const": "WEBSITE"
+                    },
+                    {
+                      "type": "string",
+                      "const": "YOUTUBE"
+                    },
+                    {
+                      "type": "string",
+                      "const": "CODEPEN"
+                    }
+                  ],
+                  "description": "The social link type."
+                }
+              },
+              "required": [
+                "url",
+                "type"
+              ],
+              "additionalProperties": false,
+              "description": "A social link with a URL and type."
+            }
+          },
+          "reason": {
+            "type": "string",
+            "description": "A brief, one-sentence summary of the user's underlying goal or use case for this call. Do not include raw conversation text. This value does not affect the tool's behavior or results. Values longer than 500 characters are truncated."
+          }
+        },
+        "required": [
+          "name",
+          "reason"
+        ]
+      },
+      "description": {
+        "sha256": "df02c6f0d9cbb9eb76a45b0e3479f3f4e4d8a6314fe813049dc8ed64e97c2617",
+        "length": 84,
+        "text": "Create a new candidate record in Ashby with a name and optional contact information."
+      }
+    },
+    {
+      "name": "describe_object_fields",
+      "title": "Describe Object Fields",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": null,
+      "openWorldHint": false,
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "objectType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "candidate"
+              },
+              {
+                "type": "string",
+                "const": "application"
+              },
+              {
+                "type": "string",
+                "const": "job"
+              },
+              {
+                "type": "string",
+                "const": "job_posting"
+              },
+              {
+                "type": "string",
+                "const": "opening"
+              },
+              {
+                "type": "string",
+                "const": "interview"
+              },
+              {
+                "type": "string",
+                "const": "interview_schedule"
+              },
+              {
+                "type": "string",
+                "const": "offer_version"
+              },
+              {
+                "type": "string",
+                "const": "transcript"
+              },
+              {
+                "type": "string",
+                "const": "team"
+              },
+              {
+                "type": "string",
+                "const": "location"
+              },
+              {
+                "type": "string",
+                "const": "talent_project"
+              },
+              {
+                "type": "string",
+                "const": "intake_form"
+              },
+              {
+                "type": "string",
+                "const": "employee"
+              },
+              {
+                "type": "string",
+                "const": "ai_screening_interview"
+              }
+            ],
+            "description": "The object type to describe fields for."
+          },
+          "searchTerm": {
+            "type": "string",
+            "description": "2-3 short, specific keywords to search for (e.g. `\"tag involves\"` or `\"stage status date\"`). A field matches if ANY keyword appears in its name, title, or description. Specific keywords are weighted higher than generic ones."
+          },
+          "limit": {
+            "description": "Max number of fields to return per page. Default 10.",
+            "type": "number",
+            "minimum": 1,
+            "maximum": 20
+          },
+          "cursor": {
+            "description": "Pagination cursor (a numeric offset as a string). Omit for the first page.",
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "description": "A brief, one-sentence summary of the user's underlying goal or use case for this call. Do not include raw conversation text. This value does not affect the tool's behavior or results. Values longer than 500 characters are truncated."
+          }
+        },
+        "required": [
+          "objectType",
+          "searchTerm",
+          "reason"
+        ]
+      },
+      "description": {
+        "sha256": "318a9b6568e91216f763808be18c4d4ec8b8f8b225d94d3758bda471be089524",
+        "length": 1053,
+        "text": "Look up filterable fields for a given object type. Returns field paths, valid operators, and selectable values. Use this before calling \\`filter_records\\` when you do not already know the correct field path.\n**Always pass a searchTerm** with 2-3 short, specific keywords for the fields you need (for example \\`\"offer status\"\\` or \\`\"hire date salary\"\\`). Results are ranked by relevance.\n\nUse the returned field paths exactly as shown when constructing filters. Field paths are opaque API identifiers: if a path contains dots, the final segment is not valid by itself. For example, use \\`feedback_form.overall_recommendation\\`, not \\`overall_recommendation\\`.\n\n## Search guidance\n- Use field discovery only when you do not already know the next field to try.\n- Search for the single next missing field, not for reassurance or alternate formulations.\n- If you already have one direct field for the current step, try using it before searching for additional alternatives.\n- Avoid broad keyword combinations when a narrower search can answer the next step."
+      }
+    },
+    {
+      "name": "filter_records",
+      "title": "Filter Records",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": null,
+      "openWorldHint": false,
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "objectType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "candidate"
+              },
+              {
+                "type": "string",
+                "const": "application"
+              },
+              {
+                "type": "string",
+                "const": "job"
+              },
+              {
+                "type": "string",
+                "const": "job_posting"
+              },
+              {
+                "type": "string",
+                "const": "opening"
+              },
+              {
+                "type": "string",
+                "const": "interview"
+              },
+              {
+                "type": "string",
+                "const": "interview_schedule"
+              },
+              {
+                "type": "string",
+                "const": "offer_version"
+              },
+              {
+                "type": "string",
+                "const": "transcript"
+              },
+              {
+                "type": "string",
+                "const": "team"
+              },
+              {
+                "type": "string",
+                "const": "location"
+              },
+              {
+                "type": "string",
+                "const": "talent_project"
+              },
+              {
+                "type": "string",
+                "const": "intake_form"
+              },
+              {
+                "type": "string",
+                "const": "employee"
+              },
+              {
+                "type": "string",
+                "const": "ai_screening_interview"
+              }
+            ],
+            "description": "The type of object to fetch IDs for.\n- candidate: People who have applied or been sourced for roles\n- application: A candidate's application to a specific job\n- job: Open or closed job positions\n- job_posting: Published job postings on career pages or job boards\n- opening: Headcount openings associated with jobs, including status and latest version fields\n- interview: Scheduled interview events, including candidate, job, stage, interviewer, and timing fields\n- interview_schedule: The scheduling workflow for one interview stage of an application, including status, owner, and scheduling-request fields. Use interview for individual scheduled events.\n- offer_version: Offer versions extended to candidates\n- transcript: Interview transcripts produced by the AI Notetaker\n- team: Teams and departments that jobs and employees belong to\n- location: Offices and other locations that jobs and employees are associated with\n- talent_project: Talent projects used to group candidates outside of a job's pipeline\n- intake_form: Intake forms that capture a hiring team's requirements for a role, including title, status, template, author, and completion. Only available to organizations with Intake Forms enabled\n- employee: People who work at the organization, such as interviewers, hiring managers, and recruiters\n- ai_screening_interview: AI-led screening interviews with candidates, including status, evaluation, and review state"
+          },
+          "filter": {
+            "type": "string",
+            "description": "A JSON-serialized filter object. See tool description for the object format."
+          },
+          "sort": {
+            "description": "Optional sort order, limited to 2 entries. Each entry must use a field path marked Sortable: yes by describe_object_fields and a direction. Example: [{ \"fieldPath\": \"created_at\", \"direction\": \"descending\" }] for newest first.",
+            "maxItems": 2,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "fieldPath": {
+                  "type": "string",
+                  "description": "Field path marked Sortable: yes by describe_object_fields."
+                },
+                "direction": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "ascending"
+                    },
+                    {
+                      "type": "string",
+                      "const": "descending"
+                    }
+                  ],
+                  "description": "Sort direction for this field path."
+                }
+              },
+              "required": [
+                "fieldPath",
+                "direction"
+              ],
+              "additionalProperties": false,
+              "description": "A field path and direction to sort by."
+            }
+          },
+          "cursor": {
+            "description": "Pagination cursor from a previous result.",
+            "type": "string"
+          },
+          "resultMode": {
+            "description": "Controls what data is returned.\n- \"ids\" (default): matching IDs only — use when you will call get_record_details next.\n- \"count\": only the total count (no IDs) — use for \"how many\" questions.\n- \"summary\": matching IDs with basic entity details (id, name/title, status).",
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "ids"
+              },
+              {
+                "type": "string",
+                "const": "count"
+              },
+              {
+                "type": "string",
+                "const": "summary"
+              }
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "description": "A brief, one-sentence summary of the user's underlying goal or use case for this call. Do not include raw conversation text. This value does not affect the tool's behavior or results. Values longer than 500 characters are truncated."
+          }
+        },
+        "required": [
+          "objectType",
+          "filter",
+          "reason"
+        ]
+      },
+      "description": {
+        "sha256": "0f48b7ce0fa650d783aab839cc6ca7b9167b98e3b76dec37890e6b1e0ef5d396",
+        "length": 6260,
+        "text": "\n    Filter records of a given object type using a structured JSON filter. Supports result modes: \"ids\" (default), \"count\" (total count only), \"summary\" (IDs plus basic entity details).\n  \n  The `filter` argument must always be a JSON-serialized object.\n  Filters are capped at max depth 3, 8 predicates, 5 child filters per and/or group, and 2 sort fields.\n  \n  Use this tool after identifying the correct object type and field paths.\n  For structured criteria, first call `describe_object_fields` unless you already have the exact field path from a prior tool result. Do not invent common field names such as `title`, `name`, `application_id`, or `overall_recommendation` unless that exact field path was returned for the selected object type.\n\n  Use the value form that matches the field and tool behavior:\n  - **Field paths**: Use the complete field path returned by `describe_object_fields`, including prefixes such as `feedback_form.`, `candidate.`, or `interview.`. Never shorten a returned field path to only the final segment.\n  - **Label-based selectable fields**: For fields such as tags, statuses, users, teams, and similar selectable values, use the human-readable label where supported. The system automatically resolves labels to IDs for supported fields.\n  - **Reference fields**: For many reference fields, including many fields named like `*_id`, the system may support either:\n    - a resolved ID, or\n    - a human-readable title/label.\n  - **Prefer IDs when available**: If you already resolved the referenced entity and have its ID, prefer using the ID for reliability and disambiguation.\n  - **Score fields**: Fields whose `Value type` is Score require numeric values: 4 = Strong Yes, 3 = Yes, 2 = No, 1 = Strong No, 0 = No score provided. Do not pass labels like \"Strong Yes\" to Score fields.\n  - **Literal fields**: For normal string, number, boolean, or date fields, use the literal value in the appropriate format.\n  - Follow the chosen field's `Value type` line from `describe_object_fields`. Do not infer the value form from the field name alone.\n  - **Filter errors**: If an error says \"Did you mean\", retry once with one of the suggested complete field paths before changing tools or object types.\n\n## Expensive queries\n- Text matching on \\`resume_full_text\\` across all candidates, and org-wide counts with no job, stage, or date scope, can be too slow to run. Add a selective filter alongside them.\n- If a call fails because the query was too expensive, do not repeat the same filter. Narrow it, or tell the user the request is too broad.\n\n  ## Sorting\n  Use `sort` with field paths from `describe_object_fields` for latest, earliest, highest, lowest, or alphabetical requests.\n  \n## Filter format examples\nEvery filter is one object with a top-level \\`\"operator\"\\` — put the operator in the \\`\"operator\"\\` key, never as a key nested under the field.\n- Field operators — \\`{ \"operator\": \"<op>\", \"field\": \"<field_path>\", \"value\": <value> }\\`:\n  - \"equals\": \\`{ \"operator\": \"equals\", \"field\": \"status\", \"value\": \"Active\" }\\`\n  - \"similarTo\" (fuzzy text match — the default for free-text like names, schools, companies; tolerates typos): \\`{ \"operator\": \"similarTo\", \"field\": \"name\", \"value\": \"john\" }\\`\n  - \"contains\" / \"starts\" / \"ends\" (literal string matching; use \"contains\" only when the user explicitly asks for exact substring containment): \\`{ \"operator\": \"contains\", \"field\": \"name\", \"value\": \"john\" }\\`\n  - \"greater\" / \"less\" / \"greaterOrEqual\" / \"lessOrEqual\" (numbers only): \\`{ \"operator\": \"greaterOrEqual\", \"field\": \"years_of_experience\", \"value\": 2 }\\`\n  - \"empty\" (no value): \\`{ \"operator\": \"empty\", \"field\": \"primary_personal_email_address\" }\\`\n  - \"daterange\": \\`{ \"operator\": \"daterange\", \"field\": \"created_at\", \"value\": { ... } }\\` — see **Date range filters** below.\n- Logical operators:\n  - \\`{ \"operator\": \"and\", \"filters\": [<filter>, ...] }\\`\n  - \\`{ \"operator\": \"or\", \"filters\": [<filter>, ...] }\\`\n  - \\`{ \"operator\": \"not\", \"filter\": <filter> }\\`\n\nDo not nest the operator under the field: \\`{ \"name\": { \"contains\": \"peter\" } }\\` is wrong. Always use the flat operator/field/value shape shown above.\n  \n  **Example**: Find active applications for a job:\n  ```json\n  {\n    \"operator\": \"and\",\n    \"filters\": [\n      { \"operator\": \"equals\", \"field\": \"job_id\", \"value\": \"<job_id>\" },\n      { \"operator\": \"equals\", \"field\": \"status\", \"value\": \"Active\" }\n    ]\n  }\n  ```\n**Date range filters** — for \\`\"operator\": \"daterange\"\\`, \\`value\\` is one of these shapes (dates are \\`YYYY-MM-DD\\` strings; never epoch/ISO timestamps, and not keys like \\`from\\`/\\`to\\`/\\`gte\\`/\\`after\\`):\n- \\`{ \"type\": \"Since\", \"date\": \"YYYY-MM-DD\" }\\` — from the date through today, inclusive. For future records, use \\`Between\\` with an explicit end date\n- \\`{ \"type\": \"Before\", \"date\": \"YYYY-MM-DD\" }\\` — before the date\n- \\`{ \"type\": \"On\", \"date\": \"YYYY-MM-DD\" }\\` — exactly on the date\n- \\`{ \"type\": \"Between\", \"start\": \"YYYY-MM-DD\", \"end\": \"YYYY-MM-DD\" }\\` — absolute window\n- \\`{ \"type\": \"Previous\", \"unit\": \"1 DAY\"|\"1 WEEK\"|\"1 MONTH\"|\"3 MONTH\"|\"1 YEAR\" }\\` — rolling window ending now\n\n**Example**: Applications created within an explicit date window:\n\\`\\`\\`json\n{ \"operator\": \"daterange\", \"field\": \"submitted_at\", \"value\": { \"type\": \"Between\", \"start\": \"2026-03-27\", \"end\": \"2026-06-25\" } }\n\\`\\`\\`\n\n  When a request is about the current user, use the value \"@me\" on the relevant user field. The server resolves \"@me\" to the authenticated user, so you don't need to know their name or Ashby ID. This works on any user field, such as \"involves\", \"hiring_manager\", \"recruiter\", \"assigned_reviewer\", or other fields whose values are Ashby users. To scope to a different person, pass that user's name as the value instead.\n  **Example**: Find applications where the current user is involved:\n  ```json\n  {\n    \"operator\": \"equals\",\n    \"field\": \"involves\",\n    \"value\": \"@me\"\n  }\n  ```\n  **Example**: Find AI screening interviews (`objectType`: `ai_screening_interview`) waiting for the current user's review:\n  ```json\n  {\n    \"operator\": \"and\",\n    \"filters\": [\n      { \"operator\": \"equals\", \"field\": \"assigned_reviewer\", \"value\": \"@me\" },\n      { \"operator\": \"equals\", \"field\": \"reviewed\", \"value\": false }\n    ]\n  }\n  ```\n    "
+      }
+    },
+    {
+      "name": "get_candidate",
+      "title": "Get Candidate",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": null,
+      "openWorldHint": false,
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "candidateIds": {
+            "minItems": 1,
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "A candidate ID."
+            },
+            "description": "Array of candidate IDs to fetch (max 10)."
+          },
+          "sections": {
+            "description": "Optional. A list of sections to fetch. If omitted, returns basic candidate info only.",
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "resume"
+                },
+                {
+                  "type": "string",
+                  "const": "notes"
+                },
+                {
+                  "type": "string",
+                  "const": "emails"
+                },
+                {
+                  "type": "string",
+                  "const": "linkedInMessages"
+                },
+                {
+                  "type": "string",
+                  "const": "texts"
+                },
+                {
+                  "type": "string",
+                  "const": "interviewFeedback"
+                },
+                {
+                  "type": "string",
+                  "const": "referrals"
+                },
+                {
+                  "type": "string",
+                  "const": "followUps"
+                },
+                {
+                  "type": "string",
+                  "const": "hiringEventFormSubmissions"
+                },
+                {
+                  "type": "string",
+                  "const": "sourcingFormSubmissions"
+                },
+                {
+                  "type": "string",
+                  "const": "subscriptionEvents"
+                },
+                {
+                  "type": "string",
+                  "const": "interviewTranscripts"
+                },
+                {
+                  "type": "string",
+                  "const": "applicationForms"
+                },
+                {
+                  "type": "string",
+                  "const": "surveyFormSubmissions"
+                },
+                {
+                  "type": "string",
+                  "const": "applicationJobPostings"
+                },
+                {
+                  "type": "string",
+                  "const": "scheduledInterviews"
+                },
+                {
+                  "type": "string",
+                  "const": "unscheduledInterviews"
+                },
+                {
+                  "type": "string",
+                  "const": "candidateInterviewAvailability"
+                },
+                {
+                  "type": "string",
+                  "const": "socialLinks"
+                }
+              ],
+              "description": "Candidate context section name."
+            }
+          },
+          "offset": {
+            "description": "Optional number of items to skip for each requested section.",
+            "type": "number",
+            "minimum": 0
+          },
+          "limit": {
+            "description": "Optional max items per section.",
+            "type": "number",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "applicationIds": {
+            "description": "Optional. Use this for role-specific questions, after looking up the candidate's applications. Only valid when candidateIds contains exactly one ID. Empty arrays are treated as omitted. Maximum 5.",
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "An application UUID belonging to the candidate."
+            }
+          },
+          "reason": {
+            "type": "string",
+            "description": "A brief, one-sentence summary of the user's underlying goal or use case for this call. Do not include raw conversation text. This value does not affect the tool's behavior or results. Values longer than 500 characters are truncated."
+          }
+        },
+        "required": [
+          "candidateIds",
+          "reason"
+        ]
+      },
+      "description": {
+        "sha256": "044cf714d961307a38ce43e05ef9160f52d24ea98c0de3373756092869efa087",
+        "length": 1792,
+        "text": "\n    Fetch details about one or more candidates.\n  \n    ## Choosing sections\n    - For a candidate summary, omit the `sections` parameter.\n    - Request only the sections relevant to the user's question.\n    - For questions about whether a candidate mentioned, shared, or said something, start with `emails` and `interviewFeedback`, then fetch other relevant communication/context sections before saying the information was not found.\n    - For all interview feedback visible to the current user, pass `sections: [\"interviewFeedback\"]`. Use `get_submitted_feedback` when the user specifically asks for their own feedback.\n    \n    ## Application scoping\n    When applicationIds is not provided, this tool returns data based on the candidate's most recent applications, prioritizing non-archived applications.\n    For role-specific questions, call `filter_records` with `objectType: \"application\"` filtered to the candidate, then retry with the relevant applicationIds.\n\n    ## Source and credited-to\n    Basic candidate info reports the candidate's own source and credited-to in `<CandidateAttribution>`. These are candidate-level values; do not report them as application-level attribution.\n\n    ## Interview transcripts\n    The `interviewTranscripts` section returns metadata only (transcript ID, interview title, timestamp, interviewers) without the full transcript text. To read the full transcript, call `get_record_details` with `entityType: \"transcript\"` and `entityIds` containing the transcript ID from the `identifier` attribute.\n\n    ## Pagination\n    Each section returns metadata indicating if more items are available. Use offset and limit to paginate:\n    - offset: Number of items to skip (default: 0)\n    - limit: Maximum items to return per section (default: 5, maximum: 10)"
+      }
+    },
+    {
+      "name": "get_interview_details",
+      "title": "Get Interview Details",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": null,
+      "openWorldHint": false,
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "interviewEventId": {
+            "type": "string",
+            "description": "The ID of the interview event to get details for."
+          },
+          "includeInstructions": {
+            "description": "Include interview instructions. Defaults to false.",
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "description": "A brief, one-sentence summary of the user's underlying goal or use case for this call. Do not include raw conversation text. This value does not affect the tool's behavior or results. Values longer than 500 characters are truncated."
+          }
+        },
+        "required": [
+          "interviewEventId",
+          "reason"
+        ]
+      },
+      "description": {
+        "sha256": "64ee36898a911908dca2f62766cdc3edb124dd2d7bda257c5251512772755e7b",
+        "length": 740,
+        "text": "Get a detailed interview briefing for a specific Ashby interview event.\n\nUse this when the user asks for briefing context for an upcoming or pending interview, such as who is interviewing, candidate background, resume summary, candidate/job custom fields, candidate source, or interview instructions.\n\nThe required \\`interviewEventId\\` comes from \\`list_interviews\\`, \\`get_pending_tasks\\`, or the \\`interviewEventId\\` field returned by \\`get_record_details\\` for an interview record.\n\nSet \\`includeInstructions\\` to true only when the user needs interview instructions. The response is read-only briefing data and includes candidate/job context, hiring team members, co-interviewers, resume summary, custom fields, and links back to Ashby."
+      }
+    },
+    {
+      "name": "get_interview_plan",
+      "title": "Get Interview Plan",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": null,
+      "openWorldHint": false,
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "applicationId": {
+            "description": "The ID of an application to get the interview plan for. Takes precedence over jobId if both are provided.",
+            "type": "string"
+          },
+          "jobId": {
+            "description": "The ID of a job to get the default interview plan for. Used only if applicationId is not provided.",
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "description": "A brief, one-sentence summary of the user's underlying goal or use case for this call. Do not include raw conversation text. This value does not affect the tool's behavior or results. Values longer than 500 characters are truncated."
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "description": {
+        "sha256": "2478c6cc655f0174ca93bd6f47e3d812c04934402533bc18607690f37c90f73a",
+        "length": 299,
+        "text": "Get the interview plan and its stages for an Ashby application or job. Provide either an applicationId or a jobId (at least one is required). If applicationId is provided, returns the interview plan for that specific application. If jobId is provided, returns the default interview plan for that job"
+      }
+    },
+    {
+      "name": "get_job_pipeline",
+      "title": "Get Job Pipeline",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": null,
+      "openWorldHint": false,
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "jobIds": {
+            "minItems": 1,
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "A job ID."
+            },
+            "description": "The IDs of the jobs to get pipelines for (max 10)."
+          },
+          "reason": {
+            "type": "string",
+            "description": "A brief, one-sentence summary of the user's underlying goal or use case for this call. Do not include raw conversation text. This value does not affect the tool's behavior or results. Values longer than 500 characters are truncated."
+          }
+        },
+        "required": [
+          "jobIds",
+          "reason"
+        ]
+      },
+      "description": {
+        "sha256": "eb511e2bf6ac17eecde01f63a63c2b693d3f22bea1083695b9c173b5126a0a66",
+        "length": 711,
+        "text": "Get pipeline metrics for one or more Ashby jobs, including per-stage application counts.\n\nUse this when the user asks how many candidates or applications are in a job's pipeline, how candidates are distributed across interview stages, or for a pipeline overview.\n\nFirst resolve job IDs with \\`search_records_by_name\\` for a simple job-name lookup or \\`filter_records\\` for structured criteria, then pass those IDs here. Batch multiple job IDs in one call when comparing pipelines.\n\nThe response groups jobs that share an interview plan and returns job summaries, interview plan stages, and per-job counts for each stage. Use \\`get_interview_plan\\` instead when the user needs the stage structure without counts."
+      }
+    },
+    {
+      "name": "get_pending_tasks",
+      "title": "Get Pending Tasks",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": null,
+      "openWorldHint": false,
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "taskTypes": {
+            "description": "Optional filter to fetch only specific task types. Omit to fetch all.",
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "scorecards"
+                },
+                {
+                  "type": "string",
+                  "const": "approvals"
+                },
+                {
+                  "type": "string",
+                  "const": "sequences"
+                },
+                {
+                  "type": "string",
+                  "const": "surveys"
+                },
+                {
+                  "type": "string",
+                  "const": "mentions"
+                },
+                {
+                  "type": "string",
+                  "const": "followups"
+                },
+                {
+                  "type": "string",
+                  "const": "texts"
+                },
+                {
+                  "type": "string",
+                  "const": "reviews"
+                }
+              ],
+              "description": "A pending task type to include"
+            }
+          },
+          "reason": {
+            "type": "string",
+            "description": "A brief, one-sentence summary of the user's underlying goal or use case for this call. Do not include raw conversation text. This value does not affect the tool's behavior or results. Values longer than 500 characters are truncated."
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "description": {
+        "sha256": "5024c94c4357b23115001a06b3969fc8ede632bc4de2315eae8c5e263cc05f1e",
+        "length": 642,
+        "text": "Get the current Ashby user's pending homepage tasks.\n\nUse this when the user asks what they need to do, what tasks are pending, which scorecards or approvals they owe, or for their pending sequence, survey, mention, follow-up, text, or candidate review tasks. Call with no arguments to fetch all task categories, or pass \\`taskTypes\\` to narrow the response.\n\nThe response groups tasks by category and includes relevant Ashby entity IDs, names, URLs, and interview event IDs when applicable. Use returned candidate IDs with \\`get_candidate\\` and returned interview event IDs with \\`get_interview_details\\` when the user asks for more context."
+      }
+    },
+    {
+      "name": "get_record_details",
+      "title": "Get Record Details",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": null,
+      "openWorldHint": false,
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "entityType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "job"
+              },
+              {
+                "type": "string",
+                "const": "job_posting"
+              },
+              {
+                "type": "string",
+                "const": "application"
+              },
+              {
+                "type": "string",
+                "const": "communication_template"
+              },
+              {
+                "type": "string",
+                "const": "opening"
+              },
+              {
+                "type": "string",
+                "const": "interview"
+              },
+              {
+                "type": "string",
+                "const": "interview_schedule"
+              },
+              {
+                "type": "string",
+                "const": "offer_version"
+              },
+              {
+                "type": "string",
+                "const": "transcript"
+              },
+              {
+                "type": "string",
+                "const": "team"
+              },
+              {
+                "type": "string",
+                "const": "location"
+              },
+              {
+                "type": "string",
+                "const": "talent_project"
+              },
+              {
+                "type": "string",
+                "const": "intake_form"
+              },
+              {
+                "type": "string",
+                "const": "intake_form_template"
+              },
+              {
+                "type": "string",
+                "const": "employee"
+              },
+              {
+                "type": "string",
+                "const": "ai_screening_interview"
+              },
+              {
+                "type": "string",
+                "const": "ai_screening_interview_transcript"
+              }
+            ],
+            "description": "Entity type to fetch."
+          },
+          "entityIds": {
+            "minItems": 1,
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "The ID of the entity to request details about."
+            },
+            "description": "Array of entity IDs to fetch (max 10; max 1 when entityType is \"transcript\"; max 3 when entityType is \"intake_form\"; max 5 when entityType is \"ai_screening_interview_transcript\")."
+          },
+          "reason": {
+            "type": "string",
+            "description": "A brief, one-sentence summary of the user's underlying goal or use case for this call. Do not include raw conversation text. This value does not affect the tool's behavior or results. Values longer than 500 characters are truncated."
+          }
+        },
+        "required": [
+          "entityType",
+          "entityIds",
+          "reason"
+        ]
+      },
+      "description": {
+        "sha256": "6993ce4f9f8a078c9d036841a05650891294381a072ddb9d4a694f8a8e50b3bc",
+        "length": 3043,
+        "text": "Fetch detailed Ashby records by ID for any of the record types listed in the `entityType` enum.\n\nUse this after `search_records_by_name` or `filter_records` returns the IDs of the records the user asked about. Pass up to 10 IDs in one call. This tool is for hydrating records that have already been identified; it does not search by name or filter criteria. Every `entityType` except `communication_template`, which `filter_records` cannot search, names the same record as the `filter_records` object type of that name, so those IDs can be passed through unchanged.\n\nFor candidate profile details, use `get_candidate` instead. For interview records, pass scheduled interview IDs returned by `filter_records`; the response includes `interviewEventId`, which can be passed to `get_interview_details` for the full briefing. For transcripts, pass the ID returned by `filter_records` with the `transcript` object type; the response includes the full transcript text with speaker names and timestamps, plus interview metadata when available. For employees, pass the employee IDs returned by `filter_records`; the response includes name, email, job title, start date, and manager. For intake forms, the response includes every field with its section, kind, whether it's required and complete, its current value (rich text as markdown, people with their user IDs) and its version; fill fields with update_intake_form by passing each field's version back. For intake form templates, pass IDs from search_records_by_name; the response includes the status and every section, question and asset with its itemKey and whether it's required, for update_intake_form_template. For `ai_screening_interview`, pass IDs from `filter_records` with that object type; the response includes status (Not Started, In Progress, Completed, Abandoned, Declined), evaluation (AI evaluator write-ups and signal buckets — not the candidate's wording), minimum qualifications, lean integrity signals, unanswered questions, candidate feedback, and a reviewUrl. To compare candidates on one section or topic, use `get_ai_screening_interview_results` instead of full transcripts. For `ai_screening_interview_transcript`, pass the AI screening interview ID; pass up to 5 IDs for the full transcript. Meeting `transcript` stays capped at 1 ID per call; intake forms at 3. For AI interviewer definitions, use `get_ai_interviewer_details` after `search_records_by_name` — this tool does not hydrate `ai_interviewer` records.\n\n`interview_schedule` and `interview` are different records. An `interview_schedule` is the scheduling workflow for one interview stage of an application — its status, timezones, and whether availability was requested or provided. An `interview` is a single scheduled event with a time and interviewers. Use `interview_schedule` for questions about scheduling progress, and `interview` for questions about a specific meeting. An `interview_schedule` response lists its events under `scheduledEvents`, whose `id` can be passed back as an `interview` entity ID."
+      }
+    },
+    {
+      "name": "get_submitted_feedback",
+      "title": "Get Submitted Feedback",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": null,
+      "openWorldHint": false,
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "applicationId": {
+            "type": "string",
+            "description": "The ID of the application to look up feedback for."
+          },
+          "interviewEventId": {
+            "description": "The ID of the interview event to scope feedback to. When provided, returns the current user's feedback for that specific interview.",
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "description": "A brief, one-sentence summary of the user's underlying goal or use case for this call. Do not include raw conversation text. This value does not affect the tool's behavior or results. Values longer than 500 characters are truncated."
+          }
+        },
+        "required": [
+          "applicationId",
+          "reason"
+        ]
+      },
+      "description": {
+        "sha256": "4592ef816ae081181efa357c3b6286b0377d69cf1458cfdbab96723f0df88e1c",
+        "length": 800,
+        "text": "Fetch the current Ashby user's submitted scorecard feedback for an application.\n\nUse this when the user asks what feedback they already submitted, wants to review their own scorecard, or asks for their submitted feedback for a specific interview. Resolve the \\`applicationId\\` with \\`search_records_by_name\\`, \\`filter_records\\`, \\`get_candidate\\`, or \\`list_interviews\\` before calling this tool. Provide \\`interviewEventId\\` when the question is about feedback for a particular interview; interview event IDs can come from \\`list_interviews\\`, \\`get_pending_tasks\\`, or \\`get_interview_details\\`.\n\nThis only returns feedback submitted by the current user. If the user asks for all feedback or feedback from other interviewers, use \\`get_candidate\\` with \\`sections: [\"interviewFeedback\"]\\` instead."
+      }
+    },
+    {
+      "name": "list_interviews",
+      "title": "List Interviews",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": null,
+      "openWorldHint": false,
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "candidateName": {
+            "description": "The candidate name to search for. Matches case-insensitively against full candidate names.",
+            "type": "string"
+          },
+          "onOrAfterDate": {
+            "description": "ISO 8601 date-time for the start of the window (inclusive). Defaults to 7 days ago.",
+            "type": "string"
+          },
+          "onOrBeforeDate": {
+            "description": "ISO 8601 date-time for the end of the window (inclusive). Defaults to 7 days from now.",
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "description": "A brief, one-sentence summary of the user's underlying goal or use case for this call. Do not include raw conversation text. This value does not affect the tool's behavior or results. Values longer than 500 characters are truncated."
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "description": {
+        "sha256": "8ae377c77a83dfa83f789b29f0246a0a4cab34285fc5ee15f1b50311cf237af5",
+        "length": 497,
+        "text": "Search the current Ashby user's interviews by candidate name and/or date range.\n\nUse this when the user asks about their interviews, interview schedule, or mentions a candidate by name. The window defaults to the past 7 days through the next 7 days, so both recent and upcoming interviews are included. Pass \\`onOrAfterDate\\`/\\`onOrBeforeDate\\` to search other periods. Use the returned interviewEventId with \\`get_interview_details\\` or the returned applicationId with \\`get_submitted_feedback\\`."
+      }
+    },
+    {
+      "name": "search_records_by_name",
+      "title": "Search Records by Name",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": null,
+      "openWorldHint": false,
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "entityType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "candidate"
+              },
+              {
+                "type": "string",
+                "const": "job"
+              },
+              {
+                "type": "string",
+                "const": "application"
+              },
+              {
+                "type": "string",
+                "const": "communication_template"
+              },
+              {
+                "type": "string",
+                "const": "archive_reason"
+              },
+              {
+                "type": "string",
+                "const": "ai_interviewer"
+              },
+              {
+                "type": "string",
+                "const": "intake_form_template"
+              }
+            ],
+            "description": "The type of record to search for."
+          },
+          "query": {
+            "type": "string",
+            "description": "The name of the record to search for. With entityType `archive_reason`, `ai_interviewer` or `intake_form_template`, leave empty to page through all visible records."
+          },
+          "limit": {
+            "description": "Optional max number of results.",
+            "type": "number",
+            "minimum": 1,
+            "maximum": 25
+          },
+          "cursor": {
+            "description": "Optional pagination cursor.",
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "description": "A brief, one-sentence summary of the user's underlying goal or use case for this call. Do not include raw conversation text. This value does not affect the tool's behavior or results. Values longer than 500 characters are truncated."
+          }
+        },
+        "required": [
+          "entityType",
+          "query",
+          "reason"
+        ]
+      },
+      "description": {
+        "sha256": "84fc7fe243b3c280ca3ec6e2e476147c27ef3561ef01a0ba1b700f7cb826203d",
+        "length": 151,
+        "text": "Search Ashby records by name and resolve them to their canonical IDs. Use this for simple name lookups; use \\`filter_records\\` for structured criteria."
+      }
+    },
+    {
+      "name": "submit_mcp_feedback",
+      "title": "Submit MCP Product Feedback",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": null,
+      "openWorldHint": false,
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "feedback": {
+            "type": "string",
+            "description": "The MCP/product feedback to submit. Include the user's goal, which Ashby MCP tools or workflow you tried, what blocked or confused the task, and what tool/capability/result would have helped."
+          },
+          "reason": {
+            "type": "string",
+            "description": "A brief, one-sentence summary of the user's underlying goal or use case for this call. Do not include raw conversation text. This value does not affect the tool's behavior or results. Values longer than 500 characters are truncated."
+          }
+        },
+        "required": [
+          "feedback",
+          "reason"
+        ]
+      },
+      "description": {
+        "sha256": "32827febbe692753ddf06b11abfaca8a5133230088882d6346e61bc41408a55d",
+        "length": 682,
+        "text": "Submit product feedback about the Ashby MCP server and its tools to the Ashby team. Call this when the user explicitly reports an MCP issue, limitation, or suggestion, or when you cannot complete the user's Ashby task because the available MCP tools are missing a needed capability, returned confusing/incomplete results, or produced an error that blocked the task. In the feedback, include the user's goal, the Ashby MCP tool(s) or workflow you tried, what went wrong or was missing, and the tool/capability/result that would have helped. This tool sends feedback to Ashby; it does not create, modify, or delete any Ashby records. Feedback longer than 5000 characters is truncated."
+      }
+    }
+  ]
+}
