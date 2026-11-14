@@ -45,10 +45,6 @@
       "description": "The user's pending tasks: scorecards owed, approvals, follow-ups, candidate reviews, survey requests."
     },
     {
-      "name": "search_product_docs",
-      "description": "Answers 'how do I' questions from Ashby's product docs, with links."
-    },
-    {
       "name": "create_candidate",
       "description": "Create a candidate with name and contact details."
     },

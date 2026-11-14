@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.2] - 2026-11-14
+
+### Removed
+
+- `search_product_docs`, which Ashby's help page lists but Ashby's server does not serve, from the declaration, the
+  known reads, the default rules, the `ashby` skill and the README. The skill now says no Ashby tool answers a how-to
+  question.
+
+### Added
+
+- `test/fixtures/live-tools.json`, Ashby's tool list for a signed-in user, captured live on 14 November 2026, and a
+  test that fails when the declaration and that list disagree.
+
 ## [0.0.1] - 2026-11-13
 
 ### Added

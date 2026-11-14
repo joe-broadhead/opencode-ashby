@@ -18,8 +18,8 @@ Unofficial; not affiliated with Ashby.
   stay hidden unless you were granted them.
 - Ashby's MCP server is in beta, and Ashby may change its tools without notice. A tool Ashby adds is allowed at once
   under `access: "all"`, and is counted as unknown until a release knows it.
-- The 12 read, 3 write and 2 destructive tools, and their classes, come from Ashby's own help page and a signed-in
-  server's tool list, which gives no annotations: treat a class as Ashby's description of the tool, not as its annotation. A tool Ashby adds follows
+- The 11 read, 3 write and 2 destructive tools, and their classes, come from Ashby's own help page and a signed-in
+  server's tool list, whose `readOnlyHint` the declaration follows (captured 14 November 2026). A tool Ashby adds follows
   `access`: allowed at once at `"all"`, asked for at `"ask-changes"`, denied at `"read-only"`, and status names it as
   unknown.
 - Ashby stores and processes its data in the United States.
@@ -27,18 +27,18 @@ Unofficial; not affiliated with Ashby.
 ## Install
 
 ```sh
-opencode plugin add github:joe-broadhead/opencode-ashby#v0.0.1
+opencode plugin add github:joe-broadhead/opencode-ashby#v0.0.2
 ```
 
 Run `opencode reload`, or restart OpenCode. Then run `/ashby-status`: it shows `sign-in required` until you sign in
 (see [Sign in](#sign-in)).
 
-Each release has its own tag, and a Git install does not update by itself. To move to a newer release, remove the old entry with `opencode plugin remove github:joe-broadhead/opencode-ashby#v0.0.0`, then add the new tag with `opencode plugin add github:joe-broadhead/opencode-ashby#v<version>`.
+Each release has its own tag, and a Git install does not update by itself. To move to a newer release, remove the old entry with `opencode plugin remove github:joe-broadhead/opencode-ashby#v0.0.1`, then add the new tag with `opencode plugin add github:joe-broadhead/opencode-ashby#v<version>`.
 
 Or add the plugin to `opencode.json` instead, with the same spec:
 
 ```json
-{ "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.1" }] }
+{ "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.2" }] }
 ```
 
 The plugin registers Ashby's MCP server under the name `ashby`, adds default permission rules, the `/ashby-status`
@@ -77,7 +77,6 @@ Ask, for example:
 - "Prep me for my next interview."
 - "What do I owe in Ashby?"
 - "Show me the pipeline for the data engineer jobs."
-- "How do I set up an approval chain in Ashby?"
 
 The model never makes a hiring decision you didn't ask for, labels Ashby's AI output as Ashby's, and keeps candidate
 data out of other tools unless you name the destination. What candidates said in interviews comes from Metaview when
@@ -128,7 +127,7 @@ There are three ways to restrict it.
 ```json
 {
   "plugins": [
-    { "package": "github:joe-broadhead/opencode-ashby#v0.0.1", "options": { "access": "ask-changes" } }
+    { "package": "github:joe-broadhead/opencode-ashby#v0.0.2", "options": { "access": "ask-changes" } }
   ]
 }
 ```
@@ -159,7 +158,6 @@ The plugin adds these rules for `access: "all"`:
     { "action": "ashby_get_record_details", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_submitted_feedback", "resource": "*", "effect": "allow" },
     { "action": "ashby_list_interviews", "resource": "*", "effect": "allow" },
-    { "action": "ashby_search_product_docs", "resource": "*", "effect": "allow" },
     { "action": "ashby_search_records_by_name", "resource": "*", "effect": "allow" },
     { "action": "ashby_add_note_to_candidate", "resource": "*", "effect": "allow" },
     { "action": "ashby_consider_candidate_for_job", "resource": "*", "effect": "allow" },
@@ -186,7 +184,6 @@ The plugin adds these rules for `access: "ask-changes"`:
     { "action": "ashby_get_record_details", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_submitted_feedback", "resource": "*", "effect": "allow" },
     { "action": "ashby_list_interviews", "resource": "*", "effect": "allow" },
-    { "action": "ashby_search_product_docs", "resource": "*", "effect": "allow" },
     { "action": "ashby_search_records_by_name", "resource": "*", "effect": "allow" },
     { "action": "ashby_add_note_to_candidate", "resource": "*", "effect": "ask" },
     { "action": "ashby_consider_candidate_for_job", "resource": "*", "effect": "ask" },
@@ -213,7 +210,6 @@ The plugin adds these rules for `access: "read-only"`:
     { "action": "ashby_get_record_details", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_submitted_feedback", "resource": "*", "effect": "allow" },
     { "action": "ashby_list_interviews", "resource": "*", "effect": "allow" },
-    { "action": "ashby_search_product_docs", "resource": "*", "effect": "allow" },
     { "action": "ashby_search_records_by_name", "resource": "*", "effect": "allow" },
     { "action": "ashby_add_note_to_candidate", "resource": "*", "effect": "deny" },
     { "action": "ashby_consider_candidate_for_job", "resource": "*", "effect": "deny" },
@@ -285,7 +281,7 @@ Set options with the object form of the plugin entry:
 
 ```json
 {
-  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.1", "options": { "allowUntestedHost": true } }]
+  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.2", "options": { "allowUntestedHost": true } }]
 }
 ```
 
@@ -304,7 +300,7 @@ the plugin entry in the system config: `/Library/Application Support/opencode/op
 
 ```json
 {
-  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.1" }],
+  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.2" }],
   "permissions": [{ "action": "ashby_create_candidate", "resource": "*", "effect": "deny" }]
 }
 ```
@@ -380,11 +376,11 @@ The status RPC's own error is `unavailable`, with a next step, when the status c
 
 ## Known limits
 
-- **The tool table comes from Ashby's help page.** Ashby publishes no annotations, so a class is a judgement from
-  Ashby's description of the tool. A tool Ashby adds is allowed at once and counted as unknown; a tool Ashby marks as
-  changing data could run here as a read until a release knows it. The names and parameters match a signed-in server's
-  tool list. That list shows no annotations, so `npm run drift` compares a saved list with the table, and
-  `CONTRIBUTING.md` has the steps.
+- **The tool table comes from Ashby's help page.** The help page gives no annotations, so a class is a judgement from
+  Ashby's description of the tool; the live list's read-only hints agree with it. A tool Ashby adds is allowed at once and counted as unknown; a tool Ashby marks as
+  changing data could run here as a read until a release knows it. The names, parameters and read-only hints match a signed-in
+  server's tool list, captured on 14 November 2026 (`test/fixtures/live-tools.json`), and a test checks the declaration
+  against it. `npm run drift` compares a saved list with the table, and `CONTRIBUTING.md` has the steps.
 - **A script's read can cross projects.** A script's session may belong to another directory than the OpenCode server
   answering it, and the read then runs under the serving location's agent rules; only a `deny` is refused in between.
   Run scripts in the project whose agent you mean. This is in the module shared with the other plugins, not in this
@@ -407,7 +403,7 @@ store.
    in `/connect` → Ashby. If it answers `MCP server not found: ashby`, OpenCode is still opening that folder: wait a
    few seconds and run it again.
 2. Check: `opencode auth list` no longer lists **Ashby**.
-3. Remove the plugin: `opencode plugin remove github:joe-broadhead/opencode-ashby#v0.0.1`, then `opencode reload`.
+3. Remove the plugin: `opencode plugin remove github:joe-broadhead/opencode-ashby#v0.0.2`, then `opencode reload`.
    `opencode mcp list` no longer lists `ashby`.
 4. Remove any Ashby rules you copied into your agents' own `permissions`.
 

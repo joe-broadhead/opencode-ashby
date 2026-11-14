@@ -1,0 +1,27 @@
+{
+  "captures": [
+    {
+      "fixture": "live-tools.json",
+      "evidence": "live-observed",
+      "listedAt": "2026-11-14",
+      "server": "ashby",
+      "endpoint": "https://mcp.ashbyhq.com/mcp/v1",
+      "source": "scripts/capture-tools.mjs, signed in",
+      "host": "2.2.6",
+      "protocol": "2025-06-18",
+      "count": 16,
+      "annotations": "every tool",
+      "schemas": "recorded",
+      "digest": {
+        "algorithm": "sha256",
+        "of": "canonical JSON of the recorded tools, sorted by name",
+        "value": "71a02c3a382089679f4529bd0aa8fdaf9dec269dc7d2b9a91e7f5e97b82044c6"
+      }
+    }
+  ],
+  "live": {
+    "fixture": "live-tools.json",
+    "listedAt": "2026-11-14"
+  },
+  "note": "Digests are for drift detection, not a security signature. live names the newest live-observed capture, which the release gate requires to be at most 14 days old."
+}

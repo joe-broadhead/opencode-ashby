@@ -27,7 +27,7 @@ family's own drawing, not Ashby's logo, shape or brand colour.
 
 ## Tools and permissions
 
-17 tools are declared (12 read-only), every tool in `src/ashby-tools.ts`: each read tool read-only, and every tool,
+16 tools are declared (11 read-only), every tool in `src/ashby-tools.ts`: each read tool read-only, and every tool,
 reads and changes alike, `allow`. That matches the family's default, where nothing is denied until the user restricts
 it. Jelly's agents have no base "allow everything" rule, so this plugin's own default rules, which it puts after that
 rule, never reach them: Jelly writes each declared effect as that tool's default, and the person's own choice replaces
@@ -46,7 +46,10 @@ A tool Ashby adds later, a write included, is not declared, so in Jelly it runs 
 even if it changes something such as a candidate's stage or a pipeline, until a new version of this plugin declares it.
 Ashby says it adds tools over time, write actions included. A Jelly admin can set such a tool to ask. Keep
 `jelly.tools` in step with `src/ashby-tools.ts`; `test/unit/jelly.test.ts` checks the list against it, and each
-declared effect against the plugin's own default rules.
+declared effect against the plugin's own default rules. `test/unit/live-capture.test.ts` checks the declaration against
+Ashby's own tool list for a signed-in user, captured live on 14 November 2026 in `test/fixtures/live-tools.json`
+(`provenance.json` says how): every tool Ashby serves is declared, every declared tool is served, and each `readOnly` is
+Ashby's `readOnlyHint`. `search_product_docs`, which Ashby's help page lists, is not served, so it is not declared.
 
 ## Skills
 

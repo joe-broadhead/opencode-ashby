@@ -21,7 +21,6 @@ export const READ_TOOLS: readonly string[] = [
   "get_record_details",
   "get_submitted_feedback",
   "list_interviews",
-  "search_product_docs",
   "search_records_by_name",
 ]
 
@@ -51,7 +50,7 @@ export const ALL_TOOLS: readonly string[] = [...READ_TOOLS, ...WRITE_TOOLS, ...D
 /**
  * Each live tool's input parameters, as `name:type`, with `*` after a required name, in the input schema's order. Recorded
  * from the signed-in server's tool schemas (2026-11-10). Every live tool requires a `reason`: one sentence on the user's
- * goal, so a script must send one too. `search_product_docs` has no entry: the live list does not give it. The drift
+ * goal, so a script must send one too. The drift
  * script compares a saved tool list with this record, and the skills test lets a skill write a literal call only with
  * parameters recorded here.
  */
