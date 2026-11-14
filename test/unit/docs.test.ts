@@ -351,7 +351,7 @@ describe("docs", () => {
     expect(guide).not.toMatch(/refuses this declaration|accepts no unknown keys/)
     // R18: every declared tool is allowed, and a tool Ashby adds later is undeclared, so Jelly runs it with the
     // plugin's own default: the guide says so plainly, a write included.
-    expect(guide).toContain("17 tools are declared (12 read-only), every tool in `src/ashby-tools.ts`")
+    expect(guide).toContain("16 tools are declared (11 read-only), every tool in `src/ashby-tools.ts`")
     expect(guide).toContain("A tool Ashby adds later, a write included, is not declared, so in Jelly it runs with the plugin's own default: allowed")
     const destructive = guide.split("- `ashby_create_candidate`")[1]?.split("A Jelly admin restricts")[0] ?? ""
     for (const name of DESTRUCTIVE_TOOLS) expect(destructive).toContain(`ashby_${name}`)

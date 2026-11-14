@@ -155,12 +155,6 @@
         "readOnly": true
       },
       {
-        "name": "ashby.search_product_docs",
-        "permission": "ashby_search_product_docs",
-        "effect": "allow",
-        "readOnly": true
-      },
-      {
         "name": "ashby.search_records_by_name",
         "permission": "ashby_search_records_by_name",
         "effect": "allow",

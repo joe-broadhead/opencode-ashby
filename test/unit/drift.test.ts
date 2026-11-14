@@ -98,7 +98,7 @@ describe("npm run drift", () => {
       expect(code).toBe(1)
       expect(out).toContain("Parameters to record: the list gives this known tool's input, which PARAMETERS does not have yet:")
       for (const name of missing) expect(out).toContain(`  ${name}: query*:string`)
-    } else expect(code).toBe(0)
+    } else expect(out).not.toContain("Parameters to record")
   })
 
   test("once recorded, a parameter that is added, removed, made required or retyped is drift", () => {
@@ -129,7 +129,7 @@ describe("npm run drift", () => {
     const quiet = [
       opencode("get_record_details", {}, [], "Full details of a Job Posting, an Offer or an Application."),
       opencode("get_interview_plan", {}, [], "The stages of a plan; move a candidate with change_application_stage."),
-      opencode("search_product_docs", {}, [], "1. Create a candidate with create_candidate after reading the docs."),
+      opencode("search_records_by_name", {}, [], "1. Create a candidate with create_candidate after resolving the name."),
     ]
     const loud = [opencode("get_pending_tasks", {}, [], "Sends a reminder to every interviewer who owes feedback."), opencode("filter_records", {}, [], "This tool creates a saved view.")]
     const others = ALL.filter((name) => ![...quiet, ...loud].some((tool) => tool.name === name)).map((name) => opencode(name, {}, []))

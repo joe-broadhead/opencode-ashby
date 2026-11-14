@@ -44,7 +44,7 @@ calls in flight at most; on a rate limit wait a minute and call less, on a timeo
 - A job's stages: `get_interview_plan`.
 - Feedback: `get_submitted_feedback` is only the user's own scorecards. The panel's feedback, as far as the user's role
   allows, is in `get_candidate`. Never conclude "no feedback" from the first alone.
-- "How do I … in Ashby": `search_product_docs`; cite the links it returns.
+- "How do I … in Ashby": no Ashby tool answers it. Say so, and point the user to the help centre in Ashby's web app rather than guess.
 
 ## Answer
 
