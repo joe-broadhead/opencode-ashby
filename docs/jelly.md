@@ -8,7 +8,7 @@ Jelly names the plugin **Ashby** (`jelly.title`), with the package name and vers
 that name it shows the one line in `jelly.summary`, and beside it the mark in `jelly.icon`
 (`assets/icon.svg`, shipped in the package): Jelly reads that file once, when it records the
 plugin, and keeps it only if it is a clean SVG of drawing elements, with no script, style, link
-or outside reference. The mark is a neutral funnel on a slate tile, not Ashby's logo. Jelly's
+or outside reference. The mark is Ashby's own app icon. Jelly's
 declaration contracts drop a top-level key they don't know, and refuse an unknown key inside a tool,
 sign-in or `contributes` entry, so the section uses only the keys Jelly reads.
 
