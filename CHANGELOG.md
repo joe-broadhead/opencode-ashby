@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.4] - 2026-11-15
+
+### Added
+
+- **For jelly:** `jelly.admin`, the step jelly shows on the plugin's review after "Before anyone signs in, your admin
+  needs to": "turn on MCP Server in Ashby (Admin > Organization Setup > Opt-In Features) and give each user Elevated
+  Access".
+
 ## [0.0.3] - 2026-11-15
 
 ### Changed

@@ -12,6 +12,10 @@ or outside reference. The mark is Ashby's own app icon. Jelly's
 declaration contracts drop a top-level key they don't know, and refuse an unknown key inside a tool,
 sign-in or `contributes` entry, so the section uses only the keys Jelly reads.
 
+`jelly.admin` is the step Jelly shows on the plugin's review before it installs, after "Before anyone signs in, your
+admin needs to": "turn on MCP Server in Ashby (Admin > Organization Setup > Opt-In Features) and give each user Elevated
+Access". It grants and blocks nothing; the README's Organisation rollout gives the steps.
+
 ## Icons and the vendor
 
 `opencode.icons` lists the same mark in three files of this package, in order: `assets/icon.svg`, then
