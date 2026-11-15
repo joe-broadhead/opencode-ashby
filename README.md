@@ -8,7 +8,7 @@ Unofficial; not affiliated with Ashby.
 
 ## Requirements
 
-- OpenCode `>=2.2.3 <2.3.0`, tested on 2.2.3, 2.2.4, 2.2.5 and 2.2.6. Outside that range the plugin does not start, unless
+- OpenCode `>=2.2.3 <2.4.0`, tested on 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7 and 2.3.0. Outside that range the plugin does not start, unless
   you set `allowUntestedHost`.
 - macOS or Linux, and a browser for the sign-in.
 - An Ashby organisation on any plan except Analytics-only.
@@ -27,18 +27,18 @@ Unofficial; not affiliated with Ashby.
 ## Install
 
 ```sh
-opencode plugin add github:joe-broadhead/opencode-ashby#v0.0.2
+opencode plugin add github:joe-broadhead/opencode-ashby#v0.0.3
 ```
 
 Run `opencode reload`, or restart OpenCode. Then run `/ashby-status`: it shows `sign-in required` until you sign in
 (see [Sign in](#sign-in)).
 
-Each release has its own tag, and a Git install does not update by itself. To move to a newer release, remove the old entry with `opencode plugin remove github:joe-broadhead/opencode-ashby#v0.0.1`, then add the new tag with `opencode plugin add github:joe-broadhead/opencode-ashby#v<version>`.
+Each release has its own tag, and a Git install does not update by itself. To move to a newer release, remove the old entry with `opencode plugin remove github:joe-broadhead/opencode-ashby#v0.0.2`, then add the new tag with `opencode plugin add github:joe-broadhead/opencode-ashby#v<version>`.
 
 Or add the plugin to `opencode.json` instead, with the same spec:
 
 ```json
-{ "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.2" }] }
+{ "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.3" }] }
 ```
 
 The plugin registers Ashby's MCP server under the name `ashby`, adds default permission rules, the `/ashby-status`
@@ -127,7 +127,7 @@ There are three ways to restrict it.
 ```json
 {
   "plugins": [
-    { "package": "github:joe-broadhead/opencode-ashby#v0.0.2", "options": { "access": "ask-changes" } }
+    { "package": "github:joe-broadhead/opencode-ashby#v0.0.3", "options": { "access": "ask-changes" } }
   ]
 }
 ```
@@ -281,13 +281,13 @@ Set options with the object form of the plugin entry:
 
 ```json
 {
-  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.2", "options": { "allowUntestedHost": true } }]
+  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.3", "options": { "allowUntestedHost": true } }]
 }
 ```
 
 | Option | Values | Default | Effect |
 | --- | --- | --- | --- |
-| `allowUntestedHost` | `true` or `false` | `false` | Starts on an OpenCode version outside `>=2.2.3 <2.3.0`, with a warning in status. |
+| `allowUntestedHost` | `true` or `false` | `false` | Starts on an OpenCode version outside `>=2.2.3 <2.4.0`, with a warning in status. |
 
 [docs/configuration.md](https://github.com/joe-broadhead/opencode-ashby/blob/HEAD/docs/configuration.md) has the
 details, including your own `mcp.servers.ashby` entry, permission recipes and every error.
@@ -300,7 +300,7 @@ the plugin entry in the system config: `/Library/Application Support/opencode/op
 
 ```json
 {
-  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.2" }],
+  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.3" }],
   "permissions": [{ "action": "ashby_create_candidate", "resource": "*", "effect": "deny" }]
 }
 ```
@@ -337,7 +337,7 @@ Run `/ashby-status` first. Its last line is the next step.
 | Rate limited | Ashby allows 120 requests a minute per sign-in. Wait a minute, and make fewer calls at once. |
 | A move or archive asks | Only under `access: "ask-changes"`; the default lets it run. See [Permissions](#permissions) for the three values. |
 | Agents without default rules | Put the default rules shown by `/ashby-status` first in each listed agent's own permissions, in `opencode.json` or the agent's Markdown file, followed by your top-level rules for Ashby tools. |
-| OpenCode: untested | OpenCode is not 2.2.3, 2.2.4, 2.2.5 or 2.2.6. Inside `>=2.2.3 <2.3.0` the plugin runs normally; outside it, it runs only because `allowUntestedHost` is set. If Ashby misbehaves, use a tested release. |
+| OpenCode: untested | OpenCode is not 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7 or 2.3.0. Inside `>=2.2.3 <2.4.0` the plugin runs normally; outside it, it runs only because `allowUntestedHost` is set. If Ashby misbehaves, use a tested release. |
 | Signed in to the wrong Ashby account | Run `opencode mcp logout ashby` from the project folder (or remove the account in `/connect` → Ashby); if it answers `MCP server not found: ashby`, wait a few seconds and run it again. Then sign in again. |
 | Asked to sign in again after about an hour | Ashby may issue no refresh token, so the sign-in cannot be renewed. Sign in again with `/connect` → Ashby; your Ashby session may still be open in the browser. |
 | An Ashby tool is refused in `opencode run` | Nobody could answer its prompt, so the session's own rules asked for the call. Under `access: "all"` (the default) nothing asks. |
@@ -403,7 +403,7 @@ store.
    in `/connect` → Ashby. If it answers `MCP server not found: ashby`, OpenCode is still opening that folder: wait a
    few seconds and run it again.
 2. Check: `opencode auth list` no longer lists **Ashby**.
-3. Remove the plugin: `opencode plugin remove github:joe-broadhead/opencode-ashby#v0.0.2`, then `opencode reload`.
+3. Remove the plugin: `opencode plugin remove github:joe-broadhead/opencode-ashby#v0.0.3`, then `opencode reload`.
    `opencode mcp list` no longer lists `ashby`.
 4. Remove any Ashby rules you copied into your agents' own `permissions`.
 

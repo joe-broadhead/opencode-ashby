@@ -105,7 +105,7 @@ export function createAshbyPlugin(seam: AshbySeam) {
       await registerDefaultRules(ctx.agent, defaultRules(options.access), report("rules"))
       const listing = watchListing(ctx)
       const own = skills.map((skill) => ({ id: skill.id, path: skill.path }))
-      const read = () => readStatus(ctx, { ...(source ? { source } : {}), host, problems: [...problems.values()], skills: own, listing, access: options.access })
+      const read = () => readStatus(ctx, () => ({ ...(source ? { source } : {}), host, problems: [...problems.values()], skills: own, listing, access: options.access }))
       await registerSkills(ctx.skill, skills)
       await registerStatusCommand(ctx, read)
       await registerStatusRpc(ctx.rpc, read)
