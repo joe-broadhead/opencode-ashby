@@ -29,18 +29,18 @@ Ashby is a trademark of Ashby, Inc.; this unofficial plugin is not endorsed by t
 ## Install
 
 ```sh
-opencode plugin add github:joe-broadhead/opencode-ashby#v0.0.3
+opencode plugin add github:joe-broadhead/opencode-ashby#v0.0.4
 ```
 
 Run `opencode reload`, or restart OpenCode. Then run `/ashby-status`: it shows `sign-in required` until you sign in
 (see [Sign in](#sign-in)).
 
-Each release has its own tag, and a Git install does not update by itself. To move to a newer release, remove the old entry with `opencode plugin remove github:joe-broadhead/opencode-ashby#v0.0.2`, then add the new tag with `opencode plugin add github:joe-broadhead/opencode-ashby#v<version>`.
+Each release has its own tag, and a Git install does not update by itself. To move to a newer release, remove the old entry with `opencode plugin remove github:joe-broadhead/opencode-ashby#v0.0.3`, then add the new tag with `opencode plugin add github:joe-broadhead/opencode-ashby#v<version>`.
 
 Or add the plugin to `opencode.json` instead, with the same spec:
 
 ```json
-{ "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.3" }] }
+{ "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.4" }] }
 ```
 
 The plugin registers Ashby's MCP server under the name `ashby`, adds default permission rules, the `/ashby-status`
@@ -129,7 +129,7 @@ There are three ways to restrict it.
 ```json
 {
   "plugins": [
-    { "package": "github:joe-broadhead/opencode-ashby#v0.0.3", "options": { "access": "ask-changes" } }
+    { "package": "github:joe-broadhead/opencode-ashby#v0.0.4", "options": { "access": "ask-changes" } }
   ]
 }
 ```
@@ -283,7 +283,7 @@ Set options with the object form of the plugin entry:
 
 ```json
 {
-  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.3", "options": { "allowUntestedHost": true } }]
+  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.4", "options": { "allowUntestedHost": true } }]
 }
 ```
 
@@ -302,7 +302,7 @@ the plugin entry in the system config: `/Library/Application Support/opencode/op
 
 ```json
 {
-  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.3" }],
+  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.4" }],
   "permissions": [{ "action": "ashby_create_candidate", "resource": "*", "effect": "deny" }]
 }
 ```
@@ -405,7 +405,7 @@ store.
    in `/connect` → Ashby. If it answers `MCP server not found: ashby`, OpenCode is still opening that folder: wait a
    few seconds and run it again.
 2. Check: `opencode auth list` no longer lists **Ashby**.
-3. Remove the plugin: `opencode plugin remove github:joe-broadhead/opencode-ashby#v0.0.3`, then `opencode reload`.
+3. Remove the plugin: `opencode plugin remove github:joe-broadhead/opencode-ashby#v0.0.4`, then `opencode reload`.
    `opencode mcp list` no longer lists `ashby`.
 4. Remove any Ashby rules you copied into your agents' own `permissions`.
 
