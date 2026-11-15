@@ -95,6 +95,7 @@
     "title": "Ashby",
     "summary": "Your Ashby candidates, pipeline, interviews and feedback; add a candidate, note or pipeline entry.",
     "icon": "assets/icon.svg",
+    "admin": "turn on MCP Server in Ashby (Admin > Organization Setup > Opt-In Features) and give each user Elevated Access",
     "tools": [
       {
         "name": "ashby.describe_object_fields",
