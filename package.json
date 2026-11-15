@@ -63,7 +63,8 @@
     "vendor": {
       "id": "ashby",
       "name": "Ashby",
-      "domain": "ashbyhq.com"
+      "domain": "ashbyhq.com",
+      "mark": true
     }
   },
   "scripts": {

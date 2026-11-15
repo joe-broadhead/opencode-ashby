@@ -56,10 +56,10 @@ It has no tool of its own. Read [docs/architecture.md](docs/architecture.md) bef
   and the `icon`, with only the keys Jelly reads: its contracts drop an unknown top-level key, and refuse an unknown key
   inside a tool, sign-in or `contributes` entry. `test/unit/jelly.test.ts` keeps it in step with the tool lists and the
   default rules.
-- **The icon** is this family's own mark, from the family icon kit: `assets/icon.svg`, a neutral funnel on a slate
-  tile, with the `icon-128.png` and `icon-256.png` rasters rendered from it, no Ashby logo, shape or brand colour,
-  because the plugin is unofficial. `opencode.icons` declares all three and `opencode.vendor` names Ashby's domain, so
-  a display app may fetch Ashby's official logo from Ashby's own site; the package carries no vendor marks.
+- **The icon** is Ashby's own mark: `assets/icon.svg` is Ashby's app icon (the serif "A" on Ashby purple) as
+  app.ashbyhq.com serves it, with only non-visual changes, and the `icon-128.png` and `icon-256.png` rasters rendered
+  from it. `opencode.icons` declares all three, `opencode.vendor` names Ashby with `mark: true`, and the README
+  carries the trademark line. Don't redraw or recolour it.
   `scripts/check-icons.mjs` is the kit's check, copied verbatim, and is the one definition of a safe icon: it runs in
   the `icons` stage of `npm run check`.
 - **TypeScript.** No enums, namespaces or parameter properties. `import type` for types, `.js` in relative imports.
