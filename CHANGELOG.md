@@ -2,12 +2,6 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Changed
-
-- The icon is now Ashby's own mark, Ashby's app icon, the serif "A" on Ashby purple, as app.ashbyhq.com serves it, in place of the family's drawn mark; `opencode.vendor.mark` is `true`, and the README says Ashby is a trademark of Ashby, Inc.
-
 ## [0.0.3] - 2026-11-15
 
 ### Changed
@@ -20,6 +14,7 @@ All notable changes to this project are documented here. The format follows [Kee
   for the new `session.fork` hook.
 - The host test of a call that names another location waits until the plugin has loaded there: from OpenCode 2.2.7 a
   location opened by a call answers `rpc.unavailable` until its plugins have registered.
+- The icon is now Ashby's own mark, Ashby's app icon, the serif "A" on Ashby purple, as app.ashbyhq.com serves it, in place of the family's drawn mark; `opencode.vendor.mark` is `true`, and the README says Ashby is a trademark of Ashby, Inc.
 
 ### Fixed
 
