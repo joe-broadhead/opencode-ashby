@@ -6,8 +6,8 @@ import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { CODES, NAMESPACE_DESCRIPTION, TESTED_HOSTS, UNTESTED_EXAMPLE } from "../../src/constants.js"
-import { DESTRUCTIVE_TOOLS, PARAMETERS, READ_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
-import { METHODS, NEXT_STEPS, TOOLS_RPC_ID } from "../../src/host/tools-rpc.js"
+import { DESTRUCTIVE_TOOLS, PARAMETERS, PLUGIN_METHODS, READ_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
+import { METHODS, NEXT_STEPS, TOOLS_RPC_ID } from "../../src/tools-rpc.js"
 import { ACCESS, defaultRules } from "../../src/permissions.js"
 
 const ROOT = fileURLToPath(new URL("../..", import.meta.url))
@@ -22,6 +22,8 @@ const FILES = [
   ...readdirSync(join(ROOT, "skills")).map((name) => `skills/${name}/SKILL.md`),
 ]
 const KNOWN = [...READ_TOOLS, ...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS]
+/** Every action the docs may name: Ashby's known tools, and the interviews source's own two methods. */
+const NAMED = [...KNOWN, ...PLUGIN_METHODS]
 const raw = (file: string) => readFileSync(join(ROOT, file), "utf8")
 const text = (file: string) => raw(file).replace(/\s+/g, " ")
 /** The per-tool deny the README and the guide give as way 3, for the tool a reader is likeliest to want off. */
@@ -36,7 +38,7 @@ describe("docs", () => {
 
   test.each(FILES)("%s names only Ashby tools the plugin knows", (file) => {
     const named = [...text(file).matchAll(/\bashby_([a-z][a-z_]*)(?![\w*])/g)].map((match) => match[1]!)
-    expect(named.filter((tool) => !KNOWN.includes(tool))).toEqual([])
+    expect(named.filter((tool) => !NAMED.includes(tool))).toEqual([])
   })
 
   test.each(["README.md", "docs/configuration.md", "docs/scripting.md", "docs/jelly.md", "SECURITY.md"])("%s says nothing provisional or pending", (file) => {
@@ -205,7 +207,7 @@ describe("docs", () => {
     }
     // The sign-in next step the model reads names the command too, so it carries the same caveat.
     const status = readFileSync(join(ROOT, "src/status.ts"), "utf8").replace(/\$\{SERVER_NAME\}/g, "ashby")
-    const tools = readFileSync(join(ROOT, "src/host/tools-rpc.ts"), "utf8").replace(/\$\{SERVER_NAME\}/g, "ashby")
+    const tools = readFileSync(join(ROOT, "src/tools-rpc.ts"), "utf8").replace(/\$\{SERVER_NAME\}/g, "ashby")
     for (const source of [status, tools]) {
       expect(source).toMatch(/opencode mcp auth ashby[^`]*project's folder[^`]*MCP server not found: ashby[^`]*wait a few seconds/)
     }
@@ -216,7 +218,8 @@ describe("docs", () => {
   // equal to the table in both directions.
   test("every code raised in src/ is in CODES, and every non-rpc code in CODES is raised", () => {
     const sources = readdirSync(join(ROOT, "src")).filter((name) => name.endsWith(".ts")).map((name) => [name, readFileSync(join(ROOT, "src", name), "utf8")] as const)
-    const found = new Set(sources.flatMap(([, source]) => [...source.matchAll(/(?:ashbyError|errorText|codeText)\(\s*"([A-Z][A-Z_]+)"/g)].map((match) => match[1]!)))
+    // The interviews source refuses through `refuse("CODE", …)`, which builds the same text with errorText.
+    const found = new Set(sources.flatMap(([, source]) => [...source.matchAll(/(?:ashbyError|errorText|codeText|refuse)\(\s*"([A-Z][A-Z_]+)"/g)].map((match) => match[1]!)))
     // A code written into a message template, such as `STATUS_UNAVAILABLE: ...`, is caught here too.
     for (const [, source] of sources) for (const match of source.matchAll(/`([A-Z][A-Z0-9]*_[A-Z0-9_]+): /g)) found.add(match[1]!)
     expect([...found].filter((code) => !(code in CODES))).toEqual([])
@@ -235,12 +238,13 @@ describe("docs", () => {
     expect(Object.fromEntries(rows)).toEqual(CODES)
   })
 
-  test("the configuration guide documents the setup and status codes, and the scripting guide the rpc ones", () => {
+  test("the configuration guide documents the setup and status codes, and the scripting guide the rpc and source ones", () => {
+    const script = (surface: string) => surface === "rpc" || surface === "source"
     const errors = /## Errors([\s\S]*?)## /.exec(text("docs/configuration.md"))?.[1] ?? ""
-    const setup = Object.entries(CODES).filter(([, entry]) => entry.surface !== "rpc").map(([code]) => code)
+    const setup = Object.entries(CODES).filter(([, entry]) => !script(entry.surface)).map(([code]) => code)
     expect([...errors.matchAll(/\| `([A-Z][A-Z_]+)` \|/g)].map((match) => match[1]!).sort()).toEqual(setup.sort())
     const scripting = /## Errors([\s\S]*?)## What scripts cannot do/.exec(text("docs/scripting.md"))?.[1] ?? ""
-    for (const [code, entry] of Object.entries(CODES)) expect({ code, named: entry.surface !== "rpc" || scripting.includes(`\`${code}\``) }).toEqual({ code, named: true })
+    for (const [code, entry] of Object.entries(CODES)) expect({ code, named: !script(entry.surface) || scripting.includes(`\`${code}\``) }).toEqual({ code, named: true })
     const named = [...scripting.matchAll(/`([A-Z][A-Z_]+)`/g)].map((match) => match[1]!)
     expect(named.filter((code) => !(code in CODES))).toEqual([])
   })
@@ -299,7 +303,7 @@ describe("docs", () => {
   // R1: every example runs the RPC this plugin registers, with the location header and the envelope, and names a method
   // in the table. A `<method>` placeholder names no method, but it must still carry the header and the body shape.
   test("every scripting example has the RPC id, the location header, the envelope, and a method in the table", () => {
-    const names = new Set(["describe", ...METHODS.map((method) => method.name)])
+    const names = new Set(["describe", ...METHODS.map((method) => method.name), ...PLUGIN_METHODS])
     let examples = 0
     for (const file of ["docs/scripting.md", "README.md"]) {
       // A shell continuation joins its line, so one example is one logical line.

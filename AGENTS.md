@@ -1,8 +1,8 @@
 # Repository rules
 
 This repository builds `@joe-broadhead/opencode-ashby`, an OpenCode plugin that registers Ashby's official MCP
-server and adds default permission rules, a status command, a status dialog, two skills and a tools RPC for scripts.
-It has no tool of its own. Read [docs/architecture.md](docs/architecture.md) before you change code, and
+server and adds default permission rules, a status command, a status dialog, two skills, a tools RPC for scripts, and
+one source of the shared source contract (`ashby.interviews`, two methods on that RPC). It has no tool of its own. Read [docs/architecture.md](docs/architecture.md) before you change code, and
 [CONTRIBUTING.md](CONTRIBUTING.md) for the checks and the release steps.
 
 ## Rules
@@ -15,7 +15,9 @@ It has no tool of its own. Read [docs/architecture.md](docs/architecture.md) bef
 - **Greenfield.** No legacy, migration code, compatibility shim, dual path or deprecated alias, and nothing dead.
   Delete rather than deprecate.
 - **No peers, no runtime dependencies, no lifecycle scripts.** `@opencode/plugin`, `@opencode/sdk` and
-  `@opencode/client` (whose types the host tests use) are devDependencies pinned to exactly `2.2.3`. Do not add another
+  `@opencode/client` (whose types the host tests use) are devDependencies pinned to exactly `2.2.3`. The source
+  contract, `@we-the-rebel-alliance/source-contract`, is a devDependency pinned to one commit or tag, and the build
+  inlines what `src/` imports from it into `dist/index.js`. Do not add another
   host version to the lockfile: the host stage installs the other tested SDKs into a temp folder.
 - **Ship prebuilt, one file per entry.** `scripts/build.mjs` bundles `src/index.ts` and `src/tui.ts` with esbuild into
   the self-contained `dist/index.js` and `dist/tui.js`: no chunks, no relative imports, and only host-provided modules
@@ -63,11 +65,16 @@ It has no tool of its own. Read [docs/architecture.md](docs/architecture.md) bef
   `scripts/check-icons.mjs` is the kit's check, copied verbatim, and is the one definition of a safe icon: it runs in
   the `icons` stage of `npm run check`.
 - **TypeScript.** No enums, namespaces or parameter properties. `import type` for types, `.js` in relative imports.
-- **The tools RPC.** `src/host/tools-rpc.ts` is a copy of a module shared by several plugins. Change only its block
-  between the `PLUGIN-SPECIFIC` markers here; change the rest in the shared copy first. Its methods are every known tool
-  in `src/ashby-tools.ts`, by exact name and with its class, and never an unknown tool. A write or a destructive tool is a
-  method but runs only on a resolved `allow`. Keep the RPC id `ashby.recruiting.tools` and its method names stable:
-  scripts call them by name.
+- **The tools RPC.** The transport is the source contract's `tools-rpc` module, shared by the plugin family; never copy
+  or patch it here. Ashby's part is `src/tools-rpc.ts`: its methods are every known tool in `src/ashby-tools.ts`, by
+  exact name and with its class, and never an unknown tool, plus the source's own `events_list` and `probe`
+  (`PLUGIN_METHODS`). A write or a destructive tool is a method but runs only on a resolved `allow`. Keep the RPC id
+  `ashby.recruiting.tools` and its method names stable: scripts call them by name.
+- **The interviews source.** `src/events.ts` implements `package.json`'s `sources` (`ashby.interviews`) on the
+  contract's `events` and `cursor` modules. An event carries metadata only: ids, the start, the title and job, the
+  candidate and the interviewers by Ashby's ids and names, and an ashbyhq.com link. Never an email, a phone number,
+  feedback, a scorecard, a note or a transcript, and `text` stays empty. `permission.operations` is exactly the Ashby
+  tools the source calls, and the conformance stage fails a read that asserts anything else.
 - **Tests.** Unit tests use narrow `Pick<Plugin.Context, ...>` fakes. Host tests use the public `@opencode/sdk` with
   `OpenCode.create({ app: { version } })`, a loopback fake server and the temp root from `test/host/isolate.ts`.
   Every temp root of the host and pack tests is a git repository under the system's `/tmp`, never under `TMPDIR` or
@@ -106,8 +113,8 @@ enforces the same wording rules over the shipped docs:
   `permission.ask`;
 - the deprecated `ctx.generate.text` and `experimental.policies`;
 - importing `@opencode/ai`;
-- a permission hook, except the one `permission.hook("evaluate")` in `src/host/tools-rpc.ts` (and the bundle that
-  inlines it), exactly once each: it turns an `ask` on one of the tools RPC's own script calls in flight into a deny,
+- a permission hook, except the one `permission.hook("evaluate")` in the source contract's `tools-rpc` module, inlined
+  in `dist/index.js`, exactly once: it turns an `ask` on one of the tools RPC's own script calls in flight into a deny,
   because no one can answer it, and touches nothing else;
 - references to private host source or host checkouts;
 - machine-local home and temp paths;

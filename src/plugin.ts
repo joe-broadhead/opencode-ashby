@@ -2,7 +2,9 @@ import { Plugin, type Mcp } from "@opencode/plugin"
 import { reasonOf } from "./redact.js"
 import { errorText, NAMESPACE_DESCRIPTION, PLUGIN_ID, SERVER_NAME } from "./constants.js"
 import { checkHost } from "./host-version.js"
-import { registerToolsRpc, METHODS } from "./host/tools-rpc.js"
+import { registerToolsRpc } from "@we-the-rebel-alliance/source-contract/tools-rpc"
+import { eventsMethod, probeMethod } from "./events.js"
+import { METHODS, PLUGIN } from "./tools-rpc.js"
 import { watchIntegration } from "./integration.js"
 import { watchListing } from "./listing.js"
 import { parseOptions } from "./options.js"
@@ -109,8 +111,12 @@ export function createAshbyPlugin(seam: AshbySeam) {
       await registerSkills(ctx.skill, skills)
       await registerStatusCommand(ctx, read)
       await registerStatusRpc(ctx.rpc, read)
-      // Scripts call every known tool with no model, as a session and its agent; the rules decide what runs.
-      const stopTools = await registerToolsRpc(ctx, { methods: METHODS, mcp: { server: SERVER_NAME, managed: () => source?.type !== "conflict" } })
+      // Scripts call every known tool with no model, as a session and its agent; the rules decide what runs. events_list
+      // and probe, the interviews source's methods (package.json's `sources`), read through the server's list_interviews
+      // and OpenCode's sign-in; never beside someone else's server.
+      const ours = () => source?.type !== "conflict"
+      const methods = [...METHODS, eventsMethod(ctx, ours), probeMethod(ctx, ours)]
+      const stopTools = await registerToolsRpc(ctx as never, { plugin: PLUGIN, methods, mcp: { server: SERVER_NAME, managed: ours } })
       const stopWatch = watchIntegration(ctx, owned)
       return async () => {
         await stopWatch()

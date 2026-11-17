@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { DESTRUCTIVE_TOOLS, READ_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
+import { DESTRUCTIVE_TOOLS, PLUGIN_METHODS, READ_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
 import { ACCESS, defaultRules, effectOf, evaluate, hasDefaultRules, insertRules, registerDefaultRules, unguardedAgents, type Rule } from "../../src/permissions.js"
 import { agentEditor, allow, builtInAgents, transforms, type AgentEditor, type FakeAgent } from "./fake.js"
 
@@ -15,7 +15,7 @@ describe("defaultRules", () => {
   test("allow everything by default: the namespace pattern, then every tool, reads and changes alike", () => {
     const rules = defaultRules("all")
     expect(rules[0]).toEqual(allowAll("ashby_*"))
-    expect(rules.slice(1)).toEqual([...READ_TOOLS, ...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS].map((tool) => allowAll(`ashby_${tool}`)))
+    expect(rules.slice(1)).toEqual([...READ_TOOLS, ...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS, ...PLUGIN_METHODS].map((tool) => allowAll(`ashby_${tool}`)))
     expect(effects([allowAll("*"), ...rules])).toEqual(ACTIONS.map(() => "allow"))
   })
 
@@ -25,6 +25,13 @@ describe("defaultRules", () => {
     expect(effects([allowAll("*"), ...rules])).toEqual(["allow", "allow", "ask", "ask", "ask", "ask"])
     for (const tool of READ_TOOLS) expect(evaluate(rules, `ashby_${tool}`)).toBe("allow")
     for (const tool of [...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS]) expect(evaluate(rules, `ashby_${tool}`)).toBe("ask")
+  })
+
+  test("every access value allows the interviews source's own methods, events_list and probe", () => {
+    expect(PLUGIN_METHODS).toEqual(["events_list", "probe"])
+    for (const access of ["all", "ask-changes", "read-only"] as const) {
+      for (const method of PLUGIN_METHODS) expect({ access, method, effect: evaluate(defaultRules(access), `ashby_${method}`) }).toEqual({ access, method, effect: "allow" })
+    }
   })
 
   test("read-only allows a read and denies everything else, so the destructive class is hidden", () => {

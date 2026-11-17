@@ -115,6 +115,25 @@ opencode api post /api/rpc/ashby.recruiting.tools/get_pending_tasks \
 
 See [Scripting](https://github.com/joe-broadhead/opencode-ashby/blob/HEAD/docs/scripting.md).
 
+### The interviews source
+
+The plugin declares one source of the shared source contract
+([`source-contract`](https://github.com/we-the-rebel-alliance/source-contract)), so a consumer such as Memory can
+read your Ashby interviews as dated events: `ashby.interviews`, in `package.json`'s `sources`. It has two tools RPC
+methods, never tools the model sees:
+
+- `events_list` lists your own interviews, oldest first, from a cursor or a start time: an interview once it started
+  30 minutes ago, never a cancelled one. It reads them through `list_interviews`, one week per call, under that tool's
+  own permission. Each event carries metadata only: Ashby's interview event id, the start, the interview's title and
+  job, the candidate and the interviewers by Ashby's ids and names, and a link into Ashby. It never carries an email,
+  a phone number, feedback, a scorecard, a note or a transcript, and its text is always empty.
+- `probe` names who is signed in. Ashby's MCP has no account tool, so the owner is OpenCode's sign-in for Ashby,
+  which Ashby does not confirm, and `probe` calls Ashby for nothing.
+
+The source has one account, `default`. A cursor is bound to the sign-in: after you sign in again, a consumer starts
+again from a time. `npm run conformance` runs the contract's conformance kit over both methods on invented interviews
+and writes the report a release attaches.
+
 ## Permissions
 
 **Every tool is allowed by default.** The plugin adds one block to every agent, right after the agent's base rule that
@@ -140,8 +159,9 @@ There are three ways to restrict it.
 | `ask-changes` | a read runs; every other tool asks, including one Ashby adds later |
 | `read-only` | a read runs; every other tool is denied, and hidden from the model |
 
-The block is generated from the tool table and the value, so `/ashby` always shows what is in force. The three
-blocks:
+The block is generated from the tool table and the value, so `/ashby` always shows what is in force. Its last two
+rules allow `events_list` and `probe`, the [interviews source](#the-interviews-source)'s own reads, under every value.
+The three blocks:
 
 #### `all` (the default)
 
@@ -165,7 +185,9 @@ The plugin adds these rules for `access: "all"`:
     { "action": "ashby_consider_candidate_for_job", "resource": "*", "effect": "allow" },
     { "action": "ashby_create_candidate", "resource": "*", "effect": "allow" },
     { "action": "ashby_change_application_stage", "resource": "*", "effect": "allow" },
-    { "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "allow" }
+    { "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "allow" },
+    { "action": "ashby_events_list", "resource": "*", "effect": "allow" },
+    { "action": "ashby_probe", "resource": "*", "effect": "allow" }
 ]
 ```
 
@@ -191,7 +213,9 @@ The plugin adds these rules for `access: "ask-changes"`:
     { "action": "ashby_consider_candidate_for_job", "resource": "*", "effect": "ask" },
     { "action": "ashby_create_candidate", "resource": "*", "effect": "ask" },
     { "action": "ashby_change_application_stage", "resource": "*", "effect": "ask" },
-    { "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "ask" }
+    { "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "ask" },
+    { "action": "ashby_events_list", "resource": "*", "effect": "allow" },
+    { "action": "ashby_probe", "resource": "*", "effect": "allow" }
 ]
 ```
 
@@ -217,7 +241,9 @@ The plugin adds these rules for `access: "read-only"`:
     { "action": "ashby_consider_candidate_for_job", "resource": "*", "effect": "deny" },
     { "action": "ashby_create_candidate", "resource": "*", "effect": "deny" },
     { "action": "ashby_change_application_stage", "resource": "*", "effect": "deny" },
-    { "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "deny" }
+    { "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "deny" },
+    { "action": "ashby_events_list", "resource": "*", "effect": "allow" },
+    { "action": "ashby_probe", "resource": "*", "effect": "allow" }
 ]
 ```
 
@@ -350,8 +376,10 @@ Run `/ashby-status` first. Its last line is the next step.
 ## Errors
 
 Every error reads `CODE: What happened. Next step: What to do.` The codes are the plugin's own one table. `setup` and
-`status` codes come from the plugin; `rpc` codes are a refusal from the tools RPC for scripts, which
-[Scripting](https://github.com/joe-broadhead/opencode-ashby/blob/HEAD/docs/scripting.md#errors) explains in detail.
+`status` codes come from the plugin; `rpc` codes are a refusal from the tools RPC for scripts, and `source` codes a
+refusal from the interviews source's `events_list` or `probe`, in the source contract's own words.
+[Scripting](https://github.com/joe-broadhead/opencode-ashby/blob/HEAD/docs/scripting.md#errors) explains both in
+detail.
 
 | Code | Surface | When |
 | --- | --- | --- |
@@ -373,6 +401,13 @@ Every error reads `CODE: What happened. Next step: What to do.` The codes are th
 | `TOOL_UNAVAILABLE` | rpc | The server is connected but OpenCode does not list the tool. |
 | `UPSTREAM_ERROR` | rpc | Ashby answered with an error, such as an invalid input or a rate limit. |
 | `CANCELLED` | rpc | The request was cancelled. |
+| `INPUT_INVALID` | source | `events_list` or `probe` got an input outside its schema, or a cursor without its account. |
+| `SOURCE_UNKNOWN` | source | `events_list` or `probe` was asked for a source other than `ashby`. |
+| `ACCOUNT_MISMATCH` | source | An account other than `default`, or a cursor issued for another Ashby sign-in. |
+| `CURSOR_INVALID` | source | The cursor was not issued by this plugin's `events_list`. |
+| `NEEDS_SIGN_IN` | source | OpenCode holds no Ashby sign-in, or the `ashby` server needs one. |
+| `RATE_LIMITED` | source | Ashby's `list_interviews` hit Ashby's rate limit. |
+| `UNAVAILABLE` | source | `list_interviews` is not available, failed, or answered in a form the plugin does not read. |
 
 The status RPC's own error is `unavailable`, with a next step, when the status cannot be read.
 
@@ -383,6 +418,14 @@ The status RPC's own error is `unavailable`, with a next step, when the status c
   changing data could run here as a read until a release knows it. The names, parameters and read-only hints match a signed-in
   server's tool list, captured on 14 November 2026 (`test/fixtures/live-tools.json`), and a test checks the declaration
   against it. `npm run drift` compares a saved list with the table, and `CONTRIBUTING.md` has the steps.
+- **The interviews source reads an answer no capture has recorded.** The recorded tool list gives `list_interviews`'
+  input, not its answer, and Ashby says its MCP answers may change without notice. `events_list` reads an answer in
+  JSON or in markup, by the field names Ashby's tools use (`interviewEventId`, a start time with its zone), and refuses
+  any other form with `UNAVAILABLE` rather than report a week without interviews. `list_interviews` has no paging, so
+  each week is one call; if Ashby ever cuts a busy week short, the interviews it leaves out are not listed.
+- **Ashby does not confirm the source's owner.** Ashby names no signed-in user, so a page's owner is OpenCode's sign-in
+  for Ashby. The contract marks such an owner `verified: false`, but a consumer on source-contract 0.1.x refuses that
+  key, so the plugin does not send it yet.
 - **A script's read can cross projects.** A script's session may belong to another directory than the OpenCode server
   answering it, and the read then runs under the serving location's agent rules; only a `deny` is refused in between.
   Run scripts in the project whose agent you mean. This is in the module shared with the other plugins, not in this

@@ -11,6 +11,7 @@ class: the worst thing that tool can do.
 | `read` | one per known read: `search_records_by_name`, `filter_records`, `get_candidate`, `get_pending_tasks` and the others | it only reads |
 | `write` | `create_candidate`, `add_note_to_candidate`, `consider_candidate_for_job` | it changes records the hiring team sees; one can reach the candidate |
 | `destructive` | `change_application_stage`, `submit_mcp_feedback` | moves or archives a candidate, or sends text to Ashby's team |
+| `read` (the plugin's own) | `events_list`, `probe` | the interviews source's two methods: they only read, and are always allowed (see [The interviews source](#the-interviews-source)) |
 | `describe` | none: lists the methods, their class, their permission action, whether OpenCode lists each tool now, each tool's input as JSON Schema, and — given a session — whether that session may call it |
 
 The methods come from the plugin's one tool table, `src/ashby-tools.ts`: the known reads (`READ_TOOLS` in
@@ -112,12 +113,37 @@ there. The HTTP equivalents are the `location[directory]` query parameter and th
 A location unloads after OpenCode's idle timeout. If a scheduled script gets `rpc.unavailable` from a location that was
 loaded before, send the call again once: the request loads the location. Jobs keeps its own location loaded.
 
+## The interviews source
+
+`events_list` and `probe` are the plugin's own methods for the shared source contract's source `ashby.interviews`
+(`package.json`'s `sources`), for a consumer such as Memory. They are not Ashby tools, and no tool the model sees calls
+them. Their actions, `ashby_events_list` and `ashby_probe`, are allowed under every `access` value; `events_list`'s
+read of `list_interviews` is still checked against `ashby_list_interviews`.
+
+```sh
+opencode api post /api/rpc/ashby.recruiting.tools/probe -H "x-opencode-directory:$PWD" -d '{"input":{"sessionID":"ses_…","input":{}}}'
+opencode api post /api/rpc/ashby.recruiting.tools/events_list -H "x-opencode-directory:$PWD" -d '{"input":{"sessionID":"ses_…","input":{"since":"2026-11-01"}}}'
+```
+
+- `probe` answers `{ source: "ashby", account: "default", owner, trust: "untrusted" }`. The owner is OpenCode's sign-in
+  for Ashby, `ashby:credential:` and its id, labelled with its label. Ashby's MCP names no signed-in user, so Ashby
+  does not confirm it. It calls Ashby for nothing.
+- `events_list` takes `since`, `cursor`, `limit` (1 to 500), `account` (`default`, required with a cursor) and `source`
+  (`ashby`), and answers a page: `events`, oldest first, `cursor`, `more`, `refused` when an interview's title holds a
+  secret, and `trust: "untrusted"`. An event is one of your interviews that started at least 30 minutes ago and was not
+  cancelled: `external_id` is Ashby's interview event id, `occurred_at` its start, `title` its title and job, `actors`
+  the candidate (`ashby:candidate:<id>`) and the interviewers (`ashby:user:<id>`), or `name:` and the name when Ashby
+  gives no id, and `url` its page on ashbyhq.com, or null. `text` is always empty, and no event carries an email, a phone
+  number, feedback, a scorecard, a note or a transcript.
+- It reads `list_interviews` one week per call, at most 13 weeks per page; `more` says when a call now would list more.
+  A cursor is bound to the sign-in: after a new sign-in, start again with `since`.
+
 ## Rate limits
 
 Ashby allows 120 requests a minute per sign-in, and 120 units of tool calls a minute per user and organisation. Most
 tools cost 1 unit; `filter_records` costs 2. A script shares these limits with the model's calls under the same
 sign-in, so make calls one at a time, never in parallel. When Ashby reports a rate limit, the method fails with
-`UPSTREAM_ERROR`: wait a minute before the next call, and never retry in a loop.
+`UPSTREAM_ERROR`, or `RATE_LIMITED` for `events_list`: wait a minute before the next call, and never retry in a loop.
 
 ## Errors
 
@@ -134,6 +160,20 @@ A refusal or failure is the RPC error `failed`, with a message `CODE: what happe
 | `TOOL_UNAVAILABLE` | The server is connected, but OpenCode does not list the tool: Ashby may list fewer tools for a user with less access. |
 | `UPSTREAM_ERROR` | Ashby answered with an error, such as an invalid input, a record that does not exist or a rate limit. The message holds the first line of Ashby's text, at most 300 characters, with tokens and URL query strings removed. |
 | `CANCELLED` | The request was cancelled. |
+
+`events_list` and `probe` refuse with the source contract's own codes, in the same form:
+
+| Code | When |
+| --- | --- |
+| `INPUT_INVALID` | The input has a field outside the method's schema or a malformed value, or `events_list` got a cursor without `account`. |
+| `SOURCE_UNKNOWN` | A `source` other than `ashby`. |
+| `ACCOUNT_MISMATCH` | An `account` other than `default`, or a cursor issued for another Ashby sign-in than the one OpenCode holds now. |
+| `CURSOR_INVALID` | The cursor was not issued by this plugin's `events_list`. Start again with `since`. |
+| `NEEDS_SIGN_IN` | OpenCode holds no Ashby sign-in to name as the owner, or the `ashby` server needs a sign-in. |
+| `RATE_LIMITED` | Ashby's `list_interviews` hit Ashby's rate limit. Wait a minute and call again with the same cursor. |
+| `UNAVAILABLE` | `list_interviews` is not available (the server is not connected, or the `ashby` name is another server's), it failed, or it answered in a form the plugin does not read. The message holds the first line of Ashby's text, cut and redacted. |
+
+A permission refusal of `ashby_list_interviews` inside `events_list` passes through as OpenCode's own error.
 
 OpenCode itself answers `rpc.method_not_found` for a method that does not exist, such as a tool Ashby added later, and
 `rpc.invalid_input` for a body that is not the envelope above, with one message per problem:

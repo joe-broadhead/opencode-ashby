@@ -2,6 +2,30 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **A source for the shared source contract:** `ashby.interviews` (`package.json`'s `sources`, contract version 1,
+  `@we-the-rebel-alliance/source-contract` v0.2.0), so a consumer such as Memory can read the signed-in user's own Ashby
+  interviews as dated events. Two tools RPC methods on `ashby.recruiting.tools`, never tools the model sees:
+  `events_list`, read through `list_interviews` one week per call, an interview once it started 30 minutes ago and
+  never a cancelled one, oldest first with a cursor bound to the sign-in; and `probe`, who is signed in, which calls
+  Ashby for nothing. An event carries metadata only: the interview event id, the start, the title and job, the
+  candidate and the interviewers by Ashby's ids and names, and an ashbyhq.com link. Never an email, a phone number,
+  feedback, a scorecard, a note or a transcript; its text is always empty, and a title that holds a secret is refused.
+- The default rules allow `ashby_events_list` and `ashby_probe` under every `access` value, after the tool rules.
+- The source contract's codes for the two methods: `INPUT_INVALID`, `SOURCE_UNKNOWN`, `ACCOUNT_MISMATCH`,
+  `CURSOR_INVALID`, `NEEDS_SIGN_IN`, `RATE_LIMITED` and `UNAVAILABLE` (the `source` surface).
+- `npm run conformance`, a stage of `npm run check`: the contract's conformance kit over the source, on invented
+  interviews, writing `reports/conformance-report.json` for a release to attach.
+
+### Changed
+
+- The tools RPC's transport is the source contract's `tools-rpc` module, bundled into `dist/index.js`, in place of the
+  copy in `src/host/tools-rpc.ts`; Ashby's part is `src/tools-rpc.ts`. Scripts see the same RPC id, methods, codes and
+  next steps.
+
 ## [0.0.4] - 2026-11-15
 
 ### Added

@@ -75,6 +75,7 @@
     "test:host": "node scripts/check.mjs host",
     "test:pack": "node scripts/check.mjs pack",
     "lint": "node scripts/check.mjs forbidden",
+    "conformance": "node scripts/check.mjs conformance",
     "drift": "node scripts/check-ashby-tools.mjs",
     "release:check": "node scripts/release-check.mjs",
     "capture": "node scripts/capture-tools.mjs"
@@ -87,9 +88,45 @@
     "@opentui/solid": "0.8.0",
     "@types/bun": "1.4.4",
     "@types/node": "24.19.2",
+    "@we-the-rebel-alliance/source-contract": "github:we-the-rebel-alliance/source-contract#v0.2.0",
     "esbuild": "0.28.2",
     "solid-js": "1.9.17",
     "typescript": "5.9.3"
+  },
+  "sources": {
+    "contractVersion": 1,
+    "rpc": "ashby.recruiting.tools",
+    "probe": {
+      "action": "ashby_probe"
+    },
+    "items": [
+      {
+        "id": "ashby.interviews",
+        "kind": "events",
+        "reads": "meeting",
+        "tool": "events_list",
+        "input": {
+          "source": "ashby"
+        },
+        "accounts": {
+          "named": false
+        },
+        "permission": {
+          "events": "ashby_events_list",
+          "operations": [
+            "list_interviews"
+          ]
+        },
+        "private": true,
+        "cost": {
+          "class": "free"
+        },
+        "maxBytes": 65536,
+        "urlHosts": [
+          "*.ashbyhq.com"
+        ]
+      }
+    ]
   },
   "jelly": {
     "title": "Ashby",

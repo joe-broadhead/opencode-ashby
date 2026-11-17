@@ -48,6 +48,13 @@ export const DESTRUCTIVE_TOOLS: readonly string[] = ["change_application_stage",
 export const ALL_TOOLS: readonly string[] = [...READ_TOOLS, ...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS]
 
 /**
+ * The plugin's own reads, which are tools RPC methods only and never a tool, so not Ashby's and never in a live list:
+ * `events_list` and `probe`, the interviews source's two methods (src/events.ts). Their actions, `ashby_events_list` and
+ * `ashby_probe`, are allowed like the reads under every `access` value.
+ */
+export const PLUGIN_METHODS: readonly string[] = ["events_list", "probe"]
+
+/**
  * Each live tool's input parameters, as `name:type`, with `*` after a required name, in the input schema's order. Recorded
  * from the signed-in server's tool schemas (2026-11-10). Every live tool requires a `reason`: one sentence on the user's
  * goal, so a script must send one too. The drift

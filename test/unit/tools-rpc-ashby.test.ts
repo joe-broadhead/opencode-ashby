@@ -1,11 +1,12 @@
-// Ashby's part of the tools RPC: the plugin-specific block of src/host/tools-rpc.ts. The shared part is tested in
-// tools-rpc.test.ts. The methods come from src/ashby-tools.ts, the same table the drop-in reconcile test reads the
+// Ashby's part of the tools RPC: src/tools-rpc.ts, the plugin value the source contract's transport takes. The shared
+// part is tested in tools-rpc.test.ts. The methods come from src/ashby-tools.ts, the same table the drop-in reconcile test reads the
 // fixture against, so replacing test/unit/ashby-tools.json with a signed-in live list updates both in one step.
 import { describe, expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
 import { DESTRUCTIVE_TOOLS, READ_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
 import { PLUGIN_ID as ASHBY_PLUGIN_ID, SERVER_NAME } from "../../src/constants.js"
-import { METHODS, NEXT_STEPS, PLUGIN_ID, pluginError, shapeInput, shapeResult, TOOLS_RPC_ID } from "../../src/host/tools-rpc.js"
+import { EventsFailure } from "../../src/events.js"
+import { METHODS, NEXT_STEPS, PLUGIN, pluginError, shapeInput, shapeResult, TOOLS_RPC_ID } from "../../src/tools-rpc.js"
 import { defaultRules } from "../../src/permissions.js"
 
 const RECORDED = (JSON.parse(readFileSync(new URL("./ashby-tools.json", import.meta.url), "utf8")) as { tools: { name: string }[] }).tools.map((tool) => tool.name)
@@ -17,7 +18,9 @@ const CLASS_OF = new Map<string, string>([
 
 describe("Ashby's tools RPC", () => {
   test("is ashby.recruiting.tools, under the plugin's own id", () => {
-    expect(PLUGIN_ID).toBe(ASHBY_PLUGIN_ID)
+    expect(PLUGIN.id).toBe(ASHBY_PLUGIN_ID)
+    expect(PLUGIN.nextSteps).toBe(NEXT_STEPS)
+    expect(PLUGIN.pluginError).toBe(pluginError)
     expect(TOOLS_RPC_ID).toBe("ashby.recruiting.tools")
   })
 
@@ -51,7 +54,7 @@ describe("Ashby's tools RPC", () => {
     expect(NEXT_STEPS.ACCOUNT_UNKNOWN).toBeUndefined()
   })
 
-  test("passes every input and result through unchanged, and has no errors of its own", () => {
+  test("passes every input and result through unchanged, and names only the source's own failures", () => {
     const call = { sessionID: "ses_1", agent: "build", action: `${SERVER_NAME}_get_candidate` }
     const result = { output: { name: "Example Candidate" }, text: "{}" }
     for (const method of METHODS) {
@@ -59,5 +62,10 @@ describe("Ashby's tools RPC", () => {
       expect(shapeResult(method.name, result, call)).toBe(result)
     }
     expect(pluginError(new Error("boom"))).toBeUndefined()
+    expect(pluginError(new EventsFailure("CURSOR_INVALID", "The cursor was not issued by Ashby's events_list", "Start again with since."))).toEqual({
+      code: "CURSOR_INVALID",
+      what: "The cursor was not issued by Ashby's events_list",
+      next: "Start again with since.",
+    })
   })
 })
