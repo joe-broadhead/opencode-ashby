@@ -123,7 +123,7 @@ read your Ashby interviews as dated events: `ashby.interviews`, in `package.json
 methods, never tools the model sees:
 
 - `events_list` lists your own interviews, oldest first, from a cursor or a start time: an interview once it started
-  30 minutes ago, never a cancelled one. It reads them through `list_interviews`, one week per call, under that tool's
+  30 minutes ago, never a cancelled one. It reads them through `list_interviews`, one week per call (in halves when Ashby marks a week cut short), under that tool's
   own permission. Each event carries metadata only: Ashby's interview event id, the start, the interview's title and
   job, the candidate and the interviewers by Ashby's ids and names, and a link into Ashby. It never carries an email,
   a phone number, feedback, a scorecard, a note or a transcript, and its text is always empty.
@@ -418,14 +418,18 @@ The status RPC's own error is `unavailable`, with a next step, when the status c
   changing data could run here as a read until a release knows it. The names, parameters and read-only hints match a signed-in
   server's tool list, captured on 14 November 2026 (`test/fixtures/live-tools.json`), and a test checks the declaration
   against it. `npm run drift` compares a saved list with the table, and `CONTRIBUTING.md` has the steps.
-- **The interviews source reads an answer no capture has recorded.** The recorded tool list gives `list_interviews`'
-  input, not its answer, and Ashby says its MCP answers may change without notice. `events_list` reads an answer in
-  JSON or in markup, by the field names Ashby's tools use (`interviewEventId`, a start time with its zone), and refuses
-  any other form with `UNAVAILABLE` rather than report a week without interviews. `list_interviews` has no paging, so
-  each week is one call; if Ashby ever cuts a busy week short, the interviews it leaves out are not listed.
+- **The shape of `list_interviews`' answer is unconfirmed until a live read records one.** The recorded tool list gives
+  its input, not its answer, and Ashby says its MCP answers may change without notice. The interviews source therefore
+  rests on assumed field names: `interviewEventId` (the one Ashby's tool descriptions name) and a start time with its
+  zone, in JSON or in markup. It fails rather than guess: an answer with any entry it cannot read is `UNAVAILABLE` and
+  lists nothing, so the cursor holds; an answer Ashby marks as cut short (a more flag, a next cursor, or a total above
+  what it lists) is read again in halves of the week, down to an hour; and the only text taken for an empty week is a
+  whole "no interviews found" sentence. If Ashby cuts a week short with no marker at all, the interviews it leaves out
+  are not listed.
 - **Ashby does not confirm the source's owner.** Ashby names no signed-in user, so a page's owner is OpenCode's sign-in
-  for Ashby. The contract marks such an owner `verified: false`, but a consumer on source-contract 0.1.x refuses that
-  key, so the plugin does not send it yet.
+  for Ashby. The contract says this with the owner's `verified: false`, and the declaration would say the probe asserts
+  no identity operation with an empty `permission.identity`. A consumer on source-contract 0.1.x refuses both, so
+  neither is sent yet: both are added once the consumers (jelly and Memory) have moved to the contract release that accepts them.
 - **A script's read can cross projects.** A script's session may belong to another directory than the OpenCode server
   answering it, and the read then runs under the serving location's agent rules; only a `deny` is refused in between.
   Run scripts in the project whose agent you mean. This is in the module shared with the other plugins, not in this

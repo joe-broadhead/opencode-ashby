@@ -9,7 +9,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - **A source for the shared source contract:** `ashby.interviews` (`package.json`'s `sources`, contract version 1,
   `@we-the-rebel-alliance/source-contract` v0.2.0), so a consumer such as Memory can read the signed-in user's own Ashby
   interviews as dated events. Two tools RPC methods on `ashby.recruiting.tools`, never tools the model sees:
-  `events_list`, read through `list_interviews` one week per call, an interview once it started 30 minutes ago and
+  `events_list`, read through `list_interviews` one week per call (in halves when Ashby marks a week cut short, and
+  `UNAVAILABLE` with the cursor held when any entry of an answer cannot be read), an interview once it started 30 minutes ago and
   never a cancelled one, oldest first with a cursor bound to the sign-in; and `probe`, who is signed in, which calls
   Ashby for nothing. An event carries metadata only: the interview event id, the start, the title and job, the
   candidate and the interviewers by Ashby's ids and names, and an ashbyhq.com link. Never an email, a phone number,
@@ -19,6 +20,11 @@ All notable changes to this project are documented here. The format follows [Kee
   `CURSOR_INVALID`, `NEEDS_SIGN_IN`, `RATE_LIMITED` and `UNAVAILABLE` (the `source` surface).
 - `npm run conformance`, a stage of `npm run check`: the contract's conformance kit over the source, on invented
   interviews, writing `reports/conformance-report.json` for a release to attach.
+- **Unconfirmed:** the shape of `list_interviews`' answer is assumed (`interviewEventId`, a start time with its zone, in
+  JSON or markup) until a live read records one as a fixture.
+- **Deferred** until the consumers (jelly and Memory) have re-vendored source-contract 0.2.0: the owner's `verified: false`
+  (Ashby does not confirm OpenCode's sign-in) and `permission.identity: []` (the probe asserts no identity operation).
+  A consumer on 0.1.x refuses both, so neither is sent yet; the conformance test that pins their absence flips then.
 
 ### Changed
 

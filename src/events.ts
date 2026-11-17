@@ -29,7 +29,9 @@ import { reasonOf, shortReason } from "./redact.js"
  *
  * `events_list` only reads, through OpenCode's own `ashby_list_interviews`, which checks its own permission: one week
  * at a time (`onOrAfterDate` and `onOrBeforeDate`, both inclusive, as UTC times), each week in one call, since the tool
- * has no paging. An interview is listed once it started SETTLE_MS ago, so one moved or cancelled at the last minute is
+ * has no paging, and again in halves when Ashby marks the answer cut short. Every entry of an answer must be an
+ * interview, or the page is UNAVAILABLE and its cursor holds. The answer's shape is assumed, not recorded: it is
+ * unconfirmed until a live read is captured. An interview is listed once it started SETTLE_MS ago, so one moved or cancelled at the last minute is
  * not; a cancelled one is never listed. Each event carries metadata only: the interview's id, its start, its title and
  * job, the candidate and the interviewers by Ashby's ids and names, and a link into Ashby. Never an email, a phone
  * number, feedback, a scorecard, a note or a transcript: candidate data is personal data, and `text` stays empty.
@@ -250,10 +252,17 @@ export interface InterviewFacts {
   readonly cancelled: boolean
 }
 
-/** What one list_interviews answer holds: its interviews, and whether the answer was one this plugin can read at all. */
+/**
+ * What one list_interviews answer holds: its interviews; whether this plugin read it whole (every entry, or none at
+ * all); how many entries it could not read; and whether Ashby marked it as cut short.
+ */
 export interface InterviewsAnswer {
   readonly interviews: readonly InterviewFacts[]
   readonly readable: boolean
+  /** Entries the answer holds that the reader could not make an interview of. Any one makes the answer unreadable. */
+  readonly unreadable: number
+  /** Ashby said there is more than it returned: a `hasMore`, `truncated`, next-cursor or total marker. */
+  readonly truncated: boolean
 }
 
 /** Ashby's times: an ISO date-time with Z or an offset. A time without a zone is not read, rather than guessed. */
@@ -312,7 +321,9 @@ function interviewFromObject(item: Data): InterviewFacts | undefined {
   const event = record(item["interviewEvent"]) ? item["interviewEvent"] : {}
   const interview = record(item["interview"]) ? item["interview"] : {}
   const job = record(item["job"]) ? item["job"] : {}
-  const id = first([idOf(item["interviewEventId"]), idOf(event["id"]), idOf(item["eventId"]), idOf(item["id"])])
+  // Only the documented key: list_interviews returns `interviewEventId`, which get_interview_details takes. A bare `id`
+  // may be another record's (a schedule's), so an entry without the key is unreadable rather than guessed.
+  const id = first([idOf(item["interviewEventId"]), idOf(event["id"])])
   const time = first([...TIME_KEYS.map((key) => timeOf(item[key])), ...TIME_KEYS.map((key) => timeOf(event[key]))])
   if (!id || time === undefined) return undefined
   const title = first([text(item["interviewTitle"]), text(item["interviewName"]), text(item["title"]), text(item["name"]), text(interview["title"]), text(interview["name"])])
@@ -352,8 +363,9 @@ function attributes(source: string): Data {
  * Interviews from an answer written as markup: each element with an `interviewEventId` attribute is one interview, with
  * its candidate and interviewers from `<Candidate …>` and `<Interviewer …>` elements inside it, when it has any.
  */
-function interviewsFromMarkup(body: string): InterviewFacts[] {
+function interviewsFromMarkup(body: string): { readonly interviews: InterviewFacts[]; readonly unreadable: number } {
   const found: InterviewFacts[] = []
+  let unreadable = 0
   for (const match of body.matchAll(/<([A-Za-z][\w-]*)\b([^<>]*?)(\/?)>/g)) {
     const [whole, tag, rawAttributes, selfClosing] = match as unknown as [string, string, string, string]
     const own = attributes(rawAttributes)
@@ -366,8 +378,9 @@ function interviewsFromMarkup(body: string): InterviewFacts[] {
     const interviewers = children(/^interviewer$/i)
     const item = interviewFromObject({ ...own, ...(candidate ? { candidate } : {}), ...(interviewers.length > 0 ? { interviewers } : {}) })
     if (item) found.push(item)
+    else unreadable++
   }
-  return found
+  return { interviews: found, unreadable }
 }
 
 const LIST_KEYS = ["interviews", "scheduledInterviews", "interviewEvents", "results", "items", "data", "events"] as const
@@ -378,26 +391,51 @@ const LIST_KEYS = ["interviews", "scheduledInterviews", "interviewEvents", "resu
  * passing for a week without interviews.
  */
 export function readInterviews(data: unknown): InterviewsAnswer {
-  const fromList = (list: readonly unknown[]): InterviewsAnswer => {
-    const objects = list.filter(record)
-    const interviews = objects.flatMap((item) => interviewFromObject(item) ?? [])
-    // A list whose entries are all unreadable is a shape this plugin does not know.
-    return { interviews, readable: objects.length === 0 || interviews.length > 0 }
+  const answer = (interviews: readonly InterviewFacts[], unreadable: number, truncated = false): InterviewsAnswer => ({ interviews, readable: unreadable === 0, unreadable, truncated })
+  // Every entry must be an interview: one the reader cannot read makes the whole answer unreadable, so no interview is
+  // dropped while the cursor moves past it.
+  const fromList = (list: readonly unknown[], truncated = false): InterviewsAnswer => {
+    const interviews = list.flatMap((item) => (record(item) ? (interviewFromObject(item) ?? []) : []))
+    return answer(interviews, list.length - interviews.length, truncated)
   }
   if (Array.isArray(data)) return fromList(data)
   if (record(data)) {
     const list = first(LIST_KEYS.map((key) => (Array.isArray(data[key]) ? (data[key] as unknown[]) : undefined)))
-    if (list) return fromList(list)
+    if (list) return fromList(list, envelopeTruncated(data, list.length))
     const single = interviewFromObject(data)
-    return single ? { interviews: [single], readable: true } : { interviews: [], readable: false }
+    return single ? answer([single], 0) : answer([], 1)
   }
   const body = typeof data === "string" ? data.trim() : ""
-  if (body === "") return { interviews: [], readable: true }
+  if (body === "") return answer([], 0)
   if (/<[A-Za-z][\w-]*\b[^<>]*\binterviewEventId\s*=/.test(body)) {
-    const interviews = interviewsFromMarkup(body)
-    return { interviews, readable: interviews.length > 0 }
+    const { interviews, unreadable } = interviewsFromMarkup(body)
+    return answer(interviews, unreadable, markupTruncated(body))
   }
-  return { interviews: [], readable: /\bno\b[^.]{0,40}\binterviews?\b/i.test(body) && !/interviewEventId/i.test(body) }
+  // A short sentence that there are none, and nothing else, is an empty week; any other text is unreadable.
+  return NONE.test(body) ? answer([], 0) : answer([], 1)
+}
+
+/** The whole of a sentence that a window has no interviews, such as "No interviews found." Nothing more may follow. */
+const NONE = /^(?:there are )?no (?:upcoming |scheduled |past )?interviews?(?: (?:were )?found)?(?: (?:for|in) (?:this|the|that) (?:window|period|date range|time range|range))?\.?$/i
+
+/** The markers by which an answer says it holds less than there is. */
+const MORE_FLAGS = ["hasMore", "has_more", "moreDataAvailable", "more_data_available", "truncated", "isTruncated", "is_truncated"] as const
+const NEXT_KEYS = ["nextCursor", "next_cursor", "cursor", "nextPageToken", "next_page_token"] as const
+const TOTAL_KEYS = ["total", "totalCount", "total_count", "count"] as const
+
+/** A JSON envelope that says it holds less than there is: a more flag, a next cursor, or a total above what it lists. */
+function envelopeTruncated(data: Data, listed: number): boolean {
+  if (MORE_FLAGS.some((key) => data[key] === true || data[key] === "true")) return true
+  if (NEXT_KEYS.some((key) => text(data[key]) !== undefined)) return true
+  return TOTAL_KEYS.some((key) => typeof data[key] === "number" && (data[key] as number) > listed)
+}
+
+/** Markup that says it holds less than there is: a more flag set to true, or a next cursor, on any element. */
+function markupTruncated(body: string): boolean {
+  return [...body.matchAll(/<[A-Za-z][\w-]*\b([^<>]*?)\/?>/g)].some(([, values]) => {
+    const own = attributes(values!)
+    return MORE_FLAGS.some((key) => own[key] === "true") || NEXT_KEYS.some((key) => text(own[key]) !== undefined)
+  })
 }
 
 /**
@@ -440,10 +478,39 @@ function cursorState(cursor: string): { readonly key: Key; readonly owner: strin
   return { key: { t, i }, owner: o }
 }
 
-/** Every interview that started within [from, to], not cancelled: one list_interviews call for the whole window. */
-async function listWindow(list: List, from: number, to: number): Promise<InterviewFacts[]> {
+/** The calls one page may make, halved windows included, so a long catch-up stays well inside Ashby's rate limit. */
+export const MAX_CALLS = 26
+/** The narrowest window a week Ashby cuts short is split into; a window this narrow that is still cut short fails. */
+export const MIN_WINDOW_MS = 3_600_000
+
+/** One page's calls so far. */
+interface Budget {
+  calls: number
+}
+
+const UPDATE_NEXT = "Call events_list again with the same cursor; if it keeps failing, run /ashby-status and update the plugin if a newer release is out."
+
+/**
+ * Every interview that started within [from, to], not cancelled, read whole: one list_interviews call, and when Ashby
+ * marks the answer cut short, the two halves of the window instead, down to MIN_WINDOW_MS. Undefined when the page's
+ * call budget runs out first, so the caller stops before this window and its cursor holds. An answer with an entry the
+ * reader cannot read is UNAVAILABLE, and nothing of the page is listed.
+ */
+async function listWindow(list: List, from: number, to: number, budget: Budget): Promise<InterviewFacts[] | undefined> {
+  if (budget.calls >= MAX_CALLS) return undefined
+  budget.calls++
   const answer = readInterviews(await list({ onOrAfterDate: isoFloor(from), onOrBeforeDate: isoCeil(to), reason: LIST_REASON }))
-  if (!answer.readable) refuse("UNAVAILABLE", `Ashby's ${LIST_TOOL} answered in a form this plugin does not read`, "Run /ashby-status, and update the plugin if a newer release is out.")
+  if (!answer.readable) {
+    const what = answer.interviews.length + answer.unreadable > 1 ? `${answer.unreadable} of ${answer.interviews.length + answer.unreadable} entries` : "an answer"
+    refuse("UNAVAILABLE", `Ashby's ${LIST_TOOL} answered with ${what} in a form this plugin does not read, so no interview of this page is listed`, UPDATE_NEXT)
+  }
+  if (answer.truncated) {
+    if (to - from <= MIN_WINDOW_MS) refuse("UNAVAILABLE", `Ashby's ${LIST_TOOL} cut short the interviews of one hour`, UPDATE_NEXT)
+    const middle = from + Math.floor((to - from) / 2)
+    const early = await listWindow(list, from, middle, budget)
+    const late = early === undefined ? undefined : await listWindow(list, middle, to, budget)
+    return early === undefined || late === undefined ? undefined : [...early, ...late]
+  }
   return answer.interviews.filter((interview) => !interview.cancelled && interview.time >= from && interview.time <= to)
 }
 
@@ -498,10 +565,17 @@ export async function listEvents(list: List, owner: EventsOwner | undefined, inp
   const end = now - SETTLE_MS
 
   const found = new Map<string, InterviewFacts>()
+  const budget: Budget = { calls: 0 }
   let scanned = after.t
   for (let from = after.t, windows = 0; from <= end && windows < MAX_WINDOWS && found.size <= request.limit; windows++) {
     const to = Math.min(from + WINDOW_MS, end)
-    for (const interview of await listWindow(list, from, to)) if (compare({ t: interview.time, i: interview.id }, after) > 0) found.set(interview.id, interview)
+    const interviews = await listWindow(list, from, to, budget)
+    if (interviews === undefined) {
+      // The budget ran out inside this window: stop before it, so the cursor holds at the last window read whole.
+      if (windows === 0) refuse("UNAVAILABLE", `Ashby's ${LIST_TOOL} cut short one week of interviews more often than one page can read again`, UPDATE_NEXT)
+      break
+    }
+    for (const interview of interviews) if (compare({ t: interview.time, i: interview.id }, after) > 0) found.set(interview.id, interview)
     scanned = to
     if (to >= end) break
     from = to

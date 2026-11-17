@@ -146,12 +146,16 @@ The executor does not run `execute.before` and `execute.after` hooks. The plugin
 hash, the secret screening, the page) and `cursor` (the bound cursor) modules:
 
 - `events_list` asserts `ashby_events_list`, then reads `list_interviews` through OpenCode's executor, which asserts
-  `ashby_list_interviews`: one week per call (`onOrAfterDate`, `onOrBeforeDate`, both inclusive) and at most 13 weeks per
-  page, since the tool has no paging. It keeps an interview that started at least 30 minutes ago and is not cancelled,
+  `ashby_list_interviews`: one week per call (`onOrAfterDate`, `onOrBeforeDate`, both inclusive), at most 13 weeks and
+  26 calls per page, since the tool has no paging. A week whose answer Ashby marks cut short (a more flag, a next
+  cursor, a total above what it lists) is read again in halves, down to one hour; a page out of calls stops before the
+  window it could not finish, with `more` and its cursor held. It keeps an interview that started at least 30 minutes ago and is not cancelled,
   orders by (start, id), screens titles for secrets (`refused[]`), and fits the page to 64 KB. An event carries
   metadata only: the interview event id, the start, the title and job, the candidate and the interviewers by Ashby's ids
-  and names (never an email), and an ashbyhq.com link; `text` is empty. An answer the reader does not know, in JSON or in
-  markup, is `UNAVAILABLE`, never an empty week.
+  and names (never an email), and an ashbyhq.com link; `text` is empty. Every entry of an answer must be an interview,
+  identified only by `interviewEventId`: an answer with one the reader does not know, in JSON or in markup, is
+  `UNAVAILABLE` and the page lists nothing, never a shorter or empty week. The answer's shape is assumed, not recorded:
+  it is unconfirmed until a live read of `list_interviews` is captured as a fixture.
 - `probe` asserts `ashby_probe` and calls Ashby for nothing: the owner is OpenCode's sign-in for the server,
   `ashby:credential:<id>` with its label, because Ashby's MCP names no user. It asserts no identity operation, so the
   declaration names none (`permission.identity` is left out). The contract's `verified: false` and an empty

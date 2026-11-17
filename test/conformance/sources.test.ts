@@ -65,7 +65,8 @@ function context(permission: SessionContext["permission"]): EventsContext {
  * Why no single interview can fail on its own, for the kit's `failed-holds-cursor` check: one list_interviews call
  * answers each week whole, and a failed call fails the listing.
  */
-const ATOMIC = "Ashby's list_interviews answers each week of interviews whole, in one call, and a failed call fails the listing, so no single interview fails on its own"
+const ATOMIC =
+  "Ashby's list_interviews answers each week of interviews whole, in one call or, when Ashby marks it cut short, in halves; a failed call, or an answer with any entry the reader cannot read, fails the whole listing, so no single interview fails on its own"
 /** Why no cursor expires, for the kit's `gap-and-cursor-expired` check. */
 const NO_EXPIRY =
   "A cursor is an interview's start and Ashby's interview event id, and list_interviews reads any date range the cursor names, so no history behind a cursor is lost and no cursor expires"
@@ -116,7 +117,8 @@ describe("the source contract's conformance kit", () => {
     expect(source.accounts).toEqual({ named: false })
     const probed = (await probe({})) as { account: string; owner: unknown }
     expect(probed).toMatchObject({ account: ACCOUNT, owner: { id: "ashby:credential:cred-conformance", label: "ada@example.test" } })
-    // Keys a consumer on source-contract 0.1.x refuses are neither declared nor sent until consumers are on 0.2.0.
+    // Keys a consumer on source-contract 0.1.x refuses are neither declared nor sent until jelly and Memory have
+    // re-vendored 0.2.0 (CHANGELOG, Known limits); then the owner carries verified: false and identity is [].
     expect(probed.owner).not.toHaveProperty("verified")
     expect(sources.items[0]!.permission).not.toHaveProperty("identity")
     expect(await list({ account: probed.account, since: FIXTURE.since, limit: 1 })).toMatchObject({ account: ACCOUNT, owner: probed.owner })

@@ -16,7 +16,9 @@ import {
   LIST_REASON,
   LIST_TOOL,
   MAX_BYTES,
+  MAX_CALLS,
   MAX_WINDOWS,
+  MIN_WINDOW_MS,
   PROBE_ACTION,
   SETTLE_MS,
   SOURCE,
@@ -117,11 +119,48 @@ describe("list_interviews' answer", () => {
     ])
   })
 
-  test("an empty answer, or a sentence that there are none, is an empty week; any other form is unreadable", () => {
-    for (const empty of [{ interviews: [] }, [], "", "No interviews found for this window."]) expect(readInterviews(empty)).toEqual({ interviews: [], readable: true })
-    for (const unknown of [{ message: "ok" }, [{ eventId: "x" }], "Here is your schedule: Monday at 9", { interviews: [{ id: "x", startTime: "Oct 1" }] }]) {
+  test("an empty answer, or a whole sentence that there are none, is an empty week; any other form is unreadable", () => {
+    for (const empty of [{ interviews: [] }, [], "", "No interviews found for this window.", "No interviews", "There are no upcoming interviews."]) {
+      expect(readInterviews(empty)).toEqual({ interviews: [], readable: true, unreadable: 0, truncated: false })
+    }
+    for (const unknown of [
+      { message: "ok" },
+      [{ eventId: "x" }],
+      "Here is your schedule: Monday at 9",
+      "Showing interviews; no further interviews after these: Onsite with N",
+      "No interviews found. 3 interviews were hidden.",
+      { interviews: [{ interviewEventId: "x", startTime: "Oct 1" }] },
+    ]) {
       expect({ unknown, readable: readInterviews(unknown).readable }).toEqual({ unknown, readable: false })
     }
+  })
+
+  test("every entry must be an interview: one it cannot read makes the whole answer unreadable", () => {
+    const good = FIXTURE.interviews[0]!
+    for (const bad of [
+      { ...good, interviewEventId: "ie-x", startTime: undefined, scheduledAt: "2026-10-01T10:00:00Z" },
+      { ...good, interviewEventId: "ie-x", startTime: "2026-10-01T10:00:00" },
+      "ie-x",
+    ]) {
+      expect(readInterviews({ interviews: [good, bad] })).toMatchObject({ readable: false, unreadable: 1 })
+      expect(readInterviews([bad, good])).toMatchObject({ readable: false, unreadable: 1 })
+    }
+    const markup = '<Interviews><Interview interviewEventId="ie-m1" startTime="2026-10-03T10:00:00Z" /><Interview interviewEventId="ie-m2" startTime="Oct 4" /></Interviews>'
+    expect(readInterviews(markup)).toMatchObject({ readable: false, unreadable: 1 })
+  })
+
+  test("takes the interview event id only from interviewEventId, never a bare id", () => {
+    expect(readInterviews([{ id: "sched-1", startTime: "2026-10-01T09:00:00Z" }])).toMatchObject({ interviews: [], readable: false })
+    expect(readInterviews([{ interviewEvent: { id: "ie-n", startTime: "2026-10-01T09:00:00Z" }, id: "sched-1" }]).interviews.map((interview) => interview.id)).toEqual(["ie-n"])
+  })
+
+  test("notices Ashby's markers for an answer cut short: a more flag, a next cursor, or a total above what it lists", () => {
+    const one = [FIXTURE.interviews[0]!]
+    for (const marked of [{ hasMore: true }, { truncated: true }, { moreDataAvailable: "true" }, { nextCursor: "c2" }, { totalCount: 5 }]) {
+      expect({ marked, truncated: readInterviews({ interviews: one, ...marked }).truncated }).toEqual({ marked, truncated: true })
+    }
+    for (const whole of [{}, { hasMore: false }, { nextCursor: null }, { count: 1 }]) expect({ whole, truncated: readInterviews({ interviews: one, ...whole }).truncated }).toEqual({ whole, truncated: false })
+    expect(readInterviews('<Interviews hasMore="true"><Interview interviewEventId="ie-m1" startTime="2026-10-03T10:00:00Z" /></Interviews>').truncated).toBe(true)
   })
 
   test("never reads a start without a zone, and keeps only https links on ashbyhq.com", () => {
@@ -253,6 +292,51 @@ describe("events_list", () => {
   test("stops with UNAVAILABLE when Ashby answers in a form it does not read, rather than report an empty week", async () => {
     expect(await code(list(ashby(FIXTURE.interviews, () => ({ message: "Here are your interviews" })))({ since: SINCE }))).toBe("UNAVAILABLE")
     expect(await code(list(ashby(FIXTURE.interviews, (found) => found.map((interview) => ({ ...interview, startTime: "Oct 1" }))))({ since: SINCE }))).toBe("UNAVAILABLE")
+  })
+
+  test("a page where one entry cannot be read answers UNAVAILABLE, lists nothing, and its cursor holds", async () => {
+    const broken = { interviewEventId: "ie-broken", interviewTitle: "Unscheduled", scheduledAt: "2026-10-03T10:00:00Z" }
+    const first = (await list()({ since: SINCE, limit: 1 })) as EventsListResult
+    const mixed = ashby(FIXTURE.interviews, (found) => ({ interviews: [...found, broken] }))
+    const failure = (await list(mixed)({ account: ACCOUNT, cursor: first.cursor }).catch((error) => error)) as EventsFailure
+    expect(failure).toBeInstanceOf(EventsFailure)
+    expect(failure.code).toBe("UNAVAILABLE")
+    expect(failure.message).toContain("1 of ")
+    // The same cursor reads on once Ashby's answer is whole again: nothing was skipped.
+    const next = (await list()({ account: ACCOUNT, cursor: first.cursor, limit: 1 })) as EventsListResult
+    expect(next.events.map((event) => event.external_id)).toEqual([EXPECTED[1]])
+  })
+
+  test("a week Ashby cuts short is read again in halves, so every interview is listed and none is lost", async () => {
+    const cap = 2
+    const fake = ashby(FIXTURE.interviews, (found) => ({ interviews: found.slice(0, cap), hasMore: found.length > cap }))
+    const result = (await list(fake)({ since: SINCE, limit: PAGE.max })) as EventsListResult
+    expect(result.events.map((event) => event.external_id)).toEqual(EXPECTED)
+    expect(fake.calls.length).toBeGreaterThan(Math.ceil((NOW - Date.parse(SINCE)) / WINDOW_MS))
+    for (const input of fake.calls) expect(Date.parse(String(input["onOrBeforeDate"])) - Date.parse(String(input["onOrAfterDate"]))).toBeGreaterThanOrEqual(MIN_WINDOW_MS - 1000)
+  })
+
+  test("an hour Ashby still cuts short is UNAVAILABLE; a page out of calls stops before the window, with more and its cursor held", async () => {
+    expect(await code(list(ashby(FIXTURE.interviews, (found) => ({ interviews: found, truncated: true })))({ since: SINCE }))).toBe("UNAVAILABLE")
+    // Each week's first answer is cut short, its halves whole: a page runs out of calls part way, and says there is more.
+    const seen = new Set<string>()
+    const fake = ashby(FIXTURE.interviews, (found) => ({ interviews: found }))
+    const halving = async (input: Record<string, unknown>) => {
+      const span = Date.parse(String(input["onOrBeforeDate"])) - Date.parse(String(input["onOrAfterDate"]))
+      const answer = (await fake.list(input)) as { interviews: unknown[] }
+      return span >= WINDOW_MS ? { ...answer, hasMore: true } : answer
+    }
+    let page = (await listEvents(halving, OWNER, { since: "2025-11-01T00:00:00Z", limit: PAGE.max }, NOW)) as EventsListResult
+    expect(page.more).toBe(true)
+    expect(fake.calls.length).toBeLessThanOrEqual(MAX_CALLS)
+    for (let guard = 0; guard < 40; guard++) {
+      for (const event of page.events) seen.add(event.external_id)
+      if (!page.more) break
+      fake.calls.length = 0
+      page = (await listEvents(halving, OWNER, { account: ACCOUNT, cursor: page.cursor, limit: PAGE.max }, NOW)) as EventsListResult
+      expect(fake.calls.length).toBeLessThanOrEqual(MAX_CALLS)
+    }
+    expect([...seen]).toEqual(EXPECTED)
   })
 
   test("is allowed by the default rules, and so is probe, at every access", () => {
