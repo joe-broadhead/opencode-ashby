@@ -14,7 +14,7 @@ import { DESTRUCTIVE_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
 import { defaultRules, type Rule } from "../../src/permissions.js"
 import { SKILL_NAMES } from "../../src/skills.js"
 import { StatusRpc } from "../../src/status.js"
-import { TOOLS_RPC_ID } from "../../src/host/tools-rpc.js"
+import { TOOLS_RPC_ID } from "../../src/tools-rpc.js"
 import { ASHBY_SCOPES, MODEL_ID } from "./fake-mcp.js"
 import { agentRules, attempt, effect, HOST_VERSION, session, startHost, unattended, until, type Host } from "./harness.js"
 
@@ -60,7 +60,7 @@ async function status(host: Host, sessionID: string) {
 /** Enough of the tools RPC's contract for the client to call describe and the methods these tests use. */
 const TOOLS_CONTRACT = {
   id: TOOLS_RPC_ID,
-  methods: Object.fromEntries(["describe", "get_pending_tasks", "search_records_by_name", "create_candidate", ...DESTRUCTIVE_TOOLS].map((name) => [name, { input: { type: "object" }, output: { type: "object" } }])),
+  methods: Object.fromEntries(["describe", "get_pending_tasks", "search_records_by_name", "create_candidate", "events_list", "probe", ...DESTRUCTIVE_TOOLS].map((name) => [name, { input: { type: "object" }, output: { type: "object" } }])),
   events: {},
 }
 type ToolsClient = Record<string, (input: object, options: object) => Promise<unknown>>
@@ -212,10 +212,23 @@ describe(`the plugin on OpenCode ${HOST_VERSION}`, () => {
     expect(find("get_pending_tasks")).toMatchObject({ class: "read", permission: "allow" })
     expect(find("create_candidate")).toMatchObject({ class: "write", permission: "allow" })
     expect(find("change_application_stage")).toMatchObject({ class: "destructive", permission: "allow" })
+    // The interviews source's own reads are methods too, always allowed.
+    expect(find("events_list")).toMatchObject({ class: "read", permission: "allow" })
+    expect(find("probe")).toMatchObject({ class: "read", permission: "allow" })
     expect(described.location).toBe(host.location.directory)
     expect(described.locationHint).toContain("x-opencode-directory")
     const plain = JSON.parse(await scriptCall(host, "describe", {})) as { methods: { permission?: string }[] }
     expect(plain.methods.every((method) => !Object.hasOwn(method, "permission"))).toBe(true)
+  })
+
+  test("the interviews source: with no sign-in OpenCode holds, probe and events_list refuse with NEEDS_SIGN_IN and call Ashby for nothing", async () => {
+    const reader = await session(host)
+    const before = host.fake.calls.length
+    for (const method of ["probe", "events_list"]) {
+      const refused = JSON.parse(await scriptCall(host, method, { sessionID: reader, input: {} })) as { message: string }
+      expect({ method, message: refused.message }).toMatchObject({ method, message: expect.stringContaining("NEEDS_SIGN_IN") })
+    }
+    expect(host.fake.calls.length).toBe(before)
   })
 
   test("the location: describe reports where the call landed, and a call that names another location is answered there", async () => {

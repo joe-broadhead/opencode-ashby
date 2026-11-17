@@ -24,7 +24,9 @@ export const UNTESTED_EXAMPLE = "2.2.99"
  * Every code this plugin can raise, and where it appears: the one table the README and the guides are checked against.
  * - `setup`: the plugin refuses a bad option, a host outside the range, or reports a failed registration or rule insert;
  * - `status`: `/ashby-status`, the `/ashby` dialog and the status RPC;
- * - `rpc`: a refusal from the tools RPC for scripts, which `docs/scripting.md` tables.
+ * - `rpc`: a refusal from the tools RPC for scripts, which `docs/scripting.md` tables;
+ * - `source`: a refusal from `events_list` or `probe`, the interviews source's methods, with the source contract's own
+ *   code, which `docs/scripting.md` tables too.
  *
  * The status RPC's own error name is `unavailable`, not a code. A code is never invented at a call site: `ashbyError`
  * and `errorText` take `PluginCode`, so a code outside this table does not compile.
@@ -48,6 +50,13 @@ export const CODES = {
   TOOL_UNAVAILABLE: { surface: "rpc", when: "The server is connected but OpenCode does not list the tool." },
   UPSTREAM_ERROR: { surface: "rpc", when: "Ashby answered with an error, such as an invalid input or a rate limit." },
   CANCELLED: { surface: "rpc", when: "The request was cancelled." },
+  INPUT_INVALID: { surface: "source", when: "`events_list` or `probe` got an input outside its schema, or a cursor without its account." },
+  SOURCE_UNKNOWN: { surface: "source", when: "`events_list` or `probe` was asked for a source other than `ashby`." },
+  ACCOUNT_MISMATCH: { surface: "source", when: "An account other than `default`, or a cursor issued for another Ashby sign-in." },
+  CURSOR_INVALID: { surface: "source", when: "The cursor was not issued by this plugin's `events_list`." },
+  NEEDS_SIGN_IN: { surface: "source", when: "OpenCode holds no Ashby sign-in, or the `ashby` server needs one." },
+  RATE_LIMITED: { surface: "source", when: "Ashby's `list_interviews` hit Ashby's rate limit." },
+  UNAVAILABLE: { surface: "source", when: "`list_interviews` is not available, failed, or answered in a form the plugin does not read." },
 } as const
 
 /** One code from {@link CODES}. */

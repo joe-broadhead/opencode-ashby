@@ -108,3 +108,8 @@ authority:
   session.
 - The RPC is reachable only by callers of the OpenCode server API, who already hold the server's full authority. The
   session is not a login: it scopes a script to what its agent may do.
+- The interviews source's `events_list` reads only `list_interviews`, through OpenCode's executor, so
+  `ashby_list_interviews`' own rule still applies. Its events carry metadata only (ids, the start, titles, the
+  candidate's and the interviewers' Ashby ids and names, an ashbyhq.com link) and never an email, a phone number,
+  feedback, a scorecard, a note or a transcript; `text` is always empty. `probe` calls Ashby for nothing and names
+  OpenCode's sign-in, which Ashby does not confirm. A title that holds a secret is refused for good, and every page is marked untrusted.

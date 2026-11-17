@@ -2,8 +2,10 @@
 
 The plugin is a thin layer over Ashby's official MCP server. OpenCode owns the MCP transport, OAuth, credentials,
 permission prompts and tool output limits. The plugin registers the server, names its `/connect` entry, adds default
-permission rules, reports status, ships two skills, and lets scripts call the known reads through a tools RPC. It
-adds no tool of its own, makes no Ashby call of its own, and has no runtime dependencies.
+permission rules, reports status, ships two skills, lets scripts call the known reads through a tools RPC, and declares
+one source of the shared source contract, `ashby.interviews`, whose two methods live on that RPC. It adds no tool of
+its own and has no runtime dependencies; its only Ashby call of its own is the source's `list_interviews`, made through
+OpenCode's executor under that tool's own permission.
 
 ## Layout
 
@@ -20,7 +22,8 @@ adds no tool of its own, makes no Ashby call of its own, and has no runtime depe
 | `src/status.ts` | The status model and text, `/ashby-status`, and the status RPC method |
 | `src/redact.ts` | Redaction for everything status shows: URL credentials, queries and token shapes removed, one line, controls and bidi characters stripped, cut by whole characters |
 | `src/skills.ts` | Loading and registering the skills |
-| `src/host/tools-rpc.ts` | The tools RPC for scripts, `ashby.recruiting.tools`; a copy of a module shared by several plugins, with Ashby's part in one marked block |
+| `src/tools-rpc.ts` | Ashby's part of the tools RPC for scripts, `ashby.recruiting.tools`: the method table and the plugin value that the source contract's `tools-rpc` module (`@we-the-rebel-alliance/source-contract`, bundled into `dist/index.js`) takes |
+| `src/events.ts` | The interviews source, `ashby.interviews` (`package.json`'s `sources`): `events_list`, the signed-in user's interviews as the contract's events, and `probe`, OpenCode's sign-in as the owner. Built on the contract's `events` and `cursor` modules |
 | `src/tui.ts` | The terminal UI part: the plugin `ashby.recruiting.tui` and the `/ashby` dialog |
 | `src/constants.ts` | IDs, the server name and URL, the Code Mode namespace description, the supported host range, the tested releases (`TESTED_HOSTS`, the one list the checks and status use) and the error shape. No imports, so `scripts/check.mjs` can load it |
 | `src/version.ts` | The plugin's version from `package.json`; the build replaces it with the version string alone |
@@ -52,7 +55,8 @@ adds (`./icon.svg`, `./icon-128.png`, `./icon-256.png`), and ships no declaratio
 6. `ctx.agent.transform` inserts the default rules after each agent's base `* * allow`.
 7. `watchListing` notes when the `ashby` server's status last changes. The plugin adds no tool hook.
 8. `ctx.skill.transform`, `ctx.command.transform` (`/ashby-status`) and `ctx.rpc.register` (`ashby.recruiting/status`).
-9. `registerToolsRpc` registers the tools RPC, `ashby.recruiting.tools`, and its `evaluate` hook.
+9. `registerToolsRpc` (the source contract's) registers the tools RPC, `ashby.recruiting.tools`, with the known tools,
+   `events_list` and `probe`, and its `evaluate` hook.
 10. `watchIntegration` starts. Setup returns one cleanup that stops it, disposes the tools RPC and stops the listing
     watcher.
 
@@ -98,8 +102,10 @@ reason is cut to one line of 160 characters with no URL query.
 ## Tools RPC
 
 `ashby.recruiting.tools` lets a script call every known tool with no model; [Scripting](scripting.md) is the user's
-view. Its methods are `describe` and one per name in `READ_TOOLS`, `WRITE_TOOLS` and `DESTRUCTIVE_TOOLS`, named after the
-upstream tool, each with its class. A tool that Ashby adds later is never a method. The rules are resolved before
+view. Its methods are `describe`, one per name in `READ_TOOLS`, `WRITE_TOOLS` and `DESTRUCTIVE_TOOLS`, named after the
+upstream tool, each with its class, and the plugin's own two reads, `events_list` and `probe` (`PLUGIN_METHODS`). A
+tool that Ashby adds later is never a method. The transport is the source contract's `tools-rpc` module, shared by the
+plugin family; Ashby's part is `src/tools-rpc.ts`. The rules are resolved before
 dispatch: an `ask` or a `deny` is refused with no call, and only an `allow` runs. `describe` reports each method's
 class, and — given a session — its permission, and whether OpenCode lists it now.
 
@@ -133,6 +139,43 @@ OpenCode answers a bad envelope with `rpc.invalid_input`.
 
 The executor does not run `execute.before` and `execute.after` hooks. The plugin has none to stand in for, so
 `shapeResult` returns every result unchanged.
+
+## The interviews source
+
+`src/events.ts` implements the source `package.json` declares, on the source contract's `events` (the event shape, its
+hash, the secret screening, the page) and `cursor` (the bound cursor) modules:
+
+- `events_list` asserts `ashby_events_list`, then reads `list_interviews` through OpenCode's executor, which asserts
+  `ashby_list_interviews`: one week per call (`onOrAfterDate`, `onOrBeforeDate`, both inclusive), at most 13 weeks and
+  26 calls per page, since the tool has no paging. A week whose answer Ashby marks cut short (a more flag, a next
+  cursor, a total above what it lists) is read again in halves, down to one hour; a page out of calls stops before the
+  window it could not finish, with `more` and its cursor held. A window it could not finish answers what it read whole
+  from its start, so the cursor moves that far: every page moves on, because reaching a whole first hour takes at most 9
+  of the 18 calls kept for what is new. With a cursor, the 7 days behind it (`LOOKBACK_MS`, list_interviews' own default
+  reach) are read again first, newest part first, on at most 8 calls, and an interview there the cursor does not remember
+  is listed as a late arrival; when those calls cannot read all of it, the next floor moves up to where it was read
+  whole, and a floor never passes the position; the cursor carries its lookback floor and up to 40 listed interviews (8-hex digest and start minute), so
+  nothing is listed twice and the position never moves back. It keeps an interview that started at least 30 minutes ago and is not cancelled,
+  orders by (start, id), screens titles for secrets (`refused[]`), and fits the page to 64 KB. An event carries
+  metadata only: the interview event id, the start, the title and job, the candidate and the interviewers by Ashby's ids
+  and names (never an email), and an ashbyhq.com link; `text` is empty. Every entry of an answer must be an interview,
+  identified only by `interviewEventId`: an answer with one the reader does not know, in JSON or in markup, is
+  `UNAVAILABLE` and the page lists nothing, never a shorter or empty week. The envelope is confirmed by a live read
+  (`{ data: { interviews, returnedCount, truncated, onOrAfterDate, onOrBeforeDate, message } }`,
+  `test/fixtures/list-interviews-envelope.json`): `truncated: true` or an echoed window (UTC) narrower than the one asked
+  for is cut short, a `returnedCount` that is not the list's length is unreadable, and the message is read only when
+  there is no list. An interview's own fields are assumed until a live answer that holds one is captured.
+- `probe` asserts `ashby_probe` and calls Ashby for nothing: the owner is OpenCode's sign-in for the server,
+  `ashby:credential:<id>` with its label, because Ashby's MCP names no user. It asserts no identity operation, so the
+  declaration names none (`permission.identity` is left out). The contract's `verified: false` and an empty
+  `permission.identity` would say this exactly, but a consumer on source-contract 0.1.x refuses both, so neither is
+  declared or sent until consumers are on 0.2.0.
+- The cursor is the contract's bound cursor (plugin `ashby`, source `ashby`, account `default`), holding the last
+  (start, id) and a digest of the owner, so another sign-in's cursor is `ACCOUNT_MISMATCH` before any read.
+
+`npm run conformance` (the `conformance` stage of `npm run check`) runs the contract's conformance kit over both
+methods on invented interviews (`test/fixtures/conformance.json`), and writes `reports/conformance-report.json`, which a
+release attaches.
 
 ## Terminal UI part
 

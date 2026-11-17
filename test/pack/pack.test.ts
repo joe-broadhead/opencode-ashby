@@ -17,8 +17,8 @@ import { arch, platform } from "node:os"
 import { basename, join, relative, resolve, sep } from "node:path"
 import { fileURLToPath } from "node:url"
 import { ENDPOINT, SUPPORTED_HOST, TESTED_HOSTS } from "../../src/constants.js"
-import { TOOLS_RPC_ID } from "../../src/host/tools-rpc.js"
-import { DESTRUCTIVE_TOOLS, READ_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
+import { TOOLS_RPC_ID } from "../../src/tools-rpc.js"
+import { DESTRUCTIVE_TOOLS, PLUGIN_METHODS, READ_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
 import { defaultRules, type Rule } from "../../src/permissions.js"
 import { SKILL_NAMES } from "../../src/skills.js"
 import { ASHBY_SCOPES, NEW_TOOL, startFakeMcp, UPSTREAM_FAILURE, type FakeMcp } from "../host/fake-mcp.js"
@@ -324,8 +324,12 @@ describe.each(HOST_VERSIONS)("the tools RPC on stock OpenCode %s", (version) => 
     const { value } = await script("describe", {})
     expect(value.id).toBe(TOOLS_RPC_ID)
     expect(value.locationHint).toContain("x-opencode-directory")
-    expect(value.methods.map((method: { name: string }) => method.name)).toEqual([...READ_TOOLS, ...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS])
-    for (const method of value.methods) {
+    expect(value.methods.map((method: { name: string }) => method.name)).toEqual([...READ_TOOLS, ...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS, ...PLUGIN_METHODS])
+    // The interviews source's own two reads, from the bundled source contract transport.
+    for (const name of PLUGIN_METHODS) {
+      expect(value.methods.find((method: { name: string }) => method.name === name)).toMatchObject({ name, kind: "plugin", class: "read", action: `ashby_${name}` })
+    }
+    for (const method of value.methods.filter((entry: { kind: string }) => entry.kind === "mcp")) {
       expect({ name: method.name, kind: method.kind, action: method.action, available: method.available }).toEqual({
         name: method.name,
         kind: "mcp",
@@ -341,7 +345,7 @@ describe.each(HOST_VERSIONS)("the tools RPC on stock OpenCode %s", (version) => 
   test("with a session, describe reports every method's permission as allow, and the unknown tool as unclassified", async () => {
     const { value } = await script("describe", { sessionID: sessions.build })
     const permission = Object.fromEntries(value.methods.map((method: { name: string; permission: string }) => [method.name, method.permission]))
-    for (const name of [...READ_TOOLS, ...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS]) expect({ name, permission: permission[name] }).toEqual({ name, permission: "allow" })
+    for (const name of [...READ_TOOLS, ...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS, ...PLUGIN_METHODS]) expect({ name, permission: permission[name] }).toEqual({ name, permission: "allow" })
     expect(value.unclassified).toEqual([NEW_TOOL.name])
   })
 

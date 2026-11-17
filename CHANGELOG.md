@@ -2,6 +2,39 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.5] - 2026-11-17
+
+### Added
+
+- **A source for the shared source contract:** `ashby.interviews` (`package.json`'s `sources`, contract version 1,
+  `@we-the-rebel-alliance/source-contract` v0.2.0), so a consumer such as Memory can read the signed-in user's own Ashby
+  interviews as dated events. Two tools RPC methods on `ashby.recruiting.tools`, never tools the model sees:
+  `events_list`, read through `list_interviews` one week per call (in halves when Ashby marks a week cut short, and
+  `UNAVAILABLE` with the cursor held when any entry of an answer cannot be read; a dense week read across pages), an
+  interview once it started 30 minutes ago, or later when it shows up late within the seven days behind the cursor, and
+  never a cancelled one, oldest first with a cursor bound to the sign-in; and `probe`, who is signed in, which calls
+  Ashby for nothing. An event carries metadata only: the interview event id, the start, the title and job, the
+  candidate and the interviewers by Ashby's ids and names, and an ashbyhq.com link. Never an email, a phone number,
+  feedback, a scorecard, a note or a transcript; its text is always empty, and a title that holds a secret is refused.
+- The default rules allow `ashby_events_list` and `ashby_probe` under every `access` value, after the tool rules.
+- The source contract's codes for the two methods: `INPUT_INVALID`, `SOURCE_UNKNOWN`, `ACCOUNT_MISMATCH`,
+  `CURSOR_INVALID`, `NEEDS_SIGN_IN`, `RATE_LIMITED` and `UNAVAILABLE` (the `source` surface).
+- `npm run conformance`, a stage of `npm run check`: the contract's conformance kit over the source, on invented
+  interviews, writing `reports/conformance-report.json` for a release to attach.
+- `list_interviews`' envelope, as a live read recorded it (`{ data: { interviews, returnedCount, truncated,
+  onOrAfterDate, onOrBeforeDate, message } }`): `truncated` and the echoed window (UTC) decide a week cut short, and
+  `returnedCount` an empty one. **Unconfirmed:** an interview's own fields (`interviewEventId`, a start time with its
+  zone) are assumed until a live answer that holds one is recorded.
+- **Deferred** until the consumers (jelly and Memory) have re-vendored source-contract 0.2.0: the owner's `verified: false`
+  (Ashby does not confirm OpenCode's sign-in) and `permission.identity: []` (the probe asserts no identity operation).
+  A consumer on 0.1.x refuses both, so neither is sent yet; the conformance test that pins their absence flips then.
+
+### Changed
+
+- The tools RPC's transport is the source contract's `tools-rpc` module, bundled into `dist/index.js`, in place of the
+  copy in `src/host/tools-rpc.ts`; Ashby's part is `src/tools-rpc.ts`. Scripts see the same RPC id, methods, codes and
+  next steps.
+
 ## [0.0.4] - 2026-11-15
 
 ### Added
