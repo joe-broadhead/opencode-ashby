@@ -32,12 +32,16 @@ interface Fixture {
 const FIXTURE = JSON.parse(readFileSync(join(root, "test", "fixtures", "conformance.json"), "utf8")) as Fixture
 const NOW = Date.parse(FIXTURE.now)
 
-/** list_interviews over the fixture, as the reader expects Ashby to answer: both bounds inclusive, by start. */
+/**
+ * list_interviews over the fixture, both bounds inclusive, by start, in the envelope a live read recorded:
+ * `{ data: { interviews, returnedCount, truncated, onOrAfterDate, onOrBeforeDate, message } }`.
+ */
 function listInterviews(input: Record<string, unknown>) {
   const from = Date.parse(String(input["onOrAfterDate"]))
   const to = Date.parse(String(input["onOrBeforeDate"]))
   if (typeof input["reason"] !== "string" || input["reason"] === "") throw new Error("list_interviews requires a reason")
-  return { interviews: FIXTURE.interviews.filter((interview) => Date.parse(String(interview["startTime"])) >= from && Date.parse(String(interview["startTime"])) <= to) }
+  const interviews = FIXTURE.interviews.filter((interview) => Date.parse(String(interview["startTime"])) >= from && Date.parse(String(interview["startTime"])) <= to)
+  return { data: { interviews, returnedCount: interviews.length, truncated: false, onOrAfterDate: new Date(from).toISOString(), onOrBeforeDate: new Date(to).toISOString(), message: interviews.length === 0 ? "No interviews found." : `Found ${interviews.length} interviews.` } }
 }
 
 /** OpenCode's context for the reads: the list_interviews executor asserts `ashby_list_interviews` first, as the host does. */

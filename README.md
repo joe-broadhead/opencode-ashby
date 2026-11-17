@@ -418,14 +418,15 @@ The status RPC's own error is `unavailable`, with a next step, when the status c
   changing data could run here as a read until a release knows it. The names, parameters and read-only hints match a signed-in
   server's tool list, captured on 14 November 2026 (`test/fixtures/live-tools.json`), and a test checks the declaration
   against it. `npm run drift` compares a saved list with the table, and `CONTRIBUTING.md` has the steps.
-- **The shape of `list_interviews`' answer is unconfirmed until a live read records one.** The recorded tool list gives
-  its input, not its answer, and Ashby says its MCP answers may change without notice. The interviews source therefore
-  rests on assumed field names: `interviewEventId` (the one Ashby's tool descriptions name) and a start time with its
-  zone, in JSON or in markup. It fails rather than guess: an answer with any entry it cannot read is `UNAVAILABLE` and
-  lists nothing, so the cursor holds; an answer Ashby marks as cut short (a more flag, a next cursor, or a total above
-  what it lists) is read again in halves of the week, down to an hour; and the only text taken for an empty week is a
-  whole "no interviews found" sentence. If Ashby cuts a week short with no marker at all, the interviews it leaves out
-  are not listed. A week too dense for one read is read across several, and every read moves on.
+- **`list_interviews`' envelope is confirmed live; an interview's own fields are not yet.** A live read recorded the
+  envelope, `{ data: { interviews, returnedCount, truncated, onOrAfterDate, onOrBeforeDate, message } }`
+  (`test/fixtures/list-interviews-envelope.json`), but that account had no interviews, and Ashby says its MCP answers
+  may change without notice. The fields of one interview are therefore still assumed: `interviewEventId` (the one
+  Ashby's tool descriptions name) and a start time with its zone. The source fails rather than guess: an answer with any
+  entry it cannot read, or a `returnedCount` that is not the list's length, is `UNAVAILABLE` and lists nothing, so the
+  cursor holds. An answer with `truncated: true`, or one whose window, read as UTC, is narrower than the one asked for, is
+  read again in halves of the week, down to an hour. An empty week is `returnedCount` 0 with no interviews, never a
+  reading of the message. A week too dense for one read is read across several, and every read moves on.
 - **An interview that shows up late is listed if it started within the last seven days of the cursor.** Each read looks
   again at the week behind the cursor and lists what it has not listed before, for an interview logged after the fact,
   an interviewer added afterwards, or a calendar sync that lands late. Seven days is how far `list_interviews`' own

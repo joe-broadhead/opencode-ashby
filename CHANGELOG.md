@@ -21,8 +21,10 @@ All notable changes to this project are documented here. The format follows [Kee
   `CURSOR_INVALID`, `NEEDS_SIGN_IN`, `RATE_LIMITED` and `UNAVAILABLE` (the `source` surface).
 - `npm run conformance`, a stage of `npm run check`: the contract's conformance kit over the source, on invented
   interviews, writing `reports/conformance-report.json` for a release to attach.
-- **Unconfirmed:** the shape of `list_interviews`' answer is assumed (`interviewEventId`, a start time with its zone, in
-  JSON or markup) until a live read records one as a fixture.
+- `list_interviews`' envelope, as a live read recorded it (`{ data: { interviews, returnedCount, truncated,
+  onOrAfterDate, onOrBeforeDate, message } }`): `truncated` and the echoed window (UTC) decide a week cut short, and
+  `returnedCount` an empty one. **Unconfirmed:** an interview's own fields (`interviewEventId`, a start time with its
+  zone) are assumed until a live answer that holds one is recorded.
 - **Deferred** until the consumers (jelly and Memory) have re-vendored source-contract 0.2.0: the owner's `verified: false`
   (Ashby does not confirm OpenCode's sign-in) and `permission.identity: []` (the probe asserts no identity operation).
   A consumer on 0.1.x refuses both, so neither is sent yet; the conformance test that pins their absence flips then.

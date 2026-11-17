@@ -1,5 +1,5 @@
 {
-  "note": "Invented interviews for the source contract's conformance kit and the events tests: every person, job, id and link is made up. The shape is the JSON form events_list reads (src/events.ts, readInterviews); no live answer of list_interviews has been recorded.",
+  "note": "Invented interviews for the source contract's conformance kit and the events tests: every person, job, id and link is made up. The fakes wrap them in list_interviews' envelope as a live read recorded it (list-interviews-envelope.json); an interview's own fields are the form events_list reads (src/events.ts, readInterviews), not yet confirmed by a live answer.",
   "now": "2026-11-08T12:00:00Z",
   "since": "2026-09-28",
   "credential": { "type": "credential", "id": "cred-conformance", "label": "ada@example.test" },

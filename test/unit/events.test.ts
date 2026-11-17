@@ -54,13 +54,28 @@ const EXPECTED = ["ie-0001", "ie-0002", "ie-0004a", "ie-0004b", "ie-0006"]
 const SECRET = "ie-0003"
 
 /** list_interviews over `interviews`, both bounds inclusive, answering with `answer`. */
-function ashby(interviews: readonly Record<string, unknown>[] = FIXTURE.interviews, answer: (found: Record<string, unknown>[]) => unknown = (found) => ({ interviews: found })) {
+/** The envelope a live read recorded, around `found`, echoing the window asked for as UTC times. */
+const envelope = (found: Record<string, unknown>[], input: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
+  data: {
+    interviews: found,
+    returnedCount: found.length,
+    truncated: false,
+    onOrAfterDate: new Date(Date.parse(String(input["onOrAfterDate"]))).toISOString(),
+    onOrBeforeDate: new Date(Date.parse(String(input["onOrBeforeDate"]))).toISOString(),
+    message: found.length === 0 ? "No interviews found." : `Found ${found.length} interviews.`,
+    ...extra,
+  },
+})
+const RECORDED = (JSON.parse(readFileSync(new URL("../fixtures/list-interviews-envelope.json", import.meta.url), "utf8")) as { answer: { data: Record<string, unknown> } }).answer
+
+/** list_interviews over `interviews`, both bounds inclusive, answering with `answer` (the recorded envelope by default). */
+function ashby(interviews: readonly Record<string, unknown>[] = FIXTURE.interviews, answer: (found: Record<string, unknown>[], input: Record<string, unknown>) => unknown = envelope) {
   const calls: Record<string, unknown>[] = []
   const list = async (input: Record<string, unknown>) => {
     calls.push(input)
     const from = Date.parse(String(input["onOrAfterDate"]))
     const to = Date.parse(String(input["onOrBeforeDate"]))
-    return answer(interviews.filter((interview) => Date.parse(String(interview["startTime"])) >= from && Date.parse(String(interview["startTime"])) <= to))
+    return answer(interviews.filter((interview) => Date.parse(String(interview["startTime"])) >= from && Date.parse(String(interview["startTime"])) <= to), input)
   }
   return { list, calls }
 }
@@ -76,6 +91,26 @@ const code = async (promise: Promise<unknown>) => {
 }
 
 describe("list_interviews' answer", () => {
+  test("the envelope a live read recorded: an empty week by its structure, cut short by its flag, and its window read as UTC", () => {
+    expect(Object.keys(RECORDED.data).sort()).toEqual(["interviews", "message", "onOrAfterDate", "onOrBeforeDate", "returnedCount", "truncated"])
+    const window = { from: Date.parse("2026-11-01T00:00:00Z"), to: Date.parse("2026-11-08T00:00:00Z") }
+    expect(readInterviews(RECORDED, window)).toEqual({ interviews: [], readable: true, unreadable: 0, truncated: false })
+    // The message plays no part when the structure answers: any wording is the same empty week.
+    expect(readInterviews({ data: { ...RECORDED.data, message: "Here is a list of everything" } }, window)).toMatchObject({ readable: true, interviews: [] })
+    const one = { ...RECORDED.data, interviews: [FIXTURE.interviews[0]], returnedCount: 1 }
+    expect(readInterviews({ data: one }, window)).toMatchObject({ readable: true, truncated: false, interviews: [{ id: "ie-0001" }] })
+    expect(readInterviews({ data: { ...one, truncated: true } }, window).truncated).toBe(true)
+    // A window narrower than the one asked for is cut short too; one that covers it is whole.
+    expect(readInterviews({ data: { ...one, onOrBeforeDate: "2026-11-05T00:00:00.000Z" } }, window).truncated).toBe(true)
+    expect(readInterviews({ data: { ...one, onOrAfterDate: "2026-10-31T00:00:00Z" } }, window).truncated).toBe(false)
+    // A count that is not the list's length, or a bound without its zone, is an answer it does not understand.
+    expect(readInterviews({ data: { ...one, returnedCount: 2 } }, window).readable).toBe(false)
+    expect(readInterviews({ data: { ...one, onOrAfterDate: "2026-11-01T00:00:00" } }, window).readable).toBe(false)
+    // With no list at all, the message is the fallback, and only a whole "no interviews" sentence.
+    expect(readInterviews({ data: { message: "No interviews found." } }, window)).toMatchObject({ readable: true, interviews: [] })
+    expect(readInterviews({ data: { message: "Something went wrong." } }, window).readable).toBe(false)
+  })
+
   test("reads each interview's id, start, title, job, candidate, interviewers and Ashby link, and never an email", () => {
     const { interviews, readable } = readInterviews({ interviews: FIXTURE.interviews.slice(0, 1) })
     expect(readable).toBe(true)
@@ -303,7 +338,7 @@ describe("events_list", () => {
   test("a page where one entry cannot be read answers UNAVAILABLE, lists nothing, and its cursor holds", async () => {
     const broken = { interviewEventId: "ie-broken", interviewTitle: "Unscheduled", scheduledAt: "2026-10-03T10:00:00Z" }
     const first = (await list()({ since: SINCE, limit: 1 })) as EventsListResult
-    const mixed = ashby(FIXTURE.interviews, (found) => ({ interviews: [...found, broken] }))
+    const mixed = ashby(FIXTURE.interviews, (found, input) => envelope([...found, broken], input))
     const failure = (await list(mixed)({ account: ACCOUNT, cursor: first.cursor }).catch((error) => error)) as EventsFailure
     expect(failure).toBeInstanceOf(EventsFailure)
     expect(failure.code).toBe("UNAVAILABLE")
@@ -315,7 +350,7 @@ describe("events_list", () => {
 
   test("a week Ashby cuts short is read again in halves, so every interview is listed and none is lost", async () => {
     const cap = 2
-    const fake = ashby(FIXTURE.interviews, (found) => ({ interviews: found.slice(0, cap), hasMore: found.length > cap }))
+    const fake = ashby(FIXTURE.interviews, (found, input) => envelope(found.slice(0, cap), input, { truncated: found.length > cap }))
     const result = (await list(fake)({ since: SINCE, limit: PAGE.max })) as EventsListResult
     expect(result.events.map((event) => event.external_id)).toEqual(EXPECTED)
     expect(fake.calls.length).toBeGreaterThan(Math.ceil((NOW - Date.parse(SINCE)) / WINDOW_MS))
@@ -391,7 +426,7 @@ describe("events_list", () => {
     // Ashby answers at most one interview per call, so a week of 40 needs far more calls than one page has.
     const dense = Array.from({ length: 40 }, (_, index) => ({ interviewEventId: `d-${String(index).padStart(2, "0")}`, interviewTitle: "Screen", startTime: new Date(Date.parse("2026-11-02T00:00:00Z") + index * 3 * 3_600_000).toISOString() }))
     let calls = 0
-    const capped = ashby(dense, (found) => ({ interviews: found.slice(0, 1), hasMore: found.length > 1 }))
+    const capped = ashby(dense, (found, input) => envelope(found.slice(0, 1), input, { truncated: found.length > 1 }))
     const counted = async (input: Record<string, unknown>) => ((calls += 1), capped.list(input))
     const listed: string[] = []
     let page = await listEvents(counted, OWNER, { since: "2026-11-01T23:00:00Z", limit: PAGE.max }, NOW)

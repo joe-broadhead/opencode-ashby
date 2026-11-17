@@ -31,8 +31,8 @@ import { reasonOf, shortReason } from "./redact.js"
  * at a time (`onOrAfterDate` and `onOrBeforeDate`, both inclusive, as UTC times), each week in one call, since the tool
  * has no paging, and again in halves when Ashby marks the answer cut short. With a cursor it first reads again the
  * LOOKBACK_MS behind it, for an interview that became visible late. Every entry of an answer must be an
- * interview, or the page is UNAVAILABLE and its cursor holds. The answer's shape is assumed, not recorded: it is
- * unconfirmed until a live read is captured. An interview is listed once it started SETTLE_MS ago, so one moved or cancelled at the last minute is
+ * interview, or the page is UNAVAILABLE and its cursor holds. The answer's envelope is confirmed by a live read; an
+ * interview's own fields are assumed until a live answer that holds one is captured. An interview is listed once it started SETTLE_MS ago, so one moved or cancelled at the last minute is
  * not; a cancelled one is never listed. Each event carries metadata only: the interview's id, its start, its title and
  * job, the candidate and the interviewers by Ashby's ids and names, and a link into Ashby. Never an email, a phone
  * number, feedback, a scorecard, a note or a transcript: candidate data is personal data, and `text` stays empty.
@@ -391,13 +391,29 @@ const LIST_KEYS = ["interviews", "scheduledInterviews", "interviewEvents", "resu
  * sentence that there are none. Anything else is unreadable, so a change in Ashby's answer fails loudly rather than
  * passing for a week without interviews.
  */
-export function readInterviews(data: unknown): InterviewsAnswer {
+export function readInterviews(data: unknown, window?: { readonly from: number; readonly to: number }): InterviewsAnswer {
   const answer = (interviews: readonly InterviewFacts[], unreadable: number, truncated = false): InterviewsAnswer => ({ interviews, readable: unreadable === 0, unreadable, truncated })
   // Every entry must be an interview: one the reader cannot read makes the whole answer unreadable, so no interview is
   // dropped while the cursor moves past it.
   const fromList = (list: readonly unknown[], truncated = false): InterviewsAnswer => {
     const interviews = list.flatMap((item) => (record(item) ? (interviewFromObject(item) ?? []) : []))
     return answer(interviews, list.length - interviews.length, truncated)
+  }
+  // The envelope a live read confirmed: `{ data: { interviews, returnedCount, truncated, onOrAfterDate, onOrBeforeDate,
+  // message } }`. Its structure decides; `message` is read only when the envelope has no list at all.
+  if (record(data) && record(data["data"])) {
+    const inner = data["data"]
+    const list = inner["interviews"]
+    if (!Array.isArray(list)) return typeof inner["message"] === "string" && NONE.test(inner["message"].trim()) && inner["returnedCount"] === undefined ? answer([], 0) : answer([], 1)
+    const read = fromList(list)
+    const count = inner["returnedCount"]
+    // A count that is not the list's length is an answer this plugin does not understand.
+    if (count !== undefined && count !== list.length) return answer(read.interviews, Math.max(1, read.unreadable))
+    const bounds = echoedWindow(inner)
+    if (bounds === "unreadable") return answer(read.interviews, Math.max(1, read.unreadable))
+    // Cut short: Ashby's own flag, or a window narrower than the one asked for.
+    const narrower = window !== undefined && bounds !== undefined && (bounds.from > window.from + 1000 || bounds.to < window.to - 1000)
+    return answer(read.interviews, read.unreadable, inner["truncated"] === true || narrower)
   }
   if (Array.isArray(data)) return fromList(data)
   if (record(data)) {
@@ -414,6 +430,18 @@ export function readInterviews(data: unknown): InterviewsAnswer {
   }
   // A short sentence that there are none, and nothing else, is an empty week; any other text is unreadable.
   return NONE.test(body) ? answer([], 0) : answer([], 1)
+}
+
+/**
+ * The window the envelope says it answered, from its `onOrAfterDate` and `onOrBeforeDate`, as UTC times; undefined when
+ * it names none, and "unreadable" when it names one that is not an ISO date-time with a zone.
+ */
+function echoedWindow(inner: Data): { readonly from: number; readonly to: number } | "unreadable" | undefined {
+  const [after, before] = [inner["onOrAfterDate"], inner["onOrBeforeDate"]]
+  if (after === undefined && before === undefined) return undefined
+  const from = timeOf(after)
+  const to = timeOf(before)
+  return from === undefined || to === undefined ? "unreadable" : { from, to }
 }
 
 /** The whole of a sentence that a window has no interviews, such as "No interviews found." Nothing more may follow. */
@@ -561,7 +589,7 @@ interface WindowRead {
 async function listWindow(list: List, from: number, to: number, budget: Budget): Promise<WindowRead> {
   if (budget.calls >= budget.limit) return { interviews: [], to: from }
   budget.calls++
-  const answer = readInterviews(await list({ onOrAfterDate: isoFloor(from), onOrBeforeDate: isoCeil(to), reason: LIST_REASON }))
+  const answer = readInterviews(await list({ onOrAfterDate: isoFloor(from), onOrBeforeDate: isoCeil(to), reason: LIST_REASON }), { from, to })
   if (!answer.readable) {
     const what = answer.interviews.length + answer.unreadable > 1 ? `${answer.unreadable} of ${answer.interviews.length + answer.unreadable} entries` : "an answer"
     refuse("UNAVAILABLE", `Ashby's ${LIST_TOOL} answered with ${what} in a form this plugin does not read, so no interview of this page is listed`, UPDATE_NEXT)

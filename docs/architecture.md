@@ -159,8 +159,11 @@ hash, the secret screening, the page) and `cursor` (the bound cursor) modules:
   metadata only: the interview event id, the start, the title and job, the candidate and the interviewers by Ashby's ids
   and names (never an email), and an ashbyhq.com link; `text` is empty. Every entry of an answer must be an interview,
   identified only by `interviewEventId`: an answer with one the reader does not know, in JSON or in markup, is
-  `UNAVAILABLE` and the page lists nothing, never a shorter or empty week. The answer's shape is assumed, not recorded:
-  it is unconfirmed until a live read of `list_interviews` is captured as a fixture.
+  `UNAVAILABLE` and the page lists nothing, never a shorter or empty week. The envelope is confirmed by a live read
+  (`{ data: { interviews, returnedCount, truncated, onOrAfterDate, onOrBeforeDate, message } }`,
+  `test/fixtures/list-interviews-envelope.json`): `truncated: true` or an echoed window (UTC) narrower than the one asked
+  for is cut short, a `returnedCount` that is not the list's length is unreadable, and the message is read only when
+  there is no list. An interview's own fields are assumed until a live answer that holds one is captured.
 - `probe` asserts `ashby_probe` and calls Ashby for nothing: the owner is OpenCode's sign-in for the server,
   `ashby:credential:<id>` with its label, because Ashby's MCP names no user. It asserts no identity operation, so the
   declaration names none (`permission.identity` is left out). The contract's `verified: false` and an empty

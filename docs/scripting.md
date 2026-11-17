@@ -141,8 +141,9 @@ opencode api post /api/rpc/ashby.recruiting.tools/events_list -H "x-opencode-dir
 - With a cursor, it first reads again the seven days behind it (at most 8 of the calls) and lists any interview there
   that it has not listed before, so one logged late is still listed; such an event comes on a later page than newer
   ones, with its own start. The cursor remembers up to 40 listed interviews for this. An answer with an entry the plugin cannot read is
-  `UNAVAILABLE` and lists nothing, so a retry with the same cursor skips nothing. The shape of Ashby's answer is
-  assumed until a live read confirms it (the README's Known limits).
+  `UNAVAILABLE` and lists nothing, so a retry with the same cursor skips nothing. Ashby's envelope is confirmed by a
+  live read; an interview's own fields are assumed until a live answer that holds one confirms them (the README's Known
+  limits).
   A cursor is bound to the sign-in: after a new sign-in, start again with `since`.
 
 ## Rate limits
