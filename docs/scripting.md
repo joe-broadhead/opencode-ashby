@@ -136,7 +136,11 @@ opencode api post /api/rpc/ashby.recruiting.tools/events_list -H "x-opencode-dir
   gives no id, and `url` its page on ashbyhq.com, or null. `text` is always empty, and no event carries an email, a phone
   number, feedback, a scorecard, a note or a transcript.
 - It reads `list_interviews` one week per call, at most 13 weeks and 26 calls per page, and a week Ashby marks cut short
-  again in halves; `more` says when a call now would list more. An answer with an entry the plugin cannot read is
+  again in halves; a week too dense for one page is read across pages, and every page moves on. `more` says when a call
+  now would list more.
+- With a cursor, it first reads again the seven days behind it (at most 8 of the calls) and lists any interview there
+  that it has not listed before, so one logged late is still listed; such an event comes on a later page than newer
+  ones, with its own start. The cursor remembers up to 40 listed interviews for this. An answer with an entry the plugin cannot read is
   `UNAVAILABLE` and lists nothing, so a retry with the same cursor skips nothing. The shape of Ashby's answer is
   assumed until a live read confirms it (the README's Known limits).
   A cursor is bound to the sign-in: after a new sign-in, start again with `since`.

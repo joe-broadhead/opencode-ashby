@@ -149,7 +149,12 @@ hash, the secret screening, the page) and `cursor` (the bound cursor) modules:
   `ashby_list_interviews`: one week per call (`onOrAfterDate`, `onOrBeforeDate`, both inclusive), at most 13 weeks and
   26 calls per page, since the tool has no paging. A week whose answer Ashby marks cut short (a more flag, a next
   cursor, a total above what it lists) is read again in halves, down to one hour; a page out of calls stops before the
-  window it could not finish, with `more` and its cursor held. It keeps an interview that started at least 30 minutes ago and is not cancelled,
+  window it could not finish, with `more` and its cursor held. A window it could not finish answers what it read whole
+  from its start, so the cursor moves that far: every page moves on, because reaching a whole first hour takes at most 9
+  of the 18 calls kept for what is new. With a cursor, the 7 days behind it (`LOOKBACK_MS`, list_interviews' own default
+  reach) are read again first, on at most 8 calls, and an interview there the cursor does not remember is listed as a
+  late arrival; the cursor carries its lookback floor and up to 40 listed interviews (8-hex digest and start minute), so
+  nothing is listed twice and the position never moves back. It keeps an interview that started at least 30 minutes ago and is not cancelled,
   orders by (start, id), screens titles for secrets (`refused[]`), and fits the page to 64 KB. An event carries
   metadata only: the interview event id, the start, the title and job, the candidate and the interviewers by Ashby's ids
   and names (never an email), and an ashbyhq.com link; `text` is empty. Every entry of an answer must be an interview,

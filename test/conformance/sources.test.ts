@@ -82,7 +82,7 @@ const tools = [...METHODS, eventsMethod(context(open.permission), () => true), p
 async function cases(): Promise<PageCase[]> {
   const first = (await list({ since: FIXTURE.since, limit: 2 }))["cursor"] as string
   const done = (await list({ since: FIXTURE.since, limit: 500 }))["cursor"] as string
-  const bound = (binding: { plugin: string; source: string; account: string }) => encodeBoundCursor(binding, { o: "0123456789abcdef", t: Date.parse(FIXTURE.since), i: "" })
+  const bound = (binding: { plugin: string; source: string; account: string }) => encodeBoundCursor(binding, { o: "0123456789abcdef", t: Date.parse(FIXTURE.since), i: "", f: Date.parse(FIXTURE.since), d: "" })
   return [
     { name: "a first listing, one interview refused for a secret and a cancelled one left out", input: { since: FIXTURE.since }, expect: "page" },
     { name: "a first listing that names the account probe answers", input: { account: ACCOUNT, since: FIXTURE.since }, expect: "page" },

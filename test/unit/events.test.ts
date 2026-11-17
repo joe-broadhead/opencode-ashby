@@ -15,8 +15,11 @@ import {
   EventsFailure,
   LIST_REASON,
   LIST_TOOL,
+  LOOKBACK_CALLS,
+  LOOKBACK_MS,
   MAX_BYTES,
   MAX_CALLS,
+  MAX_SEEN,
   MAX_WINDOWS,
   MIN_WINDOW_MS,
   PROBE_ACTION,
@@ -254,7 +257,8 @@ describe("events_list", () => {
   test("an empty week is an empty page with a cursor that moves on, and an old cursor never expires: it reads on, a few months a call", async () => {
     const quiet = (await list()({ since: "2026-10-25T00:00:00Z" })) as EventsListResult
     expect(quiet).toMatchObject({ events: [], more: false })
-    const old = encodeBoundCursor(BINDING, { o: (await ownerDigestOf()), t: Date.parse("2025-11-01T00:00:00Z"), i: "" })
+    const t = Date.parse("2025-11-01T00:00:00Z")
+    const old = encodeBoundCursor(BINDING, { o: (await ownerDigestOf()), t, i: "", f: t, d: "" })
     const fake = ashby()
     const page = (await list(fake)({ account: ACCOUNT, cursor: old })) as EventsListResult
     expect(page).toMatchObject({ events: [], more: true })
@@ -277,7 +281,9 @@ describe("events_list", () => {
     const fake = ashby()
     const first = (await list()({ since: SINCE, limit: 1 })) as EventsListResult
     expect(await code(list(fake)({ account: ACCOUNT, cursor: "not-a-cursor" }))).toBe("CURSOR_INVALID")
-    expect(await code(list(fake)({ account: ACCOUNT, cursor: encodeBoundCursor({ ...BINDING, plugin: "metaview" }, { o: "0123456789abcdef", t: 0, i: "" }) }))).toBe("CURSOR_INVALID")
+    expect(await code(list(fake)({ account: ACCOUNT, cursor: encodeBoundCursor({ ...BINDING, plugin: "metaview" }, { o: "0123456789abcdef", t: 0, i: "", f: 0, d: "" }) }))).toBe("CURSOR_INVALID")
+    // This source's binding, without the lookback it always carries.
+    expect(await code(list(fake)({ account: ACCOUNT, cursor: encodeBoundCursor(BINDING, { o: "0123456789abcdef", t: 0, i: "" }) }))).toBe("CURSOR_INVALID")
     expect(await code(list(fake)({ cursor: first.cursor }))).toBe("INPUT_INVALID")
     expect(fake.calls).toEqual([])
   })
@@ -337,6 +343,72 @@ describe("events_list", () => {
       expect(fake.calls.length).toBeLessThanOrEqual(MAX_CALLS)
     }
     expect([...seen]).toEqual(EXPECTED)
+  })
+
+  test("an interview that becomes visible late, behind the cursor and inside the lookback, is listed exactly once", async () => {
+    const day = 86_400_000
+    const db: Record<string, unknown>[] = [{ interviewEventId: "a", interviewTitle: "Screen", startTime: "2026-11-05T10:00:00Z" }]
+    const fake = ashby(db)
+    const read = (input: unknown, at: number) => listEvents(fake.list, OWNER, input, at)
+    const first = await read({ since: "2026-11-01" }, NOW)
+    expect(first.events.map((event) => event.external_id)).toEqual(["a"])
+    // Logged two days after it happened, behind the last listed start, and one in the stretch the cursor already passed.
+    db.push({ interviewEventId: "late-behind", interviewTitle: "Debrief", startTime: "2026-11-04T09:00:00Z" })
+    db.push({ interviewEventId: "late-stretch", interviewTitle: "Pairing", startTime: "2026-11-07T09:00:00Z" })
+    const second = await read({ account: ACCOUNT, cursor: first.cursor }, NOW + 3_600_000)
+    expect(second.events.map((event) => event.external_id)).toEqual(["late-behind", "late-stretch"])
+    // Read again and again: nothing is listed twice, and something new is still listed after them.
+    const third = await read({ account: ACCOUNT, cursor: second.cursor }, NOW + 7_200_000)
+    expect(third.events).toEqual([])
+    db.push({ interviewEventId: "new", interviewTitle: "Final", startTime: "2026-11-08T10:00:00Z" })
+    const fourth = await read({ account: ACCOUNT, cursor: third.cursor }, NOW + day)
+    expect(fourth.events.map((event) => event.external_id)).toEqual(["new"])
+    const fifth = await read({ account: ACCOUNT, cursor: fourth.cursor }, NOW + day + 3_600_000)
+    expect(fifth.events).toEqual([])
+    // One that becomes visible later than the lookback is not listed: the residue the README states.
+    db.push({ interviewEventId: "too-late", interviewTitle: "Old", startTime: new Date(NOW + day - SETTLE_MS - LOOKBACK_MS - day).toISOString() })
+    expect((await read({ account: ACCOUNT, cursor: fifth.cursor }, NOW + day + 7_200_000)).events).toEqual([])
+  })
+
+  test("the cursor remembers at most MAX_SEEN listed interviews, stays within the contract's cursor length, and still never lists one twice", async () => {
+    const busy = Array.from({ length: 120 }, (_, index) => ({ interviewEventId: `busy-${String(index).padStart(3, "0")}`, interviewTitle: "Screen", startTime: new Date(Date.parse("2026-11-03T00:00:00Z") + index * 1_800_000).toISOString() }))
+    const fake = ashby(busy)
+    const seen: string[] = []
+    let page = await listEvents(fake.list, OWNER, { since: "2026-11-02", limit: 7 }, NOW)
+    for (let guard = 0; guard < 40; guard++) {
+      seen.push(...page.events.map((event) => event.external_id))
+      expect(page.cursor.length).toBeLessThanOrEqual(EVENT_LIMITS.cursor)
+      const state = JSON.parse(Buffer.from(page.cursor, "base64url").toString("utf8")) as { d: string }
+      expect(state.d.length / 11).toBeLessThanOrEqual(MAX_SEEN)
+      if (!page.more) break
+      page = await listEvents(fake.list, OWNER, { account: ACCOUNT, cursor: page.cursor, limit: 7 }, NOW)
+    }
+    expect(seen).toEqual(busy.map((interview) => interview.interviewEventId))
+    expect((await listEvents(fake.list, OWNER, { account: ACCOUNT, cursor: page.cursor }, NOW)).events).toEqual([])
+  })
+
+  test("a week too dense for one page's calls is read across pages: every page moves on, within its calls, and none is lost", async () => {
+    // Ashby answers at most one interview per call, so a week of 40 needs far more calls than one page has.
+    const dense = Array.from({ length: 40 }, (_, index) => ({ interviewEventId: `d-${String(index).padStart(2, "0")}`, interviewTitle: "Screen", startTime: new Date(Date.parse("2026-11-02T00:00:00Z") + index * 3 * 3_600_000).toISOString() }))
+    let calls = 0
+    const capped = ashby(dense, (found) => ({ interviews: found.slice(0, 1), hasMore: found.length > 1 }))
+    const counted = async (input: Record<string, unknown>) => ((calls += 1), capped.list(input))
+    const listed: string[] = []
+    let page = await listEvents(counted, OWNER, { since: "2026-11-01T23:00:00Z", limit: PAGE.max }, NOW)
+    let positions = 0
+    for (let guard = 0; guard < 60; guard++) {
+      expect(calls).toBeLessThanOrEqual(MAX_CALLS)
+      listed.push(...page.events.map((event) => event.external_id))
+      if (!page.more) break
+      const before = page.cursor
+      calls = 0
+      page = await listEvents(counted, OWNER, { account: ACCOUNT, cursor: before, limit: PAGE.max }, NOW)
+      expect(page.cursor).not.toBe(before)
+      positions++
+    }
+    expect(positions).toBeGreaterThan(1)
+    expect(listed).toEqual(dense.map((interview) => interview.interviewEventId))
+    expect(LOOKBACK_CALLS).toBeLessThan(MAX_CALLS - 9)
   })
 
   test("is allowed by the default rules, and so is probe, at every access", () => {

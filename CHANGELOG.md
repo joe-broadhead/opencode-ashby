@@ -10,7 +10,8 @@ All notable changes to this project are documented here. The format follows [Kee
   `@we-the-rebel-alliance/source-contract` v0.2.0), so a consumer such as Memory can read the signed-in user's own Ashby
   interviews as dated events. Two tools RPC methods on `ashby.recruiting.tools`, never tools the model sees:
   `events_list`, read through `list_interviews` one week per call (in halves when Ashby marks a week cut short, and
-  `UNAVAILABLE` with the cursor held when any entry of an answer cannot be read), an interview once it started 30 minutes ago and
+  `UNAVAILABLE` with the cursor held when any entry of an answer cannot be read; a dense week read across pages), an
+  interview once it started 30 minutes ago, or later when it shows up late within the seven days behind the cursor, and
   never a cancelled one, oldest first with a cursor bound to the sign-in; and `probe`, who is signed in, which calls
   Ashby for nothing. An event carries metadata only: the interview event id, the start, the title and job, the
   candidate and the interviewers by Ashby's ids and names, and an ashbyhq.com link. Never an email, a phone number,

@@ -29,7 +29,8 @@ import { reasonOf, shortReason } from "./redact.js"
  *
  * `events_list` only reads, through OpenCode's own `ashby_list_interviews`, which checks its own permission: one week
  * at a time (`onOrAfterDate` and `onOrBeforeDate`, both inclusive, as UTC times), each week in one call, since the tool
- * has no paging, and again in halves when Ashby marks the answer cut short. Every entry of an answer must be an
+ * has no paging, and again in halves when Ashby marks the answer cut short. With a cursor it first reads again the
+ * LOOKBACK_MS behind it, for an interview that became visible late. Every entry of an answer must be an
  * interview, or the page is UNAVAILABLE and its cursor holds. The answer's shape is assumed, not recorded: it is
  * unconfirmed until a live read is captured. An interview is listed once it started SETTLE_MS ago, so one moved or cancelled at the last minute is
  * not; a cancelled one is never listed. Each event carries metadata only: the interview's id, its start, its title and
@@ -465,39 +466,100 @@ const isoFloor = (time: number) => new Date(Math.floor(time / 1000) * 1000).toIS
 const isoCeil = (time: number) => new Date(Math.ceil(time / 1000) * 1000).toISOString()
 
 /**
- * The state a cursor holds: anything that is not this source's bound cursor is CURSOR_INVALID, and the caller starts
- * again with since.
+ * How far behind its position a cursor looks again on every read, for an interview that became visible late: one
+ * logged after the fact, an interviewer added to the panel afterwards (which makes it newly the user's), or a calendar
+ * sync that lands late. Seven days, because that is how far list_interviews' own default window reaches back, so Ashby
+ * treats a week as "recent"; one week costs one more call per page in the common case. An interview that becomes
+ * visible later than this is not listed.
  */
-function cursorState(cursor: string): { readonly key: Key; readonly owner: string } {
+export const LOOKBACK_MS = 7 * 86_400_000
+/**
+ * The interviews a cursor remembers as listed within its lookback, so the re-read lists only the ones it has not: each
+ * an 8-hex digest of the id and the minute it started, 11 characters, so 40 fit well inside the contract's 1024-character
+ * cursor. When more were listed, the lookback shrinks to the 40 newest.
+ */
+export const MAX_SEEN = 40
+const SEEN_ENTRY = 11
+const MINUTE = 60_000
+
+/** An id's digest in the cursor's seen list. */
+const seenDigest = (id: string) => createHash("sha256").update(id).digest("hex").slice(0, 8)
+
+interface CursorState {
+  readonly key: Key
+  readonly owner: string
+  /** The lookback's floor: every interview listed that started after it, and up to the position, is in `seen`. */
+  readonly floor: number
+  /** Digest → the minute it started (epoch minutes). */
+  readonly seen: ReadonlyMap<string, number>
+}
+
+/**
+ * The state a cursor holds: anything that is not this source's bound cursor, with its position, owner digest, lookback
+ * floor and seen list, is CURSOR_INVALID, and the caller starts again with since.
+ */
+function cursorState(cursor: string): CursorState {
   const decoded = decodeBoundCursor(BINDING, cursor)
   const state = decoded.ok ? decoded.state : undefined
-  const [t, i, o] = [state?.["t"], state?.["i"], state?.["o"]]
-  if (typeof t !== "number" || !Number.isSafeInteger(t) || typeof i !== "string" || i.length > 512 || typeof o !== "string" || !/^[0-9a-f]{16}$/.test(o)) {
-    return refuse("CURSOR_INVALID", "The cursor was not issued by Ashby's events_list", CURSOR_NEXT)
+  const [t, i, o, f, list] = [state?.["t"], state?.["i"], state?.["o"], state?.["f"], state?.["d"]]
+  const valid =
+    typeof t === "number" && Number.isSafeInteger(t) && typeof i === "string" && i.length <= 512 && typeof o === "string" && /^[0-9a-f]{16}$/.test(o) &&
+    typeof f === "number" && Number.isSafeInteger(f) && f <= t && typeof list === "string" && list.length <= SEEN_ENTRY * MAX_SEEN && /^(?:[0-9a-f]{8}[0-9a-z]{3})*$/.test(list)
+  if (!valid) return refuse("CURSOR_INVALID", "The cursor was not issued by Ashby's events_list", CURSOR_NEXT)
+  const base = Math.floor(f / MINUTE)
+  const seen = new Map<string, number>()
+  for (let at = 0; at < list.length; at += SEEN_ENTRY) seen.set(list.slice(at, at + 8), base + Number.parseInt(list.slice(at + 8, at + SEEN_ENTRY), 36))
+  return { key: { t, i }, owner: o, floor: f, seen }
+}
+
+/**
+ * The next cursor's lookback: the floor moves to LOOKBACK_MS behind the new position (never back), the seen list keeps
+ * what started after it, and when that is more than MAX_SEEN, only the newest, with the floor moved past the rest.
+ */
+function nextLookback(floor: number, position: number, seen: ReadonlyMap<string, number>): { readonly floor: number; readonly list: string } {
+  let next = Math.max(floor, position - LOOKBACK_MS)
+  // A minute's entry may be any time in that minute, so it is dropped only when the whole minute is at or before the floor.
+  let kept = [...seen].filter(([, minute]) => (minute + 1) * MINUTE > next).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  if (kept.length > MAX_SEEN) {
+    next = Math.max(next, (kept[MAX_SEEN]![1] + 1) * MINUTE)
+    kept = kept.slice(0, MAX_SEEN).filter(([, minute]) => minute * MINUTE >= next)
   }
-  return { key: { t, i }, owner: o }
+  const base = Math.floor(next / MINUTE)
+  return { floor: next, list: kept.map(([key, minute]) => `${key}${(minute - base).toString(36).padStart(3, "0")}`).join("") }
 }
 
 /** The calls one page may make, halved windows included, so a long catch-up stays well inside Ashby's rate limit. */
 export const MAX_CALLS = 26
+/**
+ * The calls of those the lookback may use. The rest, at least 18, are for what is new: reaching a whole first hour of a
+ * week takes at most 9, so every page moves on, however dense a week is.
+ */
+export const LOOKBACK_CALLS = 8
 /** The narrowest window a week Ashby cuts short is split into; a window this narrow that is still cut short fails. */
 export const MIN_WINDOW_MS = 3_600_000
 
-/** One page's calls so far. */
+/** One part of a page's calls so far, and its limit. */
 interface Budget {
   calls: number
+  readonly limit: number
 }
 
 const UPDATE_NEXT = "Call events_list again with the same cursor; if it keeps failing, run /ashby-status and update the plugin if a newer release is out."
 
+/** What a window read gave: its interviews, and how far from its start it was read whole (its end, when complete). */
+interface WindowRead {
+  readonly interviews: readonly InterviewFacts[]
+  readonly to: number
+}
+
 /**
  * Every interview that started within [from, to], not cancelled, read whole: one list_interviews call, and when Ashby
- * marks the answer cut short, the two halves of the window instead, down to MIN_WINDOW_MS. Undefined when the page's
- * call budget runs out first, so the caller stops before this window and its cursor holds. An answer with an entry the
- * reader cannot read is UNAVAILABLE, and nothing of the page is listed.
+ * marks the answer cut short, the two halves of the window instead, down to MIN_WINDOW_MS. When the budget runs out
+ * first, it answers what it read whole from `from`, and how far that reaches, so a dense week is read across pages. An
+ * answer with an entry the reader cannot read is UNAVAILABLE, and nothing of the page is listed.
  */
-async function listWindow(list: List, from: number, to: number, budget: Budget): Promise<InterviewFacts[] | undefined> {
-  if (budget.calls >= MAX_CALLS) return undefined
+async function listWindow(list: List, from: number, to: number, budget: Budget): Promise<WindowRead> {
+  if (budget.calls >= budget.limit) return { interviews: [], to: from }
   budget.calls++
   const answer = readInterviews(await list({ onOrAfterDate: isoFloor(from), onOrBeforeDate: isoCeil(to), reason: LIST_REASON }))
   if (!answer.readable) {
@@ -508,10 +570,12 @@ async function listWindow(list: List, from: number, to: number, budget: Budget):
     if (to - from <= MIN_WINDOW_MS) refuse("UNAVAILABLE", `Ashby's ${LIST_TOOL} cut short the interviews of one hour`, UPDATE_NEXT)
     const middle = from + Math.floor((to - from) / 2)
     const early = await listWindow(list, from, middle, budget)
-    const late = early === undefined ? undefined : await listWindow(list, middle, to, budget)
-    return early === undefined || late === undefined ? undefined : [...early, ...late]
+    if (early.to < middle) return early
+    const late = await listWindow(list, middle, to, budget)
+    // The early half ends where the late half starts; an interview at that instant is read twice and kept once.
+    return { interviews: [...early.interviews, ...late.interviews.filter((interview) => interview.time > middle || !early.interviews.some((seen) => seen.id === interview.id))], to: late.to }
   }
-  return answer.interviews.filter((interview) => !interview.cancelled && interview.time >= from && interview.time <= to)
+  return { interviews: answer.interviews.filter((interview) => !interview.cancelled && interview.time >= from && interview.time <= to), to }
 }
 
 const actorOf = (role: "candidate" | "interviewer", who: Person): EventActor => ({
@@ -544,7 +608,8 @@ export function toEvent(interview: InterviewFacts): SourceEvent {
 
 /**
  * One page of events. `list` runs list_interviews as the caller; `owner` is the sign-in; `now` fixes the clock. The
- * input, the account, the cursor and the sign-in are checked before any read.
+ * input, the account, the cursor and the sign-in are checked before any read. With a cursor, the lookback behind its
+ * position is read again first, and an interview there that the cursor does not remember as listed is listed now.
  */
 export async function listEvents(list: List, owner: EventsOwner | undefined, input: unknown, now: number): Promise<EventsListResult> {
   const parsed = parseEventsListInput(input)
@@ -562,22 +627,29 @@ export async function listEvents(list: List, owner: EventsOwner | undefined, inp
     refuse("ACCOUNT_MISMATCH", "The cursor was issued for another Ashby sign-in than the one OpenCode holds now", "Call probe to see who is signed in, then start again with since.")
   }
   const after: Key = cursor?.key ?? { t: startTime(request, now), i: "" }
+  const floor = cursor?.floor ?? after.t
+  const seen = new Map(cursor?.seen ?? [])
   const end = now - SETTLE_MS
-
   const found = new Map<string, InterviewFacts>()
-  const budget: Budget = { calls: 0 }
+
+  // The lookback (floor, position]: an interview there the cursor does not remember is a late arrival. Best effort,
+  // on its own few calls, so it never keeps the page from what is new.
+  if (floor < after.t) {
+    const back = await listWindow(list, floor, after.t, { calls: 0, limit: LOOKBACK_CALLS })
+    for (const interview of back.interviews) {
+      if (interview.time > floor && compare({ t: interview.time, i: interview.id }, after) <= 0 && !seen.has(seenDigest(interview.id))) found.set(interview.id, interview)
+    }
+  }
+
+  const budget: Budget = { calls: 0, limit: MAX_CALLS - LOOKBACK_CALLS }
   let scanned = after.t
   for (let from = after.t, windows = 0; from <= end && windows < MAX_WINDOWS && found.size <= request.limit; windows++) {
     const to = Math.min(from + WINDOW_MS, end)
-    const interviews = await listWindow(list, from, to, budget)
-    if (interviews === undefined) {
-      // The budget ran out inside this window: stop before it, so the cursor holds at the last window read whole.
-      if (windows === 0) refuse("UNAVAILABLE", `Ashby's ${LIST_TOOL} cut short one week of interviews more often than one page can read again`, UPDATE_NEXT)
-      break
-    }
-    for (const interview of interviews) if (compare({ t: interview.time, i: interview.id }, after) > 0) found.set(interview.id, interview)
-    scanned = to
-    if (to >= end) break
+    const read = await listWindow(list, from, to, budget)
+    for (const interview of read.interviews) if (compare({ t: interview.time, i: interview.id }, after) > 0) found.set(interview.id, interview)
+    scanned = read.to
+    // Out of calls inside this window: stop where it was read whole, so the cursor moves that far and no further.
+    if (read.to < to || to >= end) break
     from = to
   }
 
@@ -592,10 +664,14 @@ export async function listEvents(list: List, owner: EventsOwner | undefined, inp
   // the end is passed too; otherwise the last listed.
   const last = fits === screened.events.length ? chosen.length - 1 : index.get(page[fits - 1]!.external_id)!
   const refused = screened.refused.filter((entry) => index.get(entry.external_id)! <= last)
-  const lastInterview = chosen[last]
-  const more = ordered.length > last + 1 || scanned < end
-  const position: Key = lastInterview ? { t: lastInterview.time, i: lastInterview.id } : scanned > after.t ? { t: scanned, i: "" } : after
-  const next = encodeBoundCursor(BINDING, { o: ownerDigest, t: position.t, i: position.i })
+  const accounted = chosen.slice(0, last + 1)
+  const more = ordered.length > accounted.length || scanned < end
+  // Late arrivals sort before what is new, so the position moves only on what is new, and never back.
+  const newest = accounted.filter((interview) => compare({ t: interview.time, i: interview.id }, after) > 0).at(-1)
+  const position: Key = newest ? { t: newest.time, i: newest.id } : accounted.length === ordered.length && scanned > after.t ? { t: scanned, i: "" } : after
+  for (const interview of accounted) seen.set(seenDigest(interview.id), Math.floor(interview.time / MINUTE))
+  const lookback = nextLookback(floor, position.t, seen)
+  const next = encodeBoundCursor(BINDING, { o: ownerDigest, t: position.t, i: position.i, f: lookback.floor, d: lookback.list })
   return eventsListResult({ source: SOURCE, account: ACCOUNT, owner }, page, next, more, { refused, plugin: PACKAGE, asOf: new Date(now).toISOString() })
 }
 

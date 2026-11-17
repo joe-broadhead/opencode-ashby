@@ -425,7 +425,12 @@ The status RPC's own error is `unavailable`, with a next step, when the status c
   lists nothing, so the cursor holds; an answer Ashby marks as cut short (a more flag, a next cursor, or a total above
   what it lists) is read again in halves of the week, down to an hour; and the only text taken for an empty week is a
   whole "no interviews found" sentence. If Ashby cuts a week short with no marker at all, the interviews it leaves out
-  are not listed.
+  are not listed. A week too dense for one read is read across several, and every read moves on.
+- **An interview that shows up late is listed if it started within the last seven days of the cursor.** Each read looks
+  again at the week behind the cursor and lists what it has not listed before, for an interview logged after the fact,
+  an interviewer added afterwards, or a calendar sync that lands late. Seven days is how far `list_interviews`' own
+  default window reaches back. The cursor remembers at most the 40 newest interviews it listed, so after a busy stretch
+  the look back is shorter. An interview that becomes visible later than that is not listed.
 - **Ashby does not confirm the source's owner.** Ashby names no signed-in user, so a page's owner is OpenCode's sign-in
   for Ashby. The contract says this with the owner's `verified: false`, and the declaration would say the probe asserts
   no identity operation with an empty `permission.identity`. A consumer on source-contract 0.1.x refuses both, so
