@@ -430,8 +430,8 @@ The status RPC's own error is `unavailable`, with a next step, when the status c
 - **An interview that shows up late is listed if it started within the last seven days of the cursor.** Each read looks
   again at the week behind the cursor and lists what it has not listed before, for an interview logged after the fact,
   an interviewer added afterwards, or a calendar sync that lands late. Seven days is how far `list_interviews`' own
-  default window reaches back. The cursor remembers at most the 40 newest interviews it listed, so after a busy stretch
-  the look back is shorter. An interview that becomes visible later than that is not listed.
+  default window reaches back. The cursor remembers at most the 40 newest interviews it listed, and one read looks back on
+  at most 8 calls, newest part first, so after a busy stretch the look back is shorter, from the cursor backwards. An interview that becomes visible later than that is not listed.
 - **Ashby does not confirm the source's owner.** Ashby names no signed-in user, so a page's owner is OpenCode's sign-in
   for Ashby. The contract says this with the owner's `verified: false`, and the declaration would say the probe asserts
   no identity operation with an empty `permission.identity`. A consumer on source-contract 0.1.x refuses both, so

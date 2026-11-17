@@ -446,6 +446,28 @@ describe("events_list", () => {
     expect(LOOKBACK_CALLS).toBeLessThan(MAX_CALLS - 9)
   })
 
+  test("more than MAX_SEEN interviews in the cursor's minute: every cursor it issues it accepts, and all are listed once (D3)", async () => {
+    for (const [count, limit] of [[45, 100], [50, 45], [60, 10]] as const) {
+      const db: Timed[] = Array.from({ length: count }, (_, k) => ({ id: `j${String(k).padStart(2, "0")}`, t: T0 + DAY + k * 1000, visible: 0 }))
+      db.push({ id: "late-j", t: T0 + DAY + 59_000, visible: T0 + 2 * DAY })
+      const result = await poll(db, T0 + DAY + 2 * HOUR, T0 + 3 * DAY, HOUR, { limit })
+      expect({ count, limit, errors: result.errors }).toEqual({ count, limit, errors: [] })
+      expect(new Set(result.listed).size).toBe(count + 1)
+      expect(result.listed.length).toBe(count + 1)
+    }
+  })
+
+  test("a dense lookback is read newest part first, so a late arrival near the cursor is listed however small Ashby's cap (E3)", async () => {
+    for (const cap of [2, 4, 8, 16]) {
+      const db: Timed[] = Array.from({ length: 30 }, (_, k) => ({ id: `e${k}`, t: T0 + k * 5.5 * HOUR, visible: 0 }))
+      const started = T0 + 7 * DAY - 3 * HOUR
+      db.push({ id: "late", t: started, visible: started + 30 * HOUR })
+      const result = await poll(db, T0 + 7 * DAY - HOUR, T0 + 10 * DAY, HOUR, { cap, since: new Date(T0).toISOString() })
+      expect({ cap, late: result.listed.includes("late"), errors: result.errors }).toEqual({ cap, late: true, errors: [] })
+      expect(result.listed.length).toBe(new Set(result.listed).size)
+    }
+  })
+
   test("is allowed by the default rules, and so is probe, at every access", () => {
     for (const access of ["all", "ask-changes", "read-only"] as const) {
       for (const action of [EVENTS_ACTION, PROBE_ACTION]) expect(evaluate([{ action: "*", resource: "*", effect: "allow" }, ...defaultRules(access)], action)).toBe("allow")
@@ -454,6 +476,48 @@ describe("events_list", () => {
     expect([EVENTS_INPUT.properties.limit.minimum, EVENTS_INPUT.properties.limit.maximum]).toEqual([PAGE.min, PAGE.max])
   })
 })
+
+const HOUR = 3_600_000
+const DAY = 24 * HOUR
+const T0 = Date.parse("2026-11-01T00:00:00Z")
+/** An interview that started at `t` and that Ashby lists from `visible` on. */
+interface Timed {
+  readonly id: string
+  readonly t: number
+  readonly visible: number
+}
+
+/**
+ * A consumer polling every `every` ms from `start` to `stop`, against an Ashby that answers in the recorded envelope, cut
+ * short (oldest kept) when more than `cap` fall in the window, and lists an interview only once it is visible.
+ */
+async function poll(db: readonly Timed[], start: number, stop: number, every: number, options: { cap?: number; limit?: number; since?: string } = {}) {
+  const clock = { now: start }
+  const ask = async (input: Record<string, unknown>) => {
+    const from = Date.parse(String(input["onOrAfterDate"]))
+    const to = Date.parse(String(input["onOrBeforeDate"]))
+    const all = db.filter((item) => item.visible <= clock.now && item.t >= from && item.t <= to).sort((a, b) => a.t - b.t)
+    const out = all.slice(0, options.cap ?? 1000).map((item) => ({ interviewEventId: item.id, interviewTitle: "Screen", startTime: new Date(item.t).toISOString(), candidate: { id: `c-${item.id}`, name: "Casey Sample" }, interviewers: [] }))
+    return envelope(out, input, { truncated: all.length > out.length })
+  }
+  const listed: string[] = []
+  const errors = new Set<string>()
+  let cursor: string | undefined
+  for (clock.now = start; clock.now <= stop; clock.now += every) {
+    for (let guard = 0; guard < 50; guard++) {
+      try {
+        const page = await listEvents(ask, OWNER, cursor ? { account: ACCOUNT, cursor, limit: options.limit ?? 100 } : { since: options.since ?? new Date(start - DAY).toISOString(), limit: options.limit ?? 100 }, clock.now)
+        listed.push(...page.events.map((event) => event.external_id))
+        cursor = page.cursor
+        if (!page.more) break
+      } catch (error) {
+        errors.add(error instanceof EventsFailure ? error.code : String(error))
+        break
+      }
+    }
+  }
+  return { listed, errors: [...errors] }
+}
 
 /** The owner digest a cursor holds, read back from a cursor the source issued. */
 async function ownerDigestOf(): Promise<string> {

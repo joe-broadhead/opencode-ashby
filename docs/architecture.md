@@ -152,8 +152,9 @@ hash, the secret screening, the page) and `cursor` (the bound cursor) modules:
   window it could not finish, with `more` and its cursor held. A window it could not finish answers what it read whole
   from its start, so the cursor moves that far: every page moves on, because reaching a whole first hour takes at most 9
   of the 18 calls kept for what is new. With a cursor, the 7 days behind it (`LOOKBACK_MS`, list_interviews' own default
-  reach) are read again first, on at most 8 calls, and an interview there the cursor does not remember is listed as a
-  late arrival; the cursor carries its lookback floor and up to 40 listed interviews (8-hex digest and start minute), so
+  reach) are read again first, newest part first, on at most 8 calls, and an interview there the cursor does not remember
+  is listed as a late arrival; when those calls cannot read all of it, the next floor moves up to where it was read
+  whole, and a floor never passes the position; the cursor carries its lookback floor and up to 40 listed interviews (8-hex digest and start minute), so
   nothing is listed twice and the position never moves back. It keeps an interview that started at least 30 minutes ago and is not cancelled,
   orders by (start, id), screens titles for secrets (`refused[]`), and fits the page to 64 KB. An event carries
   metadata only: the interview event id, the start, the title and job, the candidate and the interviewers by Ashby's ids

@@ -542,14 +542,15 @@ function cursorState(cursor: string): CursorState {
 
 /**
  * The next cursor's lookback: the floor moves to LOOKBACK_MS behind the new position (never back), the seen list keeps
- * what started after it, and when that is more than MAX_SEEN, only the newest, with the floor moved past the rest.
+ * what started after it, and when that is more than MAX_SEEN, only the newest, with the floor moved past the rest, but
+ * never past the position, so the cursor is always one this source accepts.
  */
 function nextLookback(floor: number, position: number, seen: ReadonlyMap<string, number>): { readonly floor: number; readonly list: string } {
   let next = Math.max(floor, position - LOOKBACK_MS)
   // A minute's entry may be any time in that minute, so it is dropped only when the whole minute is at or before the floor.
   let kept = [...seen].filter(([, minute]) => (minute + 1) * MINUTE > next).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
   if (kept.length > MAX_SEEN) {
-    next = Math.max(next, (kept[MAX_SEEN]![1] + 1) * MINUTE)
+    next = Math.min(position, Math.max(next, (kept[MAX_SEEN]![1] + 1) * MINUTE))
     kept = kept.slice(0, MAX_SEEN).filter(([, minute]) => minute * MINUTE >= next)
   }
   const base = Math.floor(next / MINUTE)
@@ -573,6 +574,30 @@ interface Budget {
 }
 
 const UPDATE_NEXT = "Call events_list again with the same cursor; if it keeps failing, run /ashby-status and update the plugin if a newer release is out."
+
+/**
+ * The lookback's read: every interview that started within [from, to], newest part first, so when Ashby cuts it short
+ * more often than its calls allow, the part nearest the cursor, where a late arrival is likeliest, is the part read.
+ * It answers what it read whole back from `to`, and where that starts (`from`, when complete).
+ */
+async function listWindowBack(list: List, from: number, to: number, budget: Budget): Promise<{ readonly interviews: readonly InterviewFacts[]; readonly from: number }> {
+  if (budget.calls >= budget.limit) return { interviews: [], from: to }
+  budget.calls++
+  const answer = readInterviews(await list({ onOrAfterDate: isoFloor(from), onOrBeforeDate: isoCeil(to), reason: LIST_REASON }), { from, to })
+  if (!answer.readable) {
+    const what = answer.interviews.length + answer.unreadable > 1 ? `${answer.unreadable} of ${answer.interviews.length + answer.unreadable} entries` : "an answer"
+    refuse("UNAVAILABLE", `Ashby's ${LIST_TOOL} answered with ${what} in a form this plugin does not read, so no interview of this page is listed`, UPDATE_NEXT)
+  }
+  if (answer.truncated) {
+    if (to - from <= MIN_WINDOW_MS) refuse("UNAVAILABLE", `Ashby's ${LIST_TOOL} cut short the interviews of one hour`, UPDATE_NEXT)
+    const middle = from + Math.floor((to - from) / 2)
+    const late = await listWindowBack(list, middle, to, budget)
+    if (late.from > middle) return late
+    const early = await listWindowBack(list, from, middle, budget)
+    return { interviews: [...early.interviews, ...late.interviews], from: early.from }
+  }
+  return { interviews: answer.interviews.filter((interview) => !interview.cancelled && interview.time >= from && interview.time <= to), from }
+}
 
 /** What a window read gave: its interviews, and how far from its start it was read whole (its end, when complete). */
 interface WindowRead {
@@ -660,13 +685,16 @@ export async function listEvents(list: List, owner: EventsOwner | undefined, inp
   const end = now - SETTLE_MS
   const found = new Map<string, InterviewFacts>()
 
-  // The lookback (floor, position]: an interview there the cursor does not remember is a late arrival. Best effort,
-  // on its own few calls, so it never keeps the page from what is new.
+  // The lookback (floor, position]: an interview there the cursor does not remember is a late arrival. Read newest part
+  // first, on its own few calls, so it never keeps the page from what is new. When those calls cannot read all of it,
+  // the next cursor's floor moves up to where it was read whole: that shortening is the one the README states.
+  let readFloor = floor
   if (floor < after.t) {
-    const back = await listWindow(list, floor, after.t, { calls: 0, limit: LOOKBACK_CALLS })
+    const back = await listWindowBack(list, floor, after.t, { calls: 0, limit: LOOKBACK_CALLS })
     for (const interview of back.interviews) {
       if (interview.time > floor && compare({ t: interview.time, i: interview.id }, after) <= 0 && !seen.has(seenDigest(interview.id))) found.set(interview.id, interview)
     }
+    if (back.from > floor) readFloor = back.from - 1
   }
 
   const budget: Budget = { calls: 0, limit: MAX_CALLS - LOOKBACK_CALLS }
@@ -698,7 +726,7 @@ export async function listEvents(list: List, owner: EventsOwner | undefined, inp
   const newest = accounted.filter((interview) => compare({ t: interview.time, i: interview.id }, after) > 0).at(-1)
   const position: Key = newest ? { t: newest.time, i: newest.id } : accounted.length === ordered.length && scanned > after.t ? { t: scanned, i: "" } : after
   for (const interview of accounted) seen.set(seenDigest(interview.id), Math.floor(interview.time / MINUTE))
-  const lookback = nextLookback(floor, position.t, seen)
+  const lookback = nextLookback(readFloor, position.t, seen)
   const next = encodeBoundCursor(BINDING, { o: ownerDigest, t: position.t, i: position.i, f: lookback.floor, d: lookback.list })
   return eventsListResult({ source: SOURCE, account: ACCOUNT, owner }, page, next, more, { refused, plugin: PACKAGE, asOf: new Date(now).toISOString() })
 }
