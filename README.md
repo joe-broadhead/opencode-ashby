@@ -10,8 +10,8 @@ Ashby is a trademark of Ashby, Inc.; this unofficial plugin is not endorsed by t
 
 ## Requirements
 
-- OpenCode `>=2.2.3 <2.4.0`, tested on 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7 and 2.3.0. Outside that range the plugin does not start, unless
-  you set `allowUntestedHost`.
+- OpenCode `>=2.2.3 <2.4.0`, tested on 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7, 2.3.0, 2.3.1 and 2.3.2. Outside that
+  range the plugin does not start, unless you set `allowUntestedHost`.
 - macOS or Linux, and a browser for the sign-in.
 - An Ashby organisation on any plan except Analytics-only.
 - An Org Admin has turned on **MCP Server** (Admin > Organization Setup > Opt-In Features).
@@ -365,7 +365,7 @@ Run `/ashby-status` first. Its last line is the next step.
 | Rate limited | Ashby allows 120 requests a minute per sign-in. Wait a minute, and make fewer calls at once. |
 | A move or archive asks | Only under `access: "ask-changes"`; the default lets it run. See [Permissions](#permissions) for the three values. |
 | Agents without default rules | Put the default rules shown by `/ashby-status` first in each listed agent's own permissions, in `opencode.json` or the agent's Markdown file, followed by your top-level rules for Ashby tools. |
-| OpenCode: untested | OpenCode is not 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7 or 2.3.0. Inside `>=2.2.3 <2.4.0` the plugin runs normally; outside it, it runs only because `allowUntestedHost` is set. If Ashby misbehaves, use a tested release. |
+| OpenCode: untested | OpenCode is not 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7, 2.3.0, 2.3.1 or 2.3.2. Inside `>=2.2.3 <2.4.0` the plugin runs normally; outside it, it runs only because `allowUntestedHost` is set. If Ashby misbehaves, use a tested release. |
 | Signed in to the wrong Ashby account | Run `opencode mcp logout ashby` from the project folder (or remove the account in `/connect` → Ashby); if it answers `MCP server not found: ashby`, wait a few seconds and run it again. Then sign in again. |
 | Asked to sign in again after about an hour | Ashby may issue no refresh token, so the sign-in cannot be renewed. Sign in again with `/connect` → Ashby; your Ashby session may still be open in the browser. |
 | An Ashby tool is refused in `opencode run` | Nobody could answer its prompt, so the session's own rules asked for the call. Under `access: "all"` (the default) nothing asks. |
