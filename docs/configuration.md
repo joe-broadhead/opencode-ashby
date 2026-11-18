@@ -4,7 +4,7 @@ Every option is optional. The smallest setup is one entry in `plugins`:
 
 ```json
 {
-  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.5" }]
+  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.6" }]
 }
 ```
 
@@ -12,7 +12,7 @@ To set options, use the object form:
 
 ```json
 {
-  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.5", "options": { "allowUntestedHost": true } }]
+  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.6", "options": { "allowUntestedHost": true } }]
 }
 ```
 
@@ -22,7 +22,7 @@ Set options with the object form of the plugin entry:
 
 ```json
 {
-  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.5", "options": { "access": "ask-changes" } }]
+  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.6", "options": { "access": "ask-changes" } }]
 }
 ```
 
@@ -42,8 +42,9 @@ generated blocks.
 - Default: `false`.
 
 The plugin supports OpenCode `>=2.2.3 <2.4.0`, the range `opencode.host` in `package.json` declares, and every check
-runs on 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7 and 2.3.0, the tested releases. Status shows the version, whether it is tested and the supported
-range in its `OpenCode` row, for example `2.2.5 (tested; supported range >=2.2.3 <2.4.0)`.
+runs on 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7, 2.3.0, 2.3.1 and 2.3.2, the tested releases. Status shows the
+version, whether it is tested and the supported range in its `OpenCode` row, for example
+`2.2.5 (tested; supported range >=2.2.3 <2.4.0)`.
 
 - **A tested release:** the plugin starts.
 - **Another release inside the range, such as 2.2.99:** the plugin starts too. Status marks the version `untested`, and
@@ -242,7 +243,7 @@ Every error from the plugin reads `CODE: What happened. Next step: What to do.`
 For example:
 
 ```text
-OPTIONS_INVALID: Unknown option "apiKey". Accepted options: "allowUntestedHost". Next step: Fix the plugin options in opencode.json, for example "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.5", "options": { "allowUntestedHost": true } }].
+OPTIONS_INVALID: Unknown option "apiKey". Accepted options: "allowUntestedHost". Next step: Fix the plugin options in opencode.json, for example "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.6", "options": { "allowUntestedHost": true } }].
 ```
 
 Errors from Ashby's server and from OpenCode pass through unchanged, except in the tools RPC for scripts, whose codes
@@ -269,7 +270,7 @@ model. It holds no token, no header and no URL query, and makes no Ashby call. `
 | `unknownCount`, `unknownTools` | How many of them the plugin does not know, and at most 20 of their names, only those made of lowercase letters, digits and `_` |
 | `unguardedAgents` | Agents with a base allow and no block, under `ask-changes` or `read-only`; empty under `all`, and empty for an agent whose own rules already ask or deny for every Ashby tool. |
 | `shadowedSkills` | Present only when a skill with one of the plugin's ids, such as your own `ashby` skill, replaces the plugin's: each `id` and the `path` OpenCode loads instead |
-| `host` | `version` (`null` if OpenCode reports none), `range` (the supported range) and `tested` (true only for 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7 and 2.3.0) |
+| `host` | `version` (`null` if OpenCode reports none), `range` (the supported range) and `tested` (true only for 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7, 2.3.0, 2.3.1 and 2.3.2) |
 | `problems` | Setup problems, each `CODE: What happened. Next step: What to do.` |
 | `nextStep` | Exactly one next step: the `Next step` row, `Nothing to do.` when nothing is needed |
 

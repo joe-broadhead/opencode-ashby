@@ -9,9 +9,9 @@ one source of the shared source contract (`ashby.interviews`, two methods on tha
 
 - **Public API only.** Use only the public `@opencode/plugin` 2.2.3 API. `opencode.host` in `package.json` and
   `SUPPORTED_HOST` in `src/constants.ts` both say exactly `>=2.2.3 <2.4.0`, never `^2.2.3`. `TESTED_HOSTS` in
-  `src/constants.ts` is the one list of tested releases (2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7 and 2.3.0): status calls only those
-  tested, and the host and pack stages and CI run on each. Inside the range an untested release, such as 2.2.99, still
-  starts.
+  `src/constants.ts` is the one list of tested releases (2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7, 2.3.0, 2.3.1 and
+  2.3.2): status calls only those tested, and the host and pack stages and CI run on each. Inside the range an
+  untested release, such as 2.2.99, still starts.
 - **Greenfield.** No legacy, migration code, compatibility shim, dual path or deprecated alias, and nothing dead.
   Delete rather than deprecate.
 - **No peers, no runtime dependencies, no lifecycle scripts.** `@opencode/plugin`, `@opencode/sdk` and
@@ -76,7 +76,10 @@ one source of the shared source contract (`ashby.interviews`, two methods on tha
   feedback, a scorecard, a note or a transcript, and `text` stays empty. `permission.operations` is exactly the Ashby
   tools the source calls, and the conformance stage fails a read that asserts anything else.
 - **Tests.** Unit tests use narrow `Pick<Plugin.Context, ...>` fakes. Host tests use the public `@opencode/sdk` with
-  `OpenCode.create({ app: { version } })`, a loopback fake server and the temp root from `test/host/isolate.ts`.
+  `OpenCode.create({ app: { version } })`, a loopback fake server and the temp root from `test/host/isolate.ts`. On
+  2.3.1 and later the harness builds that host through `PromiseSdk.create`, which `OpenCode.create` calls, with the
+  SDK's `overrides` so that its Automation service also runs the scheduler, as `opencode serve` does: Code Mode with
+  nobody present runs there as an automation's code action (`unattended` in `test/host/harness.ts`).
   Every temp root of the host and pack tests is a git repository under the system's `/tmp`, never under `TMPDIR` or
   `HOME`, so OpenCode never finds a `.opencode` folder of whoever runs them; each stock server has its own port.
   Never sign in to Ashby or call its API from a check.
