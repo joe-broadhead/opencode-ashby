@@ -76,7 +76,10 @@ one source of the shared source contract (`ashby.interviews`, two methods on tha
   feedback, a scorecard, a note or a transcript, and `text` stays empty. `permission.operations` is exactly the Ashby
   tools the source calls, and the conformance stage fails a read that asserts anything else.
 - **Tests.** Unit tests use narrow `Pick<Plugin.Context, ...>` fakes. Host tests use the public `@opencode/sdk` with
-  `OpenCode.create({ app: { version } })`, a loopback fake server and the temp root from `test/host/isolate.ts`.
+  `OpenCode.create({ app: { version } })`, a loopback fake server and the temp root from `test/host/isolate.ts`. On
+  2.3.1 and later the harness builds that host through `PromiseSdk.create`, which `OpenCode.create` calls, with the
+  SDK's `overrides` so that its Automation service also runs the scheduler, as `opencode serve` does: Code Mode with
+  nobody present runs there as an automation's code action (`unattended` in `test/host/harness.ts`).
   Every temp root of the host and pack tests is a git repository under the system's `/tmp`, never under `TMPDIR` or
   `HOME`, so OpenCode never finds a `.opencode` folder of whoever runs them; each stock server has its own port.
   Never sign in to Ashby or call its API from a check.
