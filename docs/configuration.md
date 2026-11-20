@@ -275,7 +275,7 @@ model. It holds no token, no header and no URL query, and makes no Ashby call. `
 | `nextStep` | Exactly one next step: the `Next step` row, `Nothing to do.` when nothing is needed |
 
 The `Access` row states the posture the default rules fix, from the tool lists: at `all` "every Ashby tool is allowed,
-reads and changes alike"; at `ask-changes` "reads run without asking; the 3 writes and the 2 destructive tools ask
+reads and changes alike"; at `ask-changes` "reads run without asking; the 6 writes and the 2 destructive tools ask
 first"; at `read-only` the same list "are denied". Then it says whether those rules are in place:
 "no agent runs new Ashby tools unasked", "default rules missing in the agents listed below", or "default rules not
 added (see the OpenCode row)".

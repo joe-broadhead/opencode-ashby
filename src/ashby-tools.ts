@@ -4,15 +4,18 @@
 // runtime imports.
 //
 // The names and classes come from Ashby's own list of its MCP tools (docs.ashbyhq.com, "Ashby MCP Server (Beta)"),
-// recorded in test/unit/ashby-tools.json, and from the live server's tool list for a signed-in user (2026-11-10). The
-// live list gives each tool's input schema (recorded in PARAMETERS) but no annotations, so each tool's class comes from
-// Ashby's description of it. Ashby may list fewer tools for a user with less access, so a known tool missing from a live
-// list is normal and never reported.
+// recorded in test/unit/ashby-tools.json, and from the live server's tool list for a signed-in user (2026-11-20). The
+// live list gives each tool's input schema (recorded in PARAMETERS) and its readOnlyHint, and each tool's class comes
+// from both and from Ashby's description of it. Ashby may list fewer tools for a user with less access, so a known tool
+// missing from a live list is normal and never reported.
 
 /** Known reads: each only reads, by Ashby's description, and sends nothing beyond its query. They run without asking. */
 export const READ_TOOLS: readonly string[] = [
   "describe_object_fields",
   "filter_records",
+  "get_ai_interviewer_details",
+  "get_ai_screening_interview_analytics",
+  "get_ai_screening_interview_results",
   "get_candidate",
   "get_interview_details",
   "get_interview_plan",
@@ -31,8 +34,21 @@ export const READ_TOOLS: readonly string[] = [
  *   activity set to send on stage entry), Ashby sends it to the candidate, and the tool has no option to stop it.
  * - `add_note_to_candidate` saves the note at once: the tool has no draft option. People following the candidate may be
  *   notified, and so may a colleague @-mentioned in the note. The candidate is not emailed.
+ * - `create_ai_interviewer`, `create_ai_interviewer_version` and `update_ai_interviewer_outline` change a screening
+ *   interviewer's **draft**: a new blank definition, a new version (blank or copied), and the outline's sections and
+ *   topics. A draft is not used for screening until it is published and assigned to a job, and no tool here publishes
+ *   or assigns one, so none of these reaches a candidate. The hiring team sees the definition, and a draft outline is
+ *   edited in place (the server marks the update destructive, but a published version is untouched and the draft can be
+ *   edited again).
  */
-export const WRITE_TOOLS: readonly string[] = ["add_note_to_candidate", "consider_candidate_for_job", "create_candidate"]
+export const WRITE_TOOLS: readonly string[] = [
+  "add_note_to_candidate",
+  "consider_candidate_for_job",
+  "create_ai_interviewer",
+  "create_ai_interviewer_version",
+  "create_candidate",
+  "update_ai_interviewer_outline",
+]
 
 /**
  * The destructive class: allowed like every other tool by default, and what `access: "read-only"` denies and
@@ -65,9 +81,14 @@ export const PARAMETERS: Readonly<Record<string, readonly string[]>> = {
   add_note_to_candidate: ["candidateId*:string", "noteText*:string", "replyToNoteId:string", "reason*:string"],
   change_application_stage: ["applicationId*:string", "stageId*:string", "archiveReasonId:string", "cancelScheduledInterviews:boolean", "reason*:string"],
   consider_candidate_for_job: ["candidateId*:string", "jobId*:string", "interviewStageId:string", "reason*:string"],
+  create_ai_interviewer: ["internalTitle*:string", "externalTitle:string", "reason*:string"],
+  create_ai_interviewer_version: ["aiInterviewerId*:string", "source*:string", "copyFromVersionId:string", "label:string", "allowAdditionalDraft:boolean", "reason*:string"],
   create_candidate: ["name*:string", "email:string", "phoneNumber:string", "socialLinks:array<object>", "reason*:string"],
   describe_object_fields: ["objectType*:string", "searchTerm*:string", "limit:number", "cursor:string", "reason*:string"],
   filter_records: ["objectType*:string", "filter*:string", "sort:array<object>", "cursor:string", "resultMode:string", "reason*:string"],
+  get_ai_interviewer_details: ["aiInterviewerIds*:array<string>", "outlineDetail:string", "reason*:string"],
+  get_ai_screening_interview_analytics: ["aiInterviewerId*:string", "versionId:string", "jobId:string", "dateRange:object", "reason*:string"],
+  get_ai_screening_interview_results: ["aiScreeningInterviewIds*:array<string>", "sectionName:string", "topicName:string", "include:array<string>", "reason*:string"],
   get_candidate: ["candidateIds*:array<string>", "sections:array<string>", "offset:number", "limit:number", "applicationIds:array<string>", "reason*:string"],
   get_interview_details: ["interviewEventId*:string", "includeInstructions:boolean", "reason*:string"],
   get_interview_plan: ["applicationId:string", "jobId:string", "reason*:string"],
@@ -78,6 +99,7 @@ export const PARAMETERS: Readonly<Record<string, readonly string[]>> = {
   list_interviews: ["candidateName:string", "onOrAfterDate:string", "onOrBeforeDate:string", "reason*:string"],
   search_records_by_name: ["entityType*:string", "query*:string", "limit:number", "cursor:string", "reason*:string"],
   submit_mcp_feedback: ["feedback*:string", "reason*:string"],
+  update_ai_interviewer_outline: ["versionId*:string", "operations*:array<object>", "reason*:string"],
 }
 
 type ToolClass = "read" | "write" | "destructive" | "unknown"

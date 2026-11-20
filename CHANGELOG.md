@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+
+- **Six AI screening tools Ashby's server now lists**, captured read-only on 20 November 2026
+  (`test/fixtures/live-tools.json` holds the 22 tools' names, descriptions, schemas and annotations):
+  `get_ai_interviewer_details`,
+  `get_ai_screening_interview_analytics` and `get_ai_screening_interview_results` are reads, and
+  `create_ai_interviewer`, `create_ai_interviewer_version` and `update_ai_interviewer_outline` are writes. The three
+  writes change only a **draft** definition: nothing reaches a candidate until it is published and assigned to a job in
+  Ashby's web app, and no tool here does either. Screening results are Ashby's AI output and candidate data: a read,
+  summarised and never ranked. `jelly.tools` grows to 22 tools (14 read-only), so Jelly asks for consent again.
+
 ### Changed
 
 - source-contract is pinned at v0.3.0 (`github:we-the-rebel-alliance/source-contract#v0.3.0`), still bundled into

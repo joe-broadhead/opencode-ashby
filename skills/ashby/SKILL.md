@@ -29,10 +29,12 @@ calls in flight at most; on a rate limit wait a minute and call less, on a timeo
 - `get_record_details` for a job, posting, application, opening, scheduled interview or offer you found: an
   application's stage is in it, so "where is she in the process" needs no profile. `get_candidate` only when the
   question needs the profile: resume, emails, texts, notes, feedback, any Ashby transcripts. Read it once and reuse it.
-- **An empty result** proves nothing: say which filters you used. Explain it only from the user's access: Ashby shows
-  what their access roles allow, and a confidential job stays hidden unless granted; a Limited Access user sees no
-  candidates at all. No sync, processing or other-account cause. Then suggest an Ashby Org Admin check the access
-  roles, or `/ashby-status` if it may be the wrong account, and ask for the email or job; never offer another source.
+- AI screening is Ashby's: `get_ai_interviewer_details` (outline, versions), `get_ai_screening_interview_analytics`
+  (funnel, duration, outcomes, sentiment) and `get_ai_screening_interview_results` (evaluations, transcript excerpts;
+  never rank).
+- **An empty result** proves nothing: say which filters you used. Explain it only from the user's access: Ashby shows what their access roles allow, and a confidential job stays hidden
+  unless granted; a Limited Access user sees no candidates at all. No sync, processing or other-account cause. Then suggest an Ashby Org Admin check the access roles, or `/ashby-status`
+  if it may be the wrong account, and ask for the email or job; never offer another source.
 
 ## Daily work
 
@@ -55,11 +57,10 @@ calls in flight at most; on a rate limit wait a minute and call less, on a timeo
 
 ## Candidate data is personal data
 
-- Never infer or estimate age, ethnicity, religion, disability, health, pregnancy, family or parental status, sexual
-  orientation, national origin or personality. Decline that part in one sentence, no lecture. Then, without asking,
-  look up the job-related part (for "do they have kids, the role travels": what their record says about travel) and
-  report it, or that it isn't recorded. If the user still needs to know, suggest asking every candidate for the role
-  the same job-related question.
+- Never infer or estimate age, ethnicity, religion, disability, health, pregnancy, family or parental status, sexual orientation, national origin or personality.
+  Decline that part in one sentence, no lecture. Then, without asking, look up the job-related part (for "do they have kids, the role travels": what their
+  record says about travel) and report it, or that it isn't recorded. If the user still needs to know, suggest asking every candidate for the role the same
+  job-related question.
 - Never repeat EEO, diversity or demographic data that a result contains.
 - "Not recorded" is unknown, never a negative. Comparing candidates: show each one's evidence side by side by the same
   criteria, and no ranking, overall score or "hire X" even when asked. Say the decision is the panel's or the user's,
@@ -84,11 +85,10 @@ calls in flight at most; on a rate limit wait a minute and call less, on a timeo
 
 ## Sign-in and status
 
-`/ashby-status`'s last line is the next step. To sign in, run `/connect` and choose Ashby, then press `o` or Enter; from
-a terminal, run `opencode mcp auth ashby` in the project folder, and if it answers `MCP server not found: ashby`, wait a
-few seconds and run it again. Never ask for a password or an API key. To switch account, run `opencode mcp logout ashby`
-in the project folder or remove the account in `/connect`. No Ashby tools, or a sign-in Ashby refuses: an Org Admin must
-turn on MCP Server (Admin > Organization Setup > Opt-In Features) and give the user Elevated Access.
+`/ashby-status`'s last line is the next step. To sign in, run `/connect` and choose Ashby, then press `o` or Enter; from a terminal, run `opencode mcp auth ashby` in the project folder,
+and if it answers `MCP server not found: ashby`, wait a few seconds and run it again. Never ask for a password or an API key. To switch account, run `opencode mcp logout ashby` in the project
+folder or remove the account in `/connect`. No Ashby tools, or a sign-in Ashby refuses: an Org Admin must turn on MCP Server (Admin > Organization Setup > Opt-In Features) and give the user
+Elevated Access.
 
 ## Scripts
 

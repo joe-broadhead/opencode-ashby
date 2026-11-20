@@ -17,7 +17,7 @@ OpenCode's executor under that tool's own permission.
 | `src/listing.ts` | When the `ashby` server's status last changed, so status can tell a server still listing its tools from one that lists none |
 | `src/options.ts` | Option parsing and validation |
 | `src/host-version.ts` | The host check: the supported range, and the tested releases |
-| `src/ashby-tools.ts` | `READ_TOOLS`, `WRITE_TOOLS`, `DESTRUCTIVE_TOOLS`, `PARAMETERS` and `classify()`: every fact the plugin keeps about Ashby's tools. No runtime imports, so `scripts/check-ashby-tools.mjs` (`npm run drift`) can load it. `PARAMETERS` is used by that script and the tests only, and the build leaves it out; it stays empty until a tool list from a signed-in server is recorded, because Ashby publishes no schemas |
+| `src/ashby-tools.ts` | `READ_TOOLS`, `WRITE_TOOLS`, `DESTRUCTIVE_TOOLS`, `PARAMETERS` and `classify()`: every fact the plugin keeps about Ashby's tools. No runtime imports, so `scripts/check-ashby-tools.mjs` (`npm run drift`) can load it. `PARAMETERS` records each live tool's inputs from a signed-in server's schemas; that script and the tests use it, and the build leaves it out |
 | `src/permissions.ts` | The default rules, their placement, and detection of agents without them |
 | `src/status.ts` | The status model and text, `/ashby-status`, and the status RPC method |
 | `src/redact.ts` | Redaction for everything status shows: URL credentials, queries and token shapes removed, one line, controls and bidi characters stripped, cut by whole characters |

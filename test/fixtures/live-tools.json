@@ -1,14 +1,14 @@
 {
   "schema": "opencode-family/live-tools@1",
   "evidence": "live-observed",
-  "note": "Captured by scripts/capture-tools.mjs from the server's own tools/list. Descriptions are public tool metadata, recorded in full. No tool was called. No token, header, account id, server instructions or result text is recorded.",
-  "listedAt": "2026-11-14",
+  "note": "Captured by scripts/capture-tools.mjs from the server's own tools/list. Descriptions are public tool metadata, recorded in full, with the signed-in account's own values replaced by placeholders (redactions). No tool was called. No token, header, account id, server instructions or result text is recorded.",
+  "listedAt": "2026-11-20",
   "server": "ashby",
   "namespace": "ashby",
   "endpoint": "https://mcp.ashbyhq.com/mcp/v1",
   "auth": "signed-in",
   "host": {
-    "opencode": "2.2.6",
+    "opencode": "2.3.2",
     "via": "running OpenCode server: MCP status and active credential; raw MCP tools/list"
   },
   "protocol": {
@@ -19,9 +19,10 @@
     }
   },
   "pages": 1,
-  "count": 16,
-  "readOnlyHints": 16,
-  "digest": "71a02c3a382089679f4529bd0aa8fdaf9dec269dc7d2b9a91e7f5e97b82044c6",
+  "count": 22,
+  "readOnlyHints": 22,
+  "redactions": 0,
+  "digest": "c132b3973321dee811788c1a5daa9ba2c0b08b5f4b7b3767a6269ce997a87cd9",
   "tools": [
     {
       "name": "add_note_to_candidate",
@@ -163,6 +164,108 @@
         "sha256": "6f015b5e8bd93cf07afc6a732c56592673982734aeaf3aa8b4b57560ee23cfb3",
         "length": 286,
         "text": "Create a new application for a candidate on a specific job.\n\nOptionally provide an \\`interviewStageId\\` to place the application at a specific stage. Call \\`get_interview_plan\\` with the jobId first to discover available stage IDs. If omitted, the application starts at the first stage."
+      }
+    },
+    {
+      "name": "create_ai_interviewer",
+      "title": "Create AI Interviewer",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": null,
+      "openWorldHint": false,
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "internalTitle": {
+            "type": "string",
+            "description": "Title shown to your team in Ashby."
+          },
+          "externalTitle": {
+            "description": "Optional title shown to candidates. Defaults to the internal title; the response's externalTitle is null in that case.",
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "description": "A brief, one-sentence summary of the user's underlying goal or use case for this call. Do not include raw conversation text. This value does not affect the tool's behavior or results. Values longer than 500 characters are truncated."
+          }
+        },
+        "required": [
+          "internalTitle",
+          "reason"
+        ]
+      },
+      "description": {
+        "sha256": "7a9fc8e3367a93fdbc52df259619ad26db337f26d4147b4f5702f1cb6dd3650a",
+        "length": 149,
+        "text": "Create a new, blank AI screening interviewer with an empty draft outline. The response includes the draft's section IDs and outline-editing guidance."
+      }
+    },
+    {
+      "name": "create_ai_interviewer_version",
+      "title": "Create AI Interviewer Version",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": null,
+      "openWorldHint": false,
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "aiInterviewerId": {
+            "type": "string",
+            "description": "AI interviewer ID from search_records_by_name or get_ai_interviewer_details."
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "blank"
+              },
+              {
+                "type": "string",
+                "const": "copy"
+              }
+            ],
+            "description": "Either \"copy\" (copy an existing version's outline) or \"blank\"."
+          },
+          "copyFromVersionId": {
+            "description": "Only with source \"copy\". Version ID to copy; defaults to the active version.",
+            "type": "string"
+          },
+          "label": {
+            "description": "Optional version label. Without one, Ashby shows \"Version <versionNumber>\".",
+            "type": "string"
+          },
+          "allowAdditionalDraft": {
+            "description": "Set to true to create a draft even though the interviewer already has one. Only when the user explicitly asked for another draft.",
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "description": "A brief, one-sentence summary of the user's underlying goal or use case for this call. Do not include raw conversation text. This value does not affect the tool's behavior or results. Values longer than 500 characters are truncated."
+          }
+        },
+        "required": [
+          "aiInterviewerId",
+          "source",
+          "reason"
+        ]
+      },
+      "description": {
+        "sha256": "98763c241012d129e38687f0eb53a7eb168fd12095cc3335689c65c93cc70a79",
+        "length": 166,
+        "text": "Create a new draft version of an AI interviewer, either blank or copied from an existing version. Fails if a draft already exists unless allowAdditionalDraft is true."
       }
     },
     {
@@ -529,9 +632,194 @@
         ]
       },
       "description": {
-        "sha256": "0f48b7ce0fa650d783aab839cc6ca7b9167b98e3b76dec37890e6b1e0ef5d396",
-        "length": 6260,
-        "text": "\n    Filter records of a given object type using a structured JSON filter. Supports result modes: \"ids\" (default), \"count\" (total count only), \"summary\" (IDs plus basic entity details).\n  \n  The `filter` argument must always be a JSON-serialized object.\n  Filters are capped at max depth 3, 8 predicates, 5 child filters per and/or group, and 2 sort fields.\n  \n  Use this tool after identifying the correct object type and field paths.\n  For structured criteria, first call `describe_object_fields` unless you already have the exact field path from a prior tool result. Do not invent common field names such as `title`, `name`, `application_id`, or `overall_recommendation` unless that exact field path was returned for the selected object type.\n\n  Use the value form that matches the field and tool behavior:\n  - **Field paths**: Use the complete field path returned by `describe_object_fields`, including prefixes such as `feedback_form.`, `candidate.`, or `interview.`. Never shorten a returned field path to only the final segment.\n  - **Label-based selectable fields**: For fields such as tags, statuses, users, teams, and similar selectable values, use the human-readable label where supported. The system automatically resolves labels to IDs for supported fields.\n  - **Reference fields**: For many reference fields, including many fields named like `*_id`, the system may support either:\n    - a resolved ID, or\n    - a human-readable title/label.\n  - **Prefer IDs when available**: If you already resolved the referenced entity and have its ID, prefer using the ID for reliability and disambiguation.\n  - **Score fields**: Fields whose `Value type` is Score require numeric values: 4 = Strong Yes, 3 = Yes, 2 = No, 1 = Strong No, 0 = No score provided. Do not pass labels like \"Strong Yes\" to Score fields.\n  - **Literal fields**: For normal string, number, boolean, or date fields, use the literal value in the appropriate format.\n  - Follow the chosen field's `Value type` line from `describe_object_fields`. Do not infer the value form from the field name alone.\n  - **Filter errors**: If an error says \"Did you mean\", retry once with one of the suggested complete field paths before changing tools or object types.\n\n## Expensive queries\n- Text matching on \\`resume_full_text\\` across all candidates, and org-wide counts with no job, stage, or date scope, can be too slow to run. Add a selective filter alongside them.\n- If a call fails because the query was too expensive, do not repeat the same filter. Narrow it, or tell the user the request is too broad.\n\n  ## Sorting\n  Use `sort` with field paths from `describe_object_fields` for latest, earliest, highest, lowest, or alphabetical requests.\n  \n## Filter format examples\nEvery filter is one object with a top-level \\`\"operator\"\\` — put the operator in the \\`\"operator\"\\` key, never as a key nested under the field.\n- Field operators — \\`{ \"operator\": \"<op>\", \"field\": \"<field_path>\", \"value\": <value> }\\`:\n  - \"equals\": \\`{ \"operator\": \"equals\", \"field\": \"status\", \"value\": \"Active\" }\\`\n  - \"similarTo\" (fuzzy text match — the default for free-text like names, schools, companies; tolerates typos): \\`{ \"operator\": \"similarTo\", \"field\": \"name\", \"value\": \"john\" }\\`\n  - \"contains\" / \"starts\" / \"ends\" (literal string matching; use \"contains\" only when the user explicitly asks for exact substring containment): \\`{ \"operator\": \"contains\", \"field\": \"name\", \"value\": \"john\" }\\`\n  - \"greater\" / \"less\" / \"greaterOrEqual\" / \"lessOrEqual\" (numbers only): \\`{ \"operator\": \"greaterOrEqual\", \"field\": \"years_of_experience\", \"value\": 2 }\\`\n  - \"empty\" (no value): \\`{ \"operator\": \"empty\", \"field\": \"primary_personal_email_address\" }\\`\n  - \"daterange\": \\`{ \"operator\": \"daterange\", \"field\": \"created_at\", \"value\": { ... } }\\` — see **Date range filters** below.\n- Logical operators:\n  - \\`{ \"operator\": \"and\", \"filters\": [<filter>, ...] }\\`\n  - \\`{ \"operator\": \"or\", \"filters\": [<filter>, ...] }\\`\n  - \\`{ \"operator\": \"not\", \"filter\": <filter> }\\`\n\nDo not nest the operator under the field: \\`{ \"name\": { \"contains\": \"peter\" } }\\` is wrong. Always use the flat operator/field/value shape shown above.\n  \n  **Example**: Find active applications for a job:\n  ```json\n  {\n    \"operator\": \"and\",\n    \"filters\": [\n      { \"operator\": \"equals\", \"field\": \"job_id\", \"value\": \"<job_id>\" },\n      { \"operator\": \"equals\", \"field\": \"status\", \"value\": \"Active\" }\n    ]\n  }\n  ```\n**Date range filters** — for \\`\"operator\": \"daterange\"\\`, \\`value\\` is one of these shapes (dates are \\`YYYY-MM-DD\\` strings; never epoch/ISO timestamps, and not keys like \\`from\\`/\\`to\\`/\\`gte\\`/\\`after\\`):\n- \\`{ \"type\": \"Since\", \"date\": \"YYYY-MM-DD\" }\\` — from the date through today, inclusive. For future records, use \\`Between\\` with an explicit end date\n- \\`{ \"type\": \"Before\", \"date\": \"YYYY-MM-DD\" }\\` — before the date\n- \\`{ \"type\": \"On\", \"date\": \"YYYY-MM-DD\" }\\` — exactly on the date\n- \\`{ \"type\": \"Between\", \"start\": \"YYYY-MM-DD\", \"end\": \"YYYY-MM-DD\" }\\` — absolute window\n- \\`{ \"type\": \"Previous\", \"unit\": \"1 DAY\"|\"1 WEEK\"|\"1 MONTH\"|\"3 MONTH\"|\"1 YEAR\" }\\` — rolling window ending now\n\n**Example**: Applications created within an explicit date window:\n\\`\\`\\`json\n{ \"operator\": \"daterange\", \"field\": \"submitted_at\", \"value\": { \"type\": \"Between\", \"start\": \"2026-03-27\", \"end\": \"2026-06-25\" } }\n\\`\\`\\`\n\n  When a request is about the current user, use the value \"@me\" on the relevant user field. The server resolves \"@me\" to the authenticated user, so you don't need to know their name or Ashby ID. This works on any user field, such as \"involves\", \"hiring_manager\", \"recruiter\", \"assigned_reviewer\", or other fields whose values are Ashby users. To scope to a different person, pass that user's name as the value instead.\n  **Example**: Find applications where the current user is involved:\n  ```json\n  {\n    \"operator\": \"equals\",\n    \"field\": \"involves\",\n    \"value\": \"@me\"\n  }\n  ```\n  **Example**: Find AI screening interviews (`objectType`: `ai_screening_interview`) waiting for the current user's review:\n  ```json\n  {\n    \"operator\": \"and\",\n    \"filters\": [\n      { \"operator\": \"equals\", \"field\": \"assigned_reviewer\", \"value\": \"@me\" },\n      { \"operator\": \"equals\", \"field\": \"reviewed\", \"value\": false }\n    ]\n  }\n  ```\n    "
+        "sha256": "ffc93cf56fb612f9d614e7f652c7287ab6e763a9c3c0c101e03da621ddf6679e",
+        "length": 6326,
+        "text": "\n    Filter records of a given object type using a structured JSON filter. Supports result modes: \"ids\" (default), \"count\" (total count only), \"summary\" (IDs plus basic entity details).\n  \n  The `filter` argument must always be a JSON-serialized object.\n  Filters are capped at max depth 3, 10 predicates, 7 child filters per and/or group, and 2 sort fields.\n  \n  Use this tool after identifying the correct object type and field paths.\n  For structured criteria, first call `describe_object_fields` unless you already have the exact field path from a prior tool result. Do not invent common field names such as `title`, `name`, `application_id`, or `overall_recommendation` unless that exact field path was returned for the selected object type.\n\n  Use the value form that matches the field and tool behavior:\n  - **Field paths**: Use the complete field path returned by `describe_object_fields`, including prefixes such as `feedback_form.`, `candidate.`, or `interview.`. Never shorten a returned field path to only the final segment.\n  - **Label-based selectable fields**: For fields such as tags, statuses, users, teams, and similar selectable values, use the human-readable label where supported. The system automatically resolves labels to IDs for supported fields.\n  - **Reference fields**: For many reference fields, including many fields named like `*_id`, the system may support either:\n    - a resolved ID, or\n    - a human-readable title/label.\n  - **Prefer IDs when available**: If you already resolved the referenced entity and have its ID, prefer using the ID for reliability and disambiguation.\n  - **Score fields**: Fields whose `Value type` is Score require numeric values: 4 = Strong Yes, 3 = Yes, 2 = No, 1 = Strong No, 0 = No score provided. Do not pass labels like \"Strong Yes\" to Score fields.\n  - **Literal fields**: For normal string, number, boolean, or date fields, use the literal value in the appropriate format.\n  - Follow the chosen field's `Value type` line from `describe_object_fields`. Do not infer the value form from the field name alone.\n  - **Filter errors**: If an error says \"Did you mean\", retry once with one of the suggested complete field paths before changing tools or object types.\n\n## Expensive queries\n- Text matching on \\`resume_full_text\\` across all candidates, and org-wide counts with no job, stage, or date scope, can be too slow to run. Add a selective filter alongside them.\n- If a call fails because the query timed out, do not repeat the same filter. Narrow it at most once; if the narrowed query also times out, tell the user the lookup timed out instead of narrowing further.\n\n  ## Sorting\n  Use `sort` with field paths from `describe_object_fields` for latest, earliest, highest, lowest, or alphabetical requests.\n  \n## Filter format examples\nEvery filter is one object with a top-level \\`\"operator\"\\` — put the operator in the \\`\"operator\"\\` key, never as a key nested under the field.\n- Field operators — \\`{ \"operator\": \"<op>\", \"field\": \"<field_path>\", \"value\": <value> }\\`:\n  - \"equals\": \\`{ \"operator\": \"equals\", \"field\": \"status\", \"value\": \"Active\" }\\`\n  - \"similarTo\" (fuzzy text match — the default for free-text like names, schools, companies; tolerates typos): \\`{ \"operator\": \"similarTo\", \"field\": \"name\", \"value\": \"john\" }\\`\n  - \"contains\" / \"starts\" / \"ends\" (literal string matching; use \"contains\" only when the user explicitly asks for exact substring containment): \\`{ \"operator\": \"contains\", \"field\": \"name\", \"value\": \"john\" }\\`\n  - \"greater\" / \"less\" / \"greaterOrEqual\" / \"lessOrEqual\" (numbers only): \\`{ \"operator\": \"greaterOrEqual\", \"field\": \"years_of_experience\", \"value\": 2 }\\`\n  - \"empty\" (no value): \\`{ \"operator\": \"empty\", \"field\": \"primary_personal_email_address\" }\\`\n  - \"daterange\": \\`{ \"operator\": \"daterange\", \"field\": \"created_at\", \"value\": { ... } }\\` — see **Date range filters** below.\n- Logical operators:\n  - \\`{ \"operator\": \"and\", \"filters\": [<filter>, ...] }\\`\n  - \\`{ \"operator\": \"or\", \"filters\": [<filter>, ...] }\\`\n  - \\`{ \"operator\": \"not\", \"filter\": <filter> }\\`\n\nDo not nest the operator under the field: \\`{ \"name\": { \"contains\": \"peter\" } }\\` is wrong. Always use the flat operator/field/value shape shown above.\n  \n  **Example**: Find active applications for a job:\n  ```json\n  {\n    \"operator\": \"and\",\n    \"filters\": [\n      { \"operator\": \"equals\", \"field\": \"job_id\", \"value\": \"<job_id>\" },\n      { \"operator\": \"equals\", \"field\": \"status\", \"value\": \"Active\" }\n    ]\n  }\n  ```\n**Date range filters** — for \\`\"operator\": \"daterange\"\\`, \\`value\\` is one of these shapes (dates are \\`YYYY-MM-DD\\` strings; never epoch/ISO timestamps, and not keys like \\`from\\`/\\`to\\`/\\`gte\\`/\\`after\\`):\n- \\`{ \"type\": \"Since\", \"date\": \"YYYY-MM-DD\" }\\` — from the date through today, inclusive. For future records, use \\`Between\\` with an explicit end date\n- \\`{ \"type\": \"Before\", \"date\": \"YYYY-MM-DD\" }\\` — before the date\n- \\`{ \"type\": \"On\", \"date\": \"YYYY-MM-DD\" }\\` — exactly on the date\n- \\`{ \"type\": \"Between\", \"start\": \"YYYY-MM-DD\", \"end\": \"YYYY-MM-DD\" }\\` — absolute window\n- \\`{ \"type\": \"Previous\", \"unit\": \"1 DAY\"|\"1 WEEK\"|\"1 MONTH\"|\"3 MONTH\"|\"1 YEAR\" }\\` — rolling window ending now\n\n**Example**: Applications created within an explicit date window:\n\\`\\`\\`json\n{ \"operator\": \"daterange\", \"field\": \"submitted_at\", \"value\": { \"type\": \"Between\", \"start\": \"2026-03-27\", \"end\": \"2026-06-25\" } }\n\\`\\`\\`\n\n  When a request is about the current user, use the value \"@me\" on the relevant user field. The server resolves \"@me\" to the authenticated user, so you don't need to know their name or Ashby ID. This works on any user field, such as \"involves\", \"hiring_manager\", \"recruiter\", \"assigned_reviewer\", or other fields whose values are Ashby users. To scope to a different person, pass that user's name as the value instead.\n  **Example**: Find applications where the current user is involved:\n  ```json\n  {\n    \"operator\": \"equals\",\n    \"field\": \"involves\",\n    \"value\": \"@me\"\n  }\n  ```\n  **Example**: Find AI screening interviews (`objectType`: `ai_screening_interview`) waiting for the current user's review:\n  ```json\n  {\n    \"operator\": \"and\",\n    \"filters\": [\n      { \"operator\": \"equals\", \"field\": \"assigned_reviewer\", \"value\": \"@me\" },\n      { \"operator\": \"equals\", \"field\": \"reviewed\", \"value\": false }\n    ]\n  }\n  ```\n    "
+      }
+    },
+    {
+      "name": "get_ai_interviewer_details",
+      "title": "Get AI Interviewer Details",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": null,
+      "openWorldHint": false,
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "aiInterviewerIds": {
+            "minItems": 1,
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "An AI interviewer ID."
+            },
+            "description": "AI interviewer IDs from search_records_by_name (max 10)."
+          },
+          "outlineDetail": {
+            "description": "Pass \"full\" only when scoring-band text is required. \"summary\" (default) omits competency AI evaluation criteria text and reports scoringBandCount instead; \"full\" includes every level.",
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "summary"
+              },
+              {
+                "type": "string",
+                "const": "full"
+              }
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "description": "A brief, one-sentence summary of the user's underlying goal or use case for this call. Do not include raw conversation text. This value does not affect the tool's behavior or results. Values longer than 500 characters are truncated."
+          }
+        },
+        "required": [
+          "aiInterviewerIds",
+          "reason"
+        ]
+      },
+      "description": {
+        "sha256": "72337d52662f993be96e3b373f9a54fb8f9f59ca11bf82596cc8691963475692",
+        "length": 631,
+        "text": "Fetch AI interviewer definitions by ID. An AI interviewer is a reusable, versioned screening interview definition (an outline of sections and topics) that can be assigned to jobs.\n\nPass IDs from \\`search_records_by_name\\`. Returns published and draft outlines, version history, and usedBy assignments. \\`draftVersion\\` is the newest draft (marked \\`isNewestDraft\\` in \\`versions\\`). For an unpublished interviewer (\\`hasPublishedVersion: false\\`), \\`activeVersion\\` points to the draft and the outline is in \\`draftVersion\\`. To compare candidates on a section or topic from the outline, use \\`get_ai_screening_interview_results\\`."
+      }
+    },
+    {
+      "name": "get_ai_screening_interview_analytics",
+      "title": "Get AI Screening Interview Analytics",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": null,
+      "openWorldHint": false,
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "aiInterviewerId": {
+            "type": "string",
+            "description": "AI interviewer ID from search_records_by_name with entityType ai_interviewer."
+          },
+          "versionId": {
+            "description": "Optional AI interviewer version ID to restrict analytics to one version.",
+            "type": "string"
+          },
+          "jobId": {
+            "description": "Optional job ID to restrict analytics to interviews on that job.",
+            "type": "string"
+          },
+          "dateRange": {
+            "description": "Optional invitation_sent_at window. Both start and end are inclusive YYYY-MM-DD dates or ISO-8601 timestamps that begin with a date.",
+            "type": "object",
+            "properties": {
+              "start": {
+                "type": "string",
+                "description": "Inclusive start of the invitation_sent_at window (YYYY-MM-DD or ISO-8601 timestamp)."
+              },
+              "end": {
+                "type": "string",
+                "description": "Inclusive end of the invitation_sent_at window (YYYY-MM-DD or ISO-8601 timestamp)."
+              }
+            },
+            "required": [
+              "start",
+              "end"
+            ],
+            "additionalProperties": false
+          },
+          "reason": {
+            "type": "string",
+            "description": "A brief, one-sentence summary of the user's underlying goal or use case for this call. Do not include raw conversation text. This value does not affect the tool's behavior or results. Values longer than 500 characters are truncated."
+          }
+        },
+        "required": [
+          "aiInterviewerId",
+          "reason"
+        ]
+      },
+      "description": {
+        "sha256": "e849bd675b69b8d1d17da3cf66c63e82b7a7f1ec46fdd032ca6450fc1b7e8965",
+        "length": 507,
+        "text": "Aggregate analytics for one AI interviewer: funnel counts, decline reasons, duration, outcomes among completed interviews, sentiment among completed interviews, per-version topic metrics (topics in outline order with sectionName), and recent unanswered questions. Counts are scoped to applications the caller can see. Date filtering uses invitation_sent_at. When versionId is omitted, duration.estimatedLength is the active version's estimate while median/p90 cover completed interviews across all versions."
+      }
+    },
+    {
+      "name": "get_ai_screening_interview_results",
+      "title": "Get AI Screening Interview Results",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": null,
+      "openWorldHint": false,
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "aiScreeningInterviewIds": {
+            "minItems": 1,
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "An AI screening interview ID."
+            },
+            "description": "AI screening interview IDs from filter_records (max 10)."
+          },
+          "sectionName": {
+            "description": "Optional. Restrict to one section (exact case-insensitive match, else substring). Combine with topicName when useful.",
+            "type": "string"
+          },
+          "topicName": {
+            "description": "Optional. Restrict to one topic (exact case-insensitive match, else substring). Prefer this when comparing candidates on a single competency or criteria topic.",
+            "type": "string"
+          },
+          "include": {
+            "description": "Optional. Limit returned parts to \"evaluation\" and/or \"transcript\". Defaults to both.",
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "transcript"
+                }
+              ],
+              "description": "Part to include."
+            }
+          },
+          "reason": {
+            "type": "string",
+            "description": "A brief, one-sentence summary of the user's underlying goal or use case for this call. Do not include raw conversation text. This value does not affect the tool's behavior or results. Values longer than 500 characters are truncated."
+          }
+        },
+        "required": [
+          "aiScreeningInterviewIds",
+          "reason"
+        ]
+      },
+      "description": {
+        "sha256": "10e555915d135c140e6cef9fbf021238371c2f94b03cedd8a8fdaf0df7617b19",
+        "length": 332,
+        "text": "Get AI screening interview results across candidates for one outline section and/or topic. Pass screening interview IDs from filter_records and section/topic names from get_ai_interviewer_details. Returns only the matching evaluation topics and transcript excerpt per candidate. At least one of sectionName or topicName is required."
       }
     },
     {
@@ -1184,9 +1472,204 @@
         ]
       },
       "description": {
-        "sha256": "32827febbe692753ddf06b11abfaca8a5133230088882d6346e61bc41408a55d",
-        "length": 682,
-        "text": "Submit product feedback about the Ashby MCP server and its tools to the Ashby team. Call this when the user explicitly reports an MCP issue, limitation, or suggestion, or when you cannot complete the user's Ashby task because the available MCP tools are missing a needed capability, returned confusing/incomplete results, or produced an error that blocked the task. In the feedback, include the user's goal, the Ashby MCP tool(s) or workflow you tried, what went wrong or was missing, and the tool/capability/result that would have helped. This tool sends feedback to Ashby; it does not create, modify, or delete any Ashby records. Feedback longer than 5000 characters is truncated."
+        "sha256": "1a1de0b46af7bce6a753e3634c02e13333c548b9614cbaab48af3a563910b1c9",
+        "length": 671,
+        "text": "Submit product feedback about the Ashby MCP server and its tools to the Ashby team. Call this when you cannot complete the user's Ashby task because the available MCP tools are missing a needed capability, returned confusing/incomplete results, or produced an error that blocked the task, or when the user reports an MCP issue, limitation, or suggestion. In the feedback, include the user's goal, the Ashby MCP tool(s) or workflow you tried, what went wrong or was missing, and the tool/capability/result that would have helped. This tool sends feedback to Ashby; it does not create, modify, or delete any Ashby records. Feedback longer than 5000 characters is truncated."
+      }
+    },
+    {
+      "name": "update_ai_interviewer_outline",
+      "title": "Update AI Interviewer Outline",
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": null,
+      "openWorldHint": false,
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "versionId": {
+            "type": "string",
+            "description": "Draft version ID from get_ai_interviewer_details (draftVersion.id) or create_ai_interviewer_version."
+          },
+          "operations": {
+            "minItems": 1,
+            "maxItems": 25,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "action": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "add_section"
+                    },
+                    {
+                      "type": "string",
+                      "const": "edit_section"
+                    },
+                    {
+                      "type": "string",
+                      "const": "remove_section"
+                    },
+                    {
+                      "type": "string",
+                      "const": "add_topic"
+                    },
+                    {
+                      "type": "string",
+                      "const": "edit_topic"
+                    },
+                    {
+                      "type": "string",
+                      "const": "remove_topic"
+                    },
+                    {
+                      "type": "string",
+                      "const": "duplicate_topic"
+                    }
+                  ],
+                  "description": "Which change to make."
+                },
+                "ref": {
+                  "description": "Optional name for the section or topic this add_section, add_topic, or duplicate_topic operation creates, so later operations can point at it with \"ref:<ref>\" in any ID field.",
+                  "type": "string"
+                },
+                "sectionId": {
+                  "description": "Section ID (or \"ref:<ref>\"). Required for edit_section, remove_section, and add_topic; optional target section for edit_topic and duplicate_topic. For add_topic, the section must accept topicType. Outline shape: Introduction (pinned, about 1 min, no topics) -> Minimum Qualifications -> Core Interview (General) sections -> Wrap Up. Minimum Qualifications is pinned and accepts criteria and open_ended topics; a failed criteria answer there ends the interview and jumps to Wrap Up, so real dealbreakers belong there, first. General sections group 1-3 topics by theme (e.g. \"Technical Background\") and accept all three types; competency topics go only here, and a failed criteria answer here is evaluated but does not end the interview. Wrap Up is pinned, lets candidates ask their own questions, accepts only new open_ended topics, cannot receive moved topics, and must keep at least one topic. Publishing needs at least one valid topic in Minimum Qualifications or a General section, plus the Wrap Up topic.",
+                  "type": "string"
+                },
+                "topicId": {
+                  "description": "Topic ID (or \"ref:<ref>\"). Required for edit_topic, remove_topic, and duplicate_topic.",
+                  "type": "string"
+                },
+                "afterSectionId": {
+                  "description": "add_section / edit_section: place the section after this one.",
+                  "type": "string"
+                },
+                "afterTopicId": {
+                  "description": "add_topic / edit_topic / duplicate_topic: place the topic after this one.",
+                  "type": "string"
+                },
+                "placeFirst": {
+                  "description": "Place the section or topic first. Mutually exclusive with afterSectionId/afterTopicId.",
+                  "type": "boolean"
+                },
+                "name": {
+                  "description": "Section or topic name. Required for add_section and add_topic.",
+                  "type": "string"
+                },
+                "topicType": {
+                  "description": "add_topic only. Pick the type by how the answer is judged: pass/fail with no nuance -> criteria; no right or wrong answer -> open_ended; the candidate must demonstrate a skill, knowledge, or expertise -> competency. criteria examples: work authorization, location, a license, salary within a range. Good: \"Do you hold an active CPA license?\". Bad: \"Tell me about your work authorization status.\" (not yes/no) or \"Do you have strong Excel skills?\" (nuanced; make it a competency) or \"Do you have 5+ years of B2B sales experience?\" (years of experience are self-reported and easily gamed; never ask them, and assess the experience with a competency instead). open_ended is defined by its format: it cannot be answered with yes/no or a single fact, so the candidate explains in their own words, showing how they think, what they prioritize, and how they communicate. There is no single right answer and responses vary widely, so they are summarized but not evaluated. Good: \"What drew you to this role?\" or \"How would you approach your first 90 days here?\". Bad: \"Are you willing to travel up to 25% of the time?\" (pass/fail; make it criteria). competency is defined by its purpose: it targets one skill the role requires (e.g. conflict resolution, stakeholder management, data analysis), asks for evidence the candidate has it, and is evaluated against AI evaluation criteria with five levels (Strong concern, Concern, Mixed signal, Positive signal, Strong signal). It is usually behavioral, asking about past performance (\"Tell me about a time you had to deliver a project with shifting requirements. What did you do?\"), or situational, posing a hypothetical (\"If a key stakeholder rejected your plan the day before launch, how would you handle it?\"). A behavioral or situational prompt that tests a skill is a competency even though its format is open: \"Tell me about a time you disagreed with feedback on a pull request\" tests collaboration, so make it a competency, not open_ended. Good requirements: detailed and focused on one skill (see competencyRequirements). Bad: \"Why do you want to work here?\" (subjective; make it open_ended).",
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "competency"
+                    },
+                    {
+                      "type": "string",
+                      "const": "criteria"
+                    },
+                    {
+                      "type": "string",
+                      "const": "open_ended"
+                    }
+                  ]
+                },
+                "question": {
+                  "description": "add_topic / edit_topic (required for new criteria and open_ended topics, and expected for new competency topics). Question the AI interviewer asks, about exactly one thing. criteria (Affirmative/Negative): must be answerable yes or no, e.g. \"Are you authorized to work in the US?\". criteria (Custom): a question that elicits the value customPrompt checks, e.g. \"What is your minimum salary requirement?\". open_ended: required; a subjective prompt with no right answer, e.g. \"What draws you to this role?\"; behavioral (\"Tell me about a time...\") or situational (\"How would you handle...\") prompts that test a skill belong in a competency topic instead. competency: write it explicitly as a behavioral (\"Tell me about a time...\") or situational (\"How would you handle...\") prompt that elicits evidence for the requirements, e.g. \"Tell me about a time you had to qualify a large inbound lead. How did you decide whether it was worth pursuing?\". Keep it short: one or two plain sentences (about 30 words at most) that open the topic; the requirements carry the detail and follow-ups probe for it. Providing it leaves the UI's \"Generate from requirements\" option off and fixes the exact wording. Omit it only when the user asks for the question to be generated from requirements. A trailing \"?\" is not required.",
+                  "type": "string"
+                },
+                "competency": {
+                  "description": "add_topic / edit_topic: competency fields (requirements is required when adding).",
+                  "type": "object",
+                  "properties": {
+                    "requirements": {
+                      "description": "Required. Everything a great answer demonstrates for one skill: the AI evaluation criteria are generated from it, answers are evaluated against it, and the question must elicit evidence for it. Changing it regenerates the AI evaluation criteria, which cannot be hand-edited. Be detailed but focused: name the one skill, then spell out what a great answer shows about it, such as the method or framework used, the specific actions and decisions, the data or signals relied on, and the measurable outcome. Every detail must deepen that one skill; a second skill that could be assessed on its own (e.g. hiring inside a forecasting topic) belongs in a separate topic. Write 2-4 sentences, each starting with a verb. Never write \"Candidate describes\" or any pronoun (\"they\", \"their\", \"them\", \"you\", \"your\", \"he\", \"she\"), and avoid subjective adjectives such as \"strong\", \"excellent\", \"effective\", \"clear\", \"good\", or \"enough\" unless explicit evaluable criteria are defined. Good: \"Explains a structured framework such as BANT or MEDDICC for qualifying inbound leads. Identifies the signals checked at each step, such as budget authority, a defined pain, and a buying timeline, and how those signals decide whether a lead is pursued, nurtured, or disqualified. Cites the effect of the framework on conversion rate or sales cycle length.\" Bad: \"Explains a framework for qualifying inbound leads\" (too thin), \"Explains how they qualify inbound leads\" (pronoun), or \"Strong communication, CRM, and prospecting skills\" (several skills).",
+                      "type": "string"
+                    },
+                    "personalizeQuestion": {
+                      "description": "The UI's \"Personalize using resume\" option: the AI interviewer tailors the question using relevant details from the candidate's resume.",
+                      "type": "boolean"
+                    },
+                    "probeDepth": {
+                      "description": "Follow-up approach. 0=Minimal: follow up only when an answer is vague or incomplete. 1=Probing (the job-posting import default): typically 1-2 follow-ups. 2=Deep Dive: several layered follow-ups; the longest option, so use it selectively.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 2
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "criteria": {
+                  "description": "add_topic / edit_topic: criteria fields (criteriaType is required when adding).",
+                  "type": "object",
+                  "properties": {
+                    "criteriaType": {
+                      "description": "How the answer passes. Affirmative: a qualified candidate answers yes (e.g. work authorization, willingness to travel, a valid driver's license). Negative: a qualified candidate answers no (e.g. requiring visa sponsorship, a felony conviction). Custom: only for questions that are not yes/no (e.g. minimum salary requirement, earliest start date, how the candidate heard about the position); requires customPrompt. Never ask for a number of years of experience (e.g. \"Do you have 5+ years of experience in B2B sales?\"), even when the job posting states one: the count is self-reported and easily gamed, so assess that experience with a competency topic instead.",
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "Affirmative"
+                        },
+                        {
+                          "type": "string",
+                          "const": "Negative"
+                        },
+                        {
+                          "type": "string",
+                          "const": "Custom"
+                        }
+                      ]
+                    },
+                    "customPrompt": {
+                      "description": "Required for Custom criteria. Only the pass condition, as one short objective \"must\" statement (aim for under 15 words), e.g. \"Minimum salary must be at or below $100,000 per year.\" or \"Must have shipped production code with a TypeScript runtime or framework.\" Any answer that does not meet it fails, so do not add a fail condition, lists of examples, or explanation. Do not mention \"the candidate\" or \"to pass\", and avoid subjective terms like \"reasonable\" or \"enough\".",
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "openEnded": {
+                  "description": "add_topic / edit_topic: open-ended fields.",
+                  "type": "object",
+                  "properties": {
+                    "personalizeQuestion": {
+                      "description": "The UI's \"Personalize using resume\" option: the AI interviewer tailors the question using relevant details from the candidate's resume.",
+                      "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "action"
+              ],
+              "additionalProperties": false,
+              "description": "One outline change."
+            },
+            "description": "Changes to apply in order (max 25)."
+          },
+          "reason": {
+            "type": "string",
+            "description": "A brief, one-sentence summary of the user's underlying goal or use case for this call. Do not include raw conversation text. This value does not affect the tool's behavior or results. Values longer than 500 characters are truncated."
+          }
+        },
+        "required": [
+          "versionId",
+          "operations",
+          "reason"
+        ]
+      },
+      "description": {
+        "sha256": "99f48f8f47f2b0eb3eba32c4c5765619a89c36a882a4df74f7fbfa0a527d9498",
+        "length": 552,
+        "text": "Add, edit, remove, or duplicate sections and topics in a draft AI interviewer outline, one or more operations per call. Operations run in order and later ones can reference earlier creates with \"ref:<ref>\". All operations are validated before any write, and a validation error means nothing was applied; writes stop at the first failure and the response reports what was applied and skipped. Field guidance for topics lives on this tool's parameter descriptions; create_ai_interviewer also returns outline-wide guidance when starting a new interviewer."
       }
     }
   ]

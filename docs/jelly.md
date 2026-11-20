@@ -31,7 +31,7 @@ family's own drawing, not Ashby's logo, shape or brand colour.
 
 ## Tools and permissions
 
-16 tools are declared (11 read-only), every tool in `src/ashby-tools.ts`: each read tool read-only, and every tool,
+22 tools are declared (14 read-only), every tool in `src/ashby-tools.ts`: each read tool read-only, and every tool,
 reads and changes alike, `allow`. That matches the family's default, where nothing is denied until the user restricts
 it. Jelly's agents have no base "allow everything" rule, so this plugin's own default rules, which it puts after that
 rule, never reach them: Jelly writes each declared effect as that tool's default, and the person's own choice replaces

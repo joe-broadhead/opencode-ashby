@@ -39,13 +39,15 @@ const hidden = (rules: readonly Rule[], action: string) => {
 }
 
 /**
- * The host lists an MCP server's tools shortly after it connects. The registry lists the two denied tools too; the
- * deny hides them from the model's tools and refuses them.
+ * The host lists an MCP server's tools shortly after it connects. The fake serves two reads, every write, every
+ * destructive tool and one tool the plugin has never seen; the registry lists the denied tools too, and the deny hides
+ * them from the model's tools and refuses them.
  */
+const SERVED = ["get_pending_tasks", "search_records_by_name", "shiny_new_tool", ...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS].map((tool) => `ashby_${tool}`)
 const ashbyTools = (host: Host) =>
   until("Ashby's tools are registered", async () => {
     const ids = (await host.probe().tool.list()).map((tool) => tool.id).filter((id) => id.startsWith("ashby_"))
-    return ids.length === 8 && ids.sort()
+    return ids.length === SERVED.length && ids.sort()
   })
 
 async function status(host: Host, sessionID: string) {
@@ -98,7 +100,7 @@ describe(`the plugin on OpenCode ${HOST_VERSION}`, () => {
     expect(plugins.find((plugin) => plugin.id === "ashby.recruiting")?.state.status).toBe("active")
     const { data: servers } = await host.client.mcp.list({ location: host.location })
     expect(servers.find((server) => server.name === "ashby")?.status).toEqual({ status: "connected" })
-    expect(await ashbyTools(host)).toEqual([...["get_pending_tasks", "search_records_by_name", "shiny_new_tool", ...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS].map((tool) => `ashby_${tool}`)].sort())
+    expect(await ashbyTools(host)).toEqual([...SERVED].sort())
     const { data: skills } = await host.client.skill.list({ location: host.location })
     expect(skills.map((skill) => skill.id).filter((id) => id.startsWith("ashby")).sort()).toEqual([...SKILL_NAMES].sort())
     const { data: commands } = await host.client.command.list({ location: host.location })

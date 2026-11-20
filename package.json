@@ -229,6 +229,42 @@
         "permission": "ashby_submit_mcp_feedback",
         "effect": "allow",
         "readOnly": false
+      },
+      {
+        "name": "ashby.get_ai_interviewer_details",
+        "permission": "ashby_get_ai_interviewer_details",
+        "effect": "allow",
+        "readOnly": true
+      },
+      {
+        "name": "ashby.get_ai_screening_interview_analytics",
+        "permission": "ashby_get_ai_screening_interview_analytics",
+        "effect": "allow",
+        "readOnly": true
+      },
+      {
+        "name": "ashby.get_ai_screening_interview_results",
+        "permission": "ashby_get_ai_screening_interview_results",
+        "effect": "allow",
+        "readOnly": true
+      },
+      {
+        "name": "ashby.create_ai_interviewer",
+        "permission": "ashby_create_ai_interviewer",
+        "effect": "allow",
+        "readOnly": false
+      },
+      {
+        "name": "ashby.create_ai_interviewer_version",
+        "permission": "ashby_create_ai_interviewer_version",
+        "effect": "allow",
+        "readOnly": false
+      },
+      {
+        "name": "ashby.update_ai_interviewer_outline",
+        "permission": "ashby_update_ai_interviewer_outline",
+        "effect": "allow",
+        "readOnly": false
       }
     ],
     "skills": [

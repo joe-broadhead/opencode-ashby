@@ -20,8 +20,8 @@ Ashby is a trademark of Ashby, Inc.; this unofficial plugin is not endorsed by t
   stay hidden unless you were granted them.
 - Ashby's MCP server is in beta, and Ashby may change its tools without notice. A tool Ashby adds is allowed at once
   under `access: "all"`, and is counted as unknown until a release knows it.
-- The 11 read, 3 write and 2 destructive tools, and their classes, come from Ashby's own help page and a signed-in
-  server's tool list, whose `readOnlyHint` the declaration follows (captured 14 November 2026). A tool Ashby adds follows
+- The 14 read, 6 write and 2 destructive tools, and their classes, come from Ashby's own help page and a signed-in
+  server's tool list, whose `readOnlyHint` the declaration follows (captured 20 November 2026). A tool Ashby adds follows
   `access`: allowed at once at `"all"`, asked for at `"ask-changes"`, denied at `"read-only"`, and status names it as
   unknown.
 - Ashby stores and processes its data in the United States.
@@ -172,6 +172,9 @@ The plugin adds these rules for `access: "all"`:
     { "action": "ashby_*", "resource": "*", "effect": "allow" },
     { "action": "ashby_describe_object_fields", "resource": "*", "effect": "allow" },
     { "action": "ashby_filter_records", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_ai_interviewer_details", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_ai_screening_interview_analytics", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_ai_screening_interview_results", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_candidate", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_interview_details", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_interview_plan", "resource": "*", "effect": "allow" },
@@ -183,7 +186,10 @@ The plugin adds these rules for `access: "all"`:
     { "action": "ashby_search_records_by_name", "resource": "*", "effect": "allow" },
     { "action": "ashby_add_note_to_candidate", "resource": "*", "effect": "allow" },
     { "action": "ashby_consider_candidate_for_job", "resource": "*", "effect": "allow" },
+    { "action": "ashby_create_ai_interviewer", "resource": "*", "effect": "allow" },
+    { "action": "ashby_create_ai_interviewer_version", "resource": "*", "effect": "allow" },
     { "action": "ashby_create_candidate", "resource": "*", "effect": "allow" },
+    { "action": "ashby_update_ai_interviewer_outline", "resource": "*", "effect": "allow" },
     { "action": "ashby_change_application_stage", "resource": "*", "effect": "allow" },
     { "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "allow" },
     { "action": "ashby_events_list", "resource": "*", "effect": "allow" },
@@ -200,6 +206,9 @@ The plugin adds these rules for `access: "ask-changes"`:
     { "action": "ashby_*", "resource": "*", "effect": "ask" },
     { "action": "ashby_describe_object_fields", "resource": "*", "effect": "allow" },
     { "action": "ashby_filter_records", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_ai_interviewer_details", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_ai_screening_interview_analytics", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_ai_screening_interview_results", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_candidate", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_interview_details", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_interview_plan", "resource": "*", "effect": "allow" },
@@ -211,7 +220,10 @@ The plugin adds these rules for `access: "ask-changes"`:
     { "action": "ashby_search_records_by_name", "resource": "*", "effect": "allow" },
     { "action": "ashby_add_note_to_candidate", "resource": "*", "effect": "ask" },
     { "action": "ashby_consider_candidate_for_job", "resource": "*", "effect": "ask" },
+    { "action": "ashby_create_ai_interviewer", "resource": "*", "effect": "ask" },
+    { "action": "ashby_create_ai_interviewer_version", "resource": "*", "effect": "ask" },
     { "action": "ashby_create_candidate", "resource": "*", "effect": "ask" },
+    { "action": "ashby_update_ai_interviewer_outline", "resource": "*", "effect": "ask" },
     { "action": "ashby_change_application_stage", "resource": "*", "effect": "ask" },
     { "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "ask" },
     { "action": "ashby_events_list", "resource": "*", "effect": "allow" },
@@ -228,6 +240,9 @@ The plugin adds these rules for `access: "read-only"`:
     { "action": "ashby_*", "resource": "*", "effect": "deny" },
     { "action": "ashby_describe_object_fields", "resource": "*", "effect": "allow" },
     { "action": "ashby_filter_records", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_ai_interviewer_details", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_ai_screening_interview_analytics", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_ai_screening_interview_results", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_candidate", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_interview_details", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_interview_plan", "resource": "*", "effect": "allow" },
@@ -239,7 +254,10 @@ The plugin adds these rules for `access: "read-only"`:
     { "action": "ashby_search_records_by_name", "resource": "*", "effect": "allow" },
     { "action": "ashby_add_note_to_candidate", "resource": "*", "effect": "deny" },
     { "action": "ashby_consider_candidate_for_job", "resource": "*", "effect": "deny" },
+    { "action": "ashby_create_ai_interviewer", "resource": "*", "effect": "deny" },
+    { "action": "ashby_create_ai_interviewer_version", "resource": "*", "effect": "deny" },
     { "action": "ashby_create_candidate", "resource": "*", "effect": "deny" },
+    { "action": "ashby_update_ai_interviewer_outline", "resource": "*", "effect": "deny" },
     { "action": "ashby_change_application_stage", "resource": "*", "effect": "deny" },
     { "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "deny" },
     { "action": "ashby_events_list", "resource": "*", "effect": "allow" },

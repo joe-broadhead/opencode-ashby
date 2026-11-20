@@ -63,6 +63,30 @@
     {
       "name": "submit_mcp_feedback",
       "description": "Send feedback to the Ashby team when the server hits a limitation."
+    },
+    {
+      "name": "get_ai_interviewer_details",
+      "description": "An AI interviewer's definition: its draft and published outlines, version history and the jobs it is assigned to."
+    },
+    {
+      "name": "get_ai_screening_interview_analytics",
+      "description": "Aggregate analytics for one AI interviewer: funnel counts, decline reasons, duration, outcomes and sentiment among completed interviews, and recent unanswered questions."
+    },
+    {
+      "name": "get_ai_screening_interview_results",
+      "description": "AI screening interview results across candidates for one outline section or topic: each candidate's evaluation and transcript excerpt. Candidate data."
+    },
+    {
+      "name": "create_ai_interviewer",
+      "description": "Create a blank AI screening interviewer with an empty draft outline."
+    },
+    {
+      "name": "create_ai_interviewer_version",
+      "description": "Create a draft version of an AI interviewer, blank or copied from an existing version."
+    },
+    {
+      "name": "update_ai_interviewer_outline",
+      "description": "Add, edit, remove or duplicate sections and topics in a draft AI interviewer outline, one or more operations per call."
     }
   ]
 }
