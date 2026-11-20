@@ -15,7 +15,8 @@ All notable changes to this project are documented here. The format follows [Kee
   Ashby's web app, and no tool here does either. The three reads ran as unknown names before this release, so at
   `ask-changes` each asked and at `read-only` each was denied; they are now allowed like every read. Screening results
   are Ashby's AI output and candidate data: shown side by side, summarised and never ranked, and a human interview's
-  recordings and transcripts stay Metaview's. The namespace description names AI screening interviewers, and both
+  recordings and transcripts stay Metaview's. The namespace description names AI screening interviewers and says
+  human interview recordings and transcripts are Metaview's while AI screening results and analytics are Ashby's; both
   skills route AI screening to Ashby's own tools. `jelly.tools` grows to 22 tools (14 read-only), so Jelly asks for
   consent again.
 
