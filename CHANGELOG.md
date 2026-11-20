@@ -12,8 +12,12 @@ All notable changes to this project are documented here. The format follows [Kee
   `get_ai_screening_interview_analytics` and `get_ai_screening_interview_results` are reads, and
   `create_ai_interviewer`, `create_ai_interviewer_version` and `update_ai_interviewer_outline` are writes. The three
   writes change only a **draft** definition: nothing reaches a candidate until it is published and assigned to a job in
-  Ashby's web app, and no tool here does either. Screening results are Ashby's AI output and candidate data: a read,
-  summarised and never ranked. `jelly.tools` grows to 22 tools (14 read-only), so Jelly asks for consent again.
+  Ashby's web app, and no tool here does either. The three reads ran as unknown names before this release, so at
+  `ask-changes` each asked and at `read-only` each was denied; they are now allowed like every read. Screening results
+  are Ashby's AI output and candidate data: shown side by side, summarised and never ranked, and a human interview's
+  recordings and transcripts stay Metaview's. The namespace description names AI screening interviewers, and both
+  skills route AI screening to Ashby's own tools. `jelly.tools` grows to 22 tools (14 read-only), so Jelly asks for
+  consent again.
 
 ### Changed
 

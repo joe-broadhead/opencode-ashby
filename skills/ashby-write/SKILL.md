@@ -31,11 +31,8 @@ Each bullet ends with the sentence to write before the call; name the real candi
   option. Everyone with access to the profile sees it, people following the candidate may be notified, and so may a
   colleague you @-mention; the candidate is not emailed. Show the note text in your sentence before the call. "This adds
   the note '[text]' to [name]'s profile, which everyone with access sees, and may notify people following [name]."
-- `create_ai_interviewer`, `create_ai_interviewer_version` and `update_ai_interviewer_outline`: a screening interviewer's
-  **draft** definition — a new blank one, a new version, or its sections and topics. The hiring team sees it; no
-  candidate does until someone publishes it and assigns it to a job in Ashby's web app, and no tool here does either.
-  "This changes the draft of [interviewer], which the hiring team sees; candidates see nothing until it is published
-  and assigned in Ashby."
+- `create_ai_interviewer`, `create_ai_interviewer_version` and `update_ai_interviewer_outline`: a screening
+  interviewer's draft definition; the drafts section below gives the mechanics and the sentence to write.
 
 ## AI screening interviewer drafts
 
@@ -51,8 +48,7 @@ job in Ashby's web app, and no tool here does either. Say that in your sentence,
   response says what was applied and what was skipped. Introduction, Minimum Qualifications and Wrap Up are pinned; a
   failed criteria answer in Minimum Qualifications ends the interview, so real dealbreakers go there first.
 
-"This changes the draft outline of [interviewer], which the hiring team sees; candidates see nothing until someone
-publishes it and assigns it to a job in Ashby."
+"This changes the draft of [interviewer], which the hiring team sees."
 
 ## Stage moves, archives and feedback
 
