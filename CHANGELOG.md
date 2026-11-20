@@ -4,11 +4,19 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed
+
+- **An interview's link keeps no query string or fragment,** which may carry a token or a tracking parameter, and an
+  email address or a phone number in its title or job is masked. Secret screening still reads Ashby's text as given, so
+  a credential in a title is still refused.
+
 ### Changed
 
-- **`events_list` says exactly what it reads.** Its description now says it lists the signed-in user's own interviews, the
-  ones Ashby's `list_interviews` returns for them, as metadata only, and never contact details (email, phone), feedback,
-  scorecards, notes or transcripts. Nothing it reads or answers changes.
+- **`events_list` says exactly what it reads.** Its description and the README say it lists the interviews Ashby's
+  `list_interviews` returns for the signed-in user, as metadata only, and never contact details (email, phone), feedback,
+  scorecards, notes or transcripts. They no longer call them the user's own: the plugin cannot check them against the
+  interview panel, because no Ashby tool names the signed-in user, so an admin may be served other people's. Nothing it
+  reads or answers changes otherwise.
 
 ### Tests
 

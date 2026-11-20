@@ -134,8 +134,12 @@ describe("the source contract's conformance kit", () => {
     // declares none, and the statement lives in events_list's own description and the README.
     expect(source.scope).toBeUndefined()
     const sentence = EVENTS_DESCRIPTION.toLowerCase()
-    expect(sentence).toContain("signed-in user's own ashby interviews")
+    expect(sentence).toContain("the interviews ashby's list_interviews returns for the signed-in user")
     for (const word of ["metadata", "contact details", "feedback", "scorecards", "notes", "transcripts"]) expect({ word, said: sentence.includes(word) }).toEqual({ word, said: true })
+    // What the plugin cannot check: no Ashby tool names the signed-in user, so it never claims these are the user's own.
+    expect(sentence).toContain("cannot check them against the interview panel")
+    expect(sentence).toContain("no ashby tool names the signed-in user")
+    expect(sentence).not.toContain("own ashby interviews")
     // The one read is the one Ashby itself describes as the current user's interviews (a live capture of the tool list).
     expect(source.permission.operations).toEqual([LIST_TOOL])
     const captured = JSON.parse(readFileSync(join(root, "test", "fixtures", "live-tools.json"), "utf8")) as { tools: { name: string; description: { text: string } }[] }

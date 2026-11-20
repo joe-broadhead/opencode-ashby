@@ -266,6 +266,36 @@ describe("events_list", () => {
     for (const absent of ["@example.test", "meet.example.net", "Ira Sample", "Jo Example", "Kai Sample"]) expect({ absent, found: text.includes(absent) }).toEqual({ absent, found: false })
   })
 
+  test("keeps an Ashby link without its query or fragment: a token or a tracking parameter never reaches an event", async () => {
+    // The one filter keeps the weekly window apart from the link cases.
+    const answers: Record<string, unknown>[] = [
+      { interviewEventId: "ie-link-1", interviewTitle: "Screen", startTime: "2026-10-01T09:00:00Z", url: "https://app.ashbyhq.com/interviews/ie-link-1?token=TOKEN-1&utm_source=mail#top" },
+      { interviewEventId: "ie-link-2", interviewTitle: "Screen", startTime: "2026-10-01T10:00:00Z", candidateUrl: "https://app.ashbyhq.com/candidates/c-1?signature=SIGNED-2" },
+    ]
+    const page = (await list(ashby(answers))({ since: SINCE, limit: PAGE.max })) as EventsListResult
+    const byId = Object.fromEntries(page.events.map((event) => [event.external_id, event]))
+    expect(byId["ie-link-1"]!.url).toBe("https://app.ashbyhq.com/interviews/ie-link-1")
+    expect(byId["ie-link-2"]!.url).toBe("https://app.ashbyhq.com/candidates/c-1")
+    for (const absent of ["TOKEN-1", "SIGNED-2", "utm_source", "signature", "#top"]) expect({ absent, found: JSON.stringify(page).includes(absent) }).toEqual({ absent, found: false })
+    // Still strict about the host and the scheme.
+    for (const url of ["http://app.ashbyhq.com/interviews/1", "https://evil.example.test/interviews/1", "https://app.ashbyhq.com.evil.example.test/interviews/1", "https://user:pw@app.ashbyhq.com/interviews/1"]) expect(ashbyUrl(url)).toBeUndefined()
+    expect(ashbyUrl("https://app.ashbyhq.com/interviews/ie-1?x=1#y")).toBe("https://app.ashbyhq.com/interviews/ie-1")
+  })
+
+  test("masks an email address or a phone number in an interview's title, and in its job", async () => {
+    const at = "2026-10-02T09:00:00Z"
+    const page = (await list(ashby([
+      { interviewEventId: "ie-mail-1", interviewTitle: "Screen with ana@example.test", jobTitle: "Call +1 (415) 555-0100", startTime: at },
+      { interviewEventId: "ie-mail-2", interviewTitle: "Prep for 2026-10-02 09:00 debrief", startTime: at },
+    ]))({ since: SINCE, limit: PAGE.max })) as EventsListResult
+    const byId = Object.fromEntries(page.events.map((event) => [event.external_id, event]))
+    expect(byId["ie-mail-1"]!.title).toBe("Screen with [email] — Call [phone]")
+    // A date is not a phone number.
+    expect(byId["ie-mail-2"]!.title).toBe("Prep for 2026-10-02 09:00 debrief")
+    const text = JSON.stringify(page.events)
+    for (const absent of ["ana@example.test", "415", "555-0100", "+1 ("]) expect({ absent, found: text.includes(absent) }).toEqual({ absent, found: false })
+  })
+
   test("refuses an interview whose title holds a secret for good, and moves the cursor past it", async () => {
     const result = (await list()({ since: SINCE, limit: PAGE.max })) as EventsListResult
     expect(result.refused).toEqual([{ external_id: SECRET, reason: "secret", detail: "holds a secret (connection string)" }])
