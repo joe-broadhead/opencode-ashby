@@ -13,7 +13,7 @@ import { encodeBoundCursor, encodeCursor } from "@we-the-rebel-alliance/source-c
 import { readInstalledDescriptor } from "@we-the-rebel-alliance/source-contract/descriptor"
 import { SOURCES_SCHEMA, type Sources } from "@we-the-rebel-alliance/source-contract/schema"
 import type { ToolCall } from "@we-the-rebel-alliance/source-contract/tools-rpc"
-import { ACCOUNT, LIST_TOOL, PACKAGE, SOURCE, SOURCE_ID, eventsMethod, probeMethod, type EventsContext } from "../../src/events.js"
+import { ACCOUNT, EVENTS_DESCRIPTION, LIST_TOOL, PACKAGE, SOURCE, SOURCE_ID, eventsMethod, probeMethod, type EventsContext } from "../../src/events.js"
 import { METHODS, TOOLS_RPC_ID } from "../../src/tools-rpc.js"
 
 const root = fileURLToPath(new URL("../..", import.meta.url))
@@ -126,6 +126,24 @@ describe("the source contract's conformance kit", () => {
     expect(probed.owner).not.toHaveProperty("verified")
     expect(sources.items[0]!.permission).not.toHaveProperty("identity")
     expect(await list({ account: probed.account, since: FIXTURE.since, limit: 1 })).toMatchObject({ account: ACCOUNT, owner: probed.owner })
+  })
+
+  test("what is read is stated exactly, since the contract has no consent sentence for a source with no scope key to choose", () => {
+    const source = sources.items.find((item) => item.id === SOURCE_ID)!
+    // contract 0.3.0 reads `scope.describe` only with at least one scope key: this source has nothing to choose, so it
+    // declares none, and the statement lives in events_list's own description and the README.
+    expect(source.scope).toBeUndefined()
+    const sentence = EVENTS_DESCRIPTION.toLowerCase()
+    expect(sentence).toContain("the interviews ashby's list_interviews returns for the signed-in user")
+    for (const word of ["metadata", "contact details", "feedback", "scorecards", "notes", "transcripts"]) expect({ word, said: sentence.includes(word) }).toEqual({ word, said: true })
+    // What the plugin cannot check: no Ashby tool names the signed-in user, so it never claims these are the user's own.
+    expect(sentence).toContain("cannot check them against the interview panel")
+    expect(sentence).toContain("no ashby tool names the signed-in user")
+    expect(sentence).not.toContain("own ashby interviews")
+    // The one read is the one Ashby itself describes as the current user's interviews (a live capture of the tool list).
+    expect(source.permission.operations).toEqual([LIST_TOOL])
+    const captured = JSON.parse(readFileSync(join(root, "test", "fixtures", "live-tools.json"), "utf8")) as { tools: { name: string; description: { text: string } }[] }
+    expect(captured.tools.find((tool) => tool.name === LIST_TOOL)?.description.text).toMatch(/^Search the current Ashby user's interviews/)
   })
 
   test(`${SOURCE_ID} keeps the contract, every check run or stated not to apply`, async () => {

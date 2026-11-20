@@ -266,6 +266,36 @@ describe("events_list", () => {
     for (const absent of ["@example.test", "meet.example.net", "Ira Sample", "Jo Example", "Kai Sample"]) expect({ absent, found: text.includes(absent) }).toEqual({ absent, found: false })
   })
 
+  test("keeps an Ashby link without its query or fragment: a token or a tracking parameter never reaches an event", async () => {
+    // The one filter keeps the weekly window apart from the link cases.
+    const answers: Record<string, unknown>[] = [
+      { interviewEventId: "ie-link-1", interviewTitle: "Screen", startTime: "2026-10-01T09:00:00Z", url: "https://app.ashbyhq.com/interviews/ie-link-1?token=TOKEN-1&utm_source=mail#top" },
+      { interviewEventId: "ie-link-2", interviewTitle: "Screen", startTime: "2026-10-01T10:00:00Z", candidateUrl: "https://app.ashbyhq.com/candidates/c-1?signature=SIGNED-2" },
+    ]
+    const page = (await list(ashby(answers))({ since: SINCE, limit: PAGE.max })) as EventsListResult
+    const byId = Object.fromEntries(page.events.map((event) => [event.external_id, event]))
+    expect(byId["ie-link-1"]!.url).toBe("https://app.ashbyhq.com/interviews/ie-link-1")
+    expect(byId["ie-link-2"]!.url).toBe("https://app.ashbyhq.com/candidates/c-1")
+    for (const absent of ["TOKEN-1", "SIGNED-2", "utm_source", "signature", "#top"]) expect({ absent, found: JSON.stringify(page).includes(absent) }).toEqual({ absent, found: false })
+    // Still strict about the host and the scheme.
+    for (const url of ["http://app.ashbyhq.com/interviews/1", "https://evil.example.test/interviews/1", "https://app.ashbyhq.com.evil.example.test/interviews/1", "https://user:pw@app.ashbyhq.com/interviews/1"]) expect(ashbyUrl(url)).toBeUndefined()
+    expect(ashbyUrl("https://app.ashbyhq.com/interviews/ie-1?x=1#y")).toBe("https://app.ashbyhq.com/interviews/ie-1")
+  })
+
+  test("masks an email address or a phone number in an interview's title, and in its job", async () => {
+    const at = "2026-10-02T09:00:00Z"
+    const page = (await list(ashby([
+      { interviewEventId: "ie-mail-1", interviewTitle: "Screen with ana@example.test", jobTitle: "Call +1 (415) 555-0100", startTime: at },
+      { interviewEventId: "ie-mail-2", interviewTitle: "Prep for 2026-10-02 09:00 debrief", startTime: at },
+    ]))({ since: SINCE, limit: PAGE.max })) as EventsListResult
+    const byId = Object.fromEntries(page.events.map((event) => [event.external_id, event]))
+    expect(byId["ie-mail-1"]!.title).toBe("Screen with [email] — Call [phone]")
+    // A date is not a phone number.
+    expect(byId["ie-mail-2"]!.title).toBe("Prep for 2026-10-02 09:00 debrief")
+    const text = JSON.stringify(page.events)
+    for (const absent of ["ana@example.test", "415", "555-0100", "+1 ("]) expect({ absent, found: text.includes(absent) }).toEqual({ absent, found: false })
+  })
+
   test("refuses an interview whose title holds a secret for good, and moves the cursor past it", async () => {
     const result = (await list()({ since: SINCE, limit: PAGE.max })) as EventsListResult
     expect(result.refused).toEqual([{ external_id: SECRET, reason: "secret", detail: "holds a secret (connection string)" }])
@@ -586,6 +616,74 @@ describe("the owner", () => {
     expect(await signedIn(context({ label: "" }).ctx)).toEqual({ id: "ashby:credential:cred-1", label: "Ashby sign-in" })
     const none = { mcp: { list: async () => ({ data: [{ name: "ashby", status: { status: "connected" } }] }) }, integration: { connection: { active: async () => undefined } } }
     expect(await signedIn(none as never)).toBeUndefined()
+  })
+})
+
+describe("after a restart", () => {
+  const call = { sessionID: "ses_1", agent: "build", messageID: "msg_1", id: "call_1", signal: new AbortController().signal, progress: async () => {} }
+
+  test("a fresh instance lists with no probe before it: the owner is read from OpenCode's sign-in on every listing, and nothing is kept", async () => {
+    let probes = 0
+    const { ctx } = context()
+    const wrapped = { ...ctx, mcp: { list: async () => ((probes++, ctx.mcp.list())) } } as unknown as EventsContext
+    // A new method, as a new OpenCode process builds it: no probe ran in it.
+    const page = (await eventsMethod(wrapped, () => true, () => NOW).run({ since: SINCE, limit: PAGE.max }, call)) as EventsListResult
+    expect(page.events.map((event) => event.external_id)).toEqual(EXPECTED)
+    expect(page.owner).toEqual(OWNER)
+    expect(probes).toBeGreaterThan(0)
+    // A second fresh instance continues from the first one's cursor, still with no probe.
+    const next = (await eventsMethod(context().ctx, () => true, () => NOW).run({ account: ACCOUNT, cursor: page.cursor }, call)) as EventsListResult
+    expect(next).toMatchObject({ events: [], more: false, owner: OWNER })
+  })
+
+  test("a different sign-in than the cursor's is still refused in a fresh instance", async () => {
+    const page = (await eventsMethod(context().ctx, () => true, () => NOW).run({ since: SINCE, limit: 1 }, call)) as EventsListResult
+    const other = context({ list: ashby().list })
+    const switched = { ...other.ctx, integration: { connection: { active: async () => ({ type: "credential", id: "cred-2", label: "bo@example.test" }) } } } as unknown as EventsContext
+    await expect(eventsMethod(switched, () => true, () => NOW).run({ account: ACCOUNT, cursor: page.cursor }, call)).rejects.toThrow(/^ACCOUNT_MISMATCH: /)
+  })
+})
+
+describe("what an event carries", () => {
+  // Every field a real interview could hold that is not metadata, with invented values.
+  const HOSTILE = [
+    {
+      interviewEventId: "ie-9001",
+      interviewTitle: "Screen",
+      jobTitle: "Platform Engineer",
+      startTime: "2026-10-01T09:00:00.000Z",
+      candidate: { id: "cand-9001", name: "Casey Sample", email: "casey.sample@example.test", phone: "+44 7700 900123", phoneNumber: "+44 7700 900124", linkedIn: "https://linkedin.example.test/in/casey" },
+      candidateEmail: "casey.sample@example.test",
+      interviewers: [{ id: "user-9001", name: "Ada Example", email: "ada@example.test", phone: "+44 7700 900125" }],
+      feedback: "FEEDBACK-TEXT strong hire",
+      scorecard: { overall: "STRONG-YES", notes: "SCORECARD-NOTES" },
+      score: 4,
+      rating: "RATING-4",
+      notes: "NOTE-TEXT",
+      transcript: "TRANSCRIPT-TEXT",
+      recordingUrl: "https://recordings.example.test/r/9001",
+      meetingLink: "https://meet.example.net/xyz",
+      resumeUrl: "https://app.ashbyhq.com/resume/9001.pdf",
+      url: "https://app.ashbyhq.com/interviews/ie-9001",
+    },
+  ]
+
+  test("is metadata only: no email, phone, feedback, score, scorecard, note, transcript or recording, whatever the answer holds", async () => {
+    const page = (await list(ashby(HOSTILE))({ since: SINCE, limit: PAGE.max })) as EventsListResult
+    expect(page.events.map((event) => event.external_id)).toEqual(["ie-9001"])
+    // The events, not the owner: the owner is the user's own sign-in label.
+    const out = JSON.stringify(page.events)
+    for (const absent of ["@example.test", "+44 7700", "FEEDBACK-TEXT", "STRONG-YES", "SCORECARD-NOTES", "RATING-4", "NOTE-TEXT", "TRANSCRIPT-TEXT", "recordings.example.test", "meet.example.net", "linkedin.example.test", "resume"]) {
+      expect({ absent, found: out.includes(absent) }).toEqual({ absent, found: false })
+    }
+    expect(page.events[0]).toMatchObject({ text: "", labels: [], thread: null, actors: [{ role: "candidate", id: "ashby:candidate:cand-9001" }, { role: "interviewer", id: "ashby:user:user-9001" }] })
+    // Only these keys, and no others, ever leave the plugin.
+    expect(Object.keys(page.events[0]!).sort()).toEqual(["account", "actors", "external_id", "hash", "kind", "labels", "occurred_at", "source", "text", "thread", "title", "url"])
+  })
+
+  test("a name that is an address is dropped, not kept", async () => {
+    const page = (await list(ashby([{ ...HOSTILE[0]!, candidate: { id: "cand-9002", name: "casey.sample@example.test" }, interviewers: [{ id: "user-9002", name: "ada@example.test" }] }]))({ since: SINCE, limit: PAGE.max })) as EventsListResult
+    expect(JSON.stringify(page.events)).not.toContain("@")
   })
 })
 

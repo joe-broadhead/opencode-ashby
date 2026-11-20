@@ -71,7 +71,10 @@ one source of the shared source contract (`ashby.interviews`, two methods on tha
   (`PLUGIN_METHODS`). A write or a destructive tool is a method but runs only on a resolved `allow`. Keep the RPC id
   `ashby.recruiting.tools` and its method names stable: scripts call them by name.
 - **The interviews source.** `src/events.ts` implements `package.json`'s `sources` (`ashby.interviews`) on the
-  contract's `events` and `cursor` modules. An event carries metadata only: ids, the start, the title and job, the
+  contract's `events` and `cursor` modules. **Declare or send no key a consumer on source-contract 0.1 refuses**
+  (`readsIdentity`, `removals[]`, `owner.verified`, `identityRules`, `accounts.server`, a price's `conditions` or `min`,
+  an empty `identity`) until the consumers are on 0.2: Jelly's host pins 0.1.0. It declares none, since no Ashby tool
+  names the signed-in user and the source makes no identity read. An event carries metadata only: ids, the start, the title and job, the
   candidate and the interviewers by Ashby's ids and names, and an ashbyhq.com link. Never an email, a phone number,
   feedback, a scorecard, a note or a transcript, and `text` stays empty. `permission.operations` is exactly the Ashby
   tools the source calls, and the conformance stage fails a read that asserts anything else.
