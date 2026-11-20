@@ -1,6 +1,6 @@
 {
   "name": "@joe-broadhead/opencode-ashby",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "private": true,
   "description": "Unofficial OpenCode plugin for Ashby: find and read your candidates, pipeline, interviews and feedback, and make selected changes, through Ashby's official MCP server",
   "keywords": [
@@ -88,7 +88,7 @@
     "@opentui/solid": "0.8.0",
     "@types/bun": "1.4.4",
     "@types/node": "24.19.2",
-    "@we-the-rebel-alliance/source-contract": "github:we-the-rebel-alliance/source-contract#v0.2.0",
+    "@we-the-rebel-alliance/source-contract": "github:we-the-rebel-alliance/source-contract#v0.3.0",
     "esbuild": "0.28.2",
     "solid-js": "1.9.17",
     "typescript": "5.9.3"
@@ -227,6 +227,42 @@
       {
         "name": "ashby.submit_mcp_feedback",
         "permission": "ashby_submit_mcp_feedback",
+        "effect": "allow",
+        "readOnly": false
+      },
+      {
+        "name": "ashby.get_ai_interviewer_details",
+        "permission": "ashby_get_ai_interviewer_details",
+        "effect": "allow",
+        "readOnly": true
+      },
+      {
+        "name": "ashby.get_ai_screening_interview_analytics",
+        "permission": "ashby_get_ai_screening_interview_analytics",
+        "effect": "allow",
+        "readOnly": true
+      },
+      {
+        "name": "ashby.get_ai_screening_interview_results",
+        "permission": "ashby_get_ai_screening_interview_results",
+        "effect": "allow",
+        "readOnly": true
+      },
+      {
+        "name": "ashby.create_ai_interviewer",
+        "permission": "ashby_create_ai_interviewer",
+        "effect": "allow",
+        "readOnly": false
+      },
+      {
+        "name": "ashby.create_ai_interviewer_version",
+        "permission": "ashby_create_ai_interviewer_version",
+        "effect": "allow",
+        "readOnly": false
+      },
+      {
+        "name": "ashby.update_ai_interviewer_outline",
+        "permission": "ashby_update_ai_interviewer_outline",
         "effect": "allow",
         "readOnly": false
       }

@@ -20,8 +20,8 @@ Ashby is a trademark of Ashby, Inc.; this unofficial plugin is not endorsed by t
   stay hidden unless you were granted them.
 - Ashby's MCP server is in beta, and Ashby may change its tools without notice. A tool Ashby adds is allowed at once
   under `access: "all"`, and is counted as unknown until a release knows it.
-- The 11 read, 3 write and 2 destructive tools, and their classes, come from Ashby's own help page and a signed-in
-  server's tool list, whose `readOnlyHint` the declaration follows (captured 14 November 2026). A tool Ashby adds follows
+- The 14 read, 6 write and 2 destructive tools, and their classes, come from Ashby's own help page and a signed-in
+  server's tool list, whose `readOnlyHint` the declaration follows (captured 20 November 2026). A tool Ashby adds follows
   `access`: allowed at once at `"all"`, asked for at `"ask-changes"`, denied at `"read-only"`, and status names it as
   unknown.
 - Ashby stores and processes its data in the United States.
@@ -29,18 +29,18 @@ Ashby is a trademark of Ashby, Inc.; this unofficial plugin is not endorsed by t
 ## Install
 
 ```sh
-opencode plugin add github:joe-broadhead/opencode-ashby#v0.0.6
+opencode plugin add github:joe-broadhead/opencode-ashby#v0.0.7
 ```
 
 Run `opencode reload`, or restart OpenCode. Then run `/ashby-status`: it shows `sign-in required` until you sign in
 (see [Sign in](#sign-in)).
 
-Each release has its own tag, and a Git install does not update by itself. To move to a newer release, remove the old entry with `opencode plugin remove github:joe-broadhead/opencode-ashby#v0.0.5`, then add the new tag with `opencode plugin add github:joe-broadhead/opencode-ashby#v<version>`.
+Each release has its own tag, and a Git install does not update by itself. To move to a newer release, remove the old entry with `opencode plugin remove github:joe-broadhead/opencode-ashby#v0.0.6`, then add the new tag with `opencode plugin add github:joe-broadhead/opencode-ashby#v<version>`.
 
 Or add the plugin to `opencode.json` instead, with the same spec:
 
 ```json
-{ "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.6" }] }
+{ "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.7" }] }
 ```
 
 The plugin registers Ashby's MCP server under the name `ashby`, adds default permission rules, the `/ashby-status`
@@ -148,7 +148,7 @@ There are three ways to restrict it.
 ```json
 {
   "plugins": [
-    { "package": "github:joe-broadhead/opencode-ashby#v0.0.6", "options": { "access": "ask-changes" } }
+    { "package": "github:joe-broadhead/opencode-ashby#v0.0.7", "options": { "access": "ask-changes" } }
   ]
 }
 ```
@@ -172,6 +172,9 @@ The plugin adds these rules for `access: "all"`:
     { "action": "ashby_*", "resource": "*", "effect": "allow" },
     { "action": "ashby_describe_object_fields", "resource": "*", "effect": "allow" },
     { "action": "ashby_filter_records", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_ai_interviewer_details", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_ai_screening_interview_analytics", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_ai_screening_interview_results", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_candidate", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_interview_details", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_interview_plan", "resource": "*", "effect": "allow" },
@@ -183,7 +186,10 @@ The plugin adds these rules for `access: "all"`:
     { "action": "ashby_search_records_by_name", "resource": "*", "effect": "allow" },
     { "action": "ashby_add_note_to_candidate", "resource": "*", "effect": "allow" },
     { "action": "ashby_consider_candidate_for_job", "resource": "*", "effect": "allow" },
+    { "action": "ashby_create_ai_interviewer", "resource": "*", "effect": "allow" },
+    { "action": "ashby_create_ai_interviewer_version", "resource": "*", "effect": "allow" },
     { "action": "ashby_create_candidate", "resource": "*", "effect": "allow" },
+    { "action": "ashby_update_ai_interviewer_outline", "resource": "*", "effect": "allow" },
     { "action": "ashby_change_application_stage", "resource": "*", "effect": "allow" },
     { "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "allow" },
     { "action": "ashby_events_list", "resource": "*", "effect": "allow" },
@@ -200,6 +206,9 @@ The plugin adds these rules for `access: "ask-changes"`:
     { "action": "ashby_*", "resource": "*", "effect": "ask" },
     { "action": "ashby_describe_object_fields", "resource": "*", "effect": "allow" },
     { "action": "ashby_filter_records", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_ai_interviewer_details", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_ai_screening_interview_analytics", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_ai_screening_interview_results", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_candidate", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_interview_details", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_interview_plan", "resource": "*", "effect": "allow" },
@@ -211,7 +220,10 @@ The plugin adds these rules for `access: "ask-changes"`:
     { "action": "ashby_search_records_by_name", "resource": "*", "effect": "allow" },
     { "action": "ashby_add_note_to_candidate", "resource": "*", "effect": "ask" },
     { "action": "ashby_consider_candidate_for_job", "resource": "*", "effect": "ask" },
+    { "action": "ashby_create_ai_interviewer", "resource": "*", "effect": "ask" },
+    { "action": "ashby_create_ai_interviewer_version", "resource": "*", "effect": "ask" },
     { "action": "ashby_create_candidate", "resource": "*", "effect": "ask" },
+    { "action": "ashby_update_ai_interviewer_outline", "resource": "*", "effect": "ask" },
     { "action": "ashby_change_application_stage", "resource": "*", "effect": "ask" },
     { "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "ask" },
     { "action": "ashby_events_list", "resource": "*", "effect": "allow" },
@@ -228,6 +240,9 @@ The plugin adds these rules for `access: "read-only"`:
     { "action": "ashby_*", "resource": "*", "effect": "deny" },
     { "action": "ashby_describe_object_fields", "resource": "*", "effect": "allow" },
     { "action": "ashby_filter_records", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_ai_interviewer_details", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_ai_screening_interview_analytics", "resource": "*", "effect": "allow" },
+    { "action": "ashby_get_ai_screening_interview_results", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_candidate", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_interview_details", "resource": "*", "effect": "allow" },
     { "action": "ashby_get_interview_plan", "resource": "*", "effect": "allow" },
@@ -239,7 +254,10 @@ The plugin adds these rules for `access: "read-only"`:
     { "action": "ashby_search_records_by_name", "resource": "*", "effect": "allow" },
     { "action": "ashby_add_note_to_candidate", "resource": "*", "effect": "deny" },
     { "action": "ashby_consider_candidate_for_job", "resource": "*", "effect": "deny" },
+    { "action": "ashby_create_ai_interviewer", "resource": "*", "effect": "deny" },
+    { "action": "ashby_create_ai_interviewer_version", "resource": "*", "effect": "deny" },
     { "action": "ashby_create_candidate", "resource": "*", "effect": "deny" },
+    { "action": "ashby_update_ai_interviewer_outline", "resource": "*", "effect": "deny" },
     { "action": "ashby_change_application_stage", "resource": "*", "effect": "deny" },
     { "action": "ashby_submit_mcp_feedback", "resource": "*", "effect": "deny" },
     { "action": "ashby_events_list", "resource": "*", "effect": "allow" },
@@ -309,7 +327,7 @@ Set options with the object form of the plugin entry:
 
 ```json
 {
-  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.6", "options": { "allowUntestedHost": true } }]
+  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.7", "options": { "allowUntestedHost": true } }]
 }
 ```
 
@@ -328,7 +346,7 @@ the plugin entry in the system config: `/Library/Application Support/opencode/op
 
 ```json
 {
-  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.6" }],
+  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.7" }],
   "permissions": [{ "action": "ashby_create_candidate", "resource": "*", "effect": "deny" }]
 }
 ```
@@ -458,7 +476,7 @@ store.
    in `/connect` → Ashby. If it answers `MCP server not found: ashby`, OpenCode is still opening that folder: wait a
    few seconds and run it again.
 2. Check: `opencode auth list` no longer lists **Ashby**.
-3. Remove the plugin: `opencode plugin remove github:joe-broadhead/opencode-ashby#v0.0.6`, then `opencode reload`.
+3. Remove the plugin: `opencode plugin remove github:joe-broadhead/opencode-ashby#v0.0.7`, then `opencode reload`.
    `opencode mcp list` no longer lists `ashby`.
 4. Remove any Ashby rules you copied into your agents' own `permissions`.
 

@@ -1,6 +1,6 @@
 ---
 name: ashby-write
-description: Load before any Ashby change - creating a candidate, adding or replying to a note on a candidate, considering a candidate for a job (adding them to a pipeline), moving a candidate to another stage, archiving, rejecting or hiring, or emailing a candidate - or before reporting a problem with Ashby's MCP to Ashby. Not for interview notes, clips or other changes in Metaview (metaview-write).
+description: Load before any Ashby change - creating a candidate, adding or replying to a note on a candidate, considering a candidate for a job (adding them to a pipeline), moving a candidate to another stage, archiving, rejecting or hiring, creating or editing an AI screening interviewer's draft definition, or emailing a candidate - or before reporting a problem with Ashby's MCP to Ashby. Not for interview notes, clips or other changes in Metaview (metaview-write).
 ---
 
 If Ashby's tools are absent, run `/connect` and choose Ashby, or on Jelly call jelly_connection_request. An Org Admin must enable Ashby's MCP Server first.
@@ -31,6 +31,24 @@ Each bullet ends with the sentence to write before the call; name the real candi
   option. Everyone with access to the profile sees it, people following the candidate may be notified, and so may a
   colleague you @-mention; the candidate is not emailed. Show the note text in your sentence before the call. "This adds
   the note '[text]' to [name]'s profile, which everyone with access sees, and may notify people following [name]."
+- `create_ai_interviewer`, `create_ai_interviewer_version` and `update_ai_interviewer_outline`: a screening
+  interviewer's draft definition; the drafts section below gives the mechanics and the sentence to write.
+
+## AI screening interviewer drafts
+
+An AI interviewer is a reusable, versioned screening definition (an outline of sections and topics) that jobs can use.
+These three tools change only a **draft**: nothing reaches a candidate until someone publishes it and assigns it to a
+job in Ashby's web app, and no tool here does either. Say that in your sentence, and name the interviewer.
+
+- `create_ai_interviewer`: a new, blank interviewer with an empty draft outline.
+- `create_ai_interviewer_version`: a new draft version, blank or copied from an existing one. It fails if the
+  interviewer already has a draft unless `allowAdditionalDraft: true`, which use only when the user asked for a second.
+- `update_ai_interviewer_outline`: adds, edits, removes or duplicates sections and topics in one draft version, up to
+  25 operations per call. Every operation is validated before any write and the rest stop at the first failure, so the
+  response says what was applied and what was skipped. Introduction, Minimum Qualifications and Wrap Up are pinned; a
+  failed criteria answer in Minimum Qualifications ends the interview, so real dealbreakers go there first.
+
+"This changes the draft of [interviewer], which the hiring team sees."
 
 ## Stage moves, archives and feedback
 

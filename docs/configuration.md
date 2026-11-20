@@ -4,7 +4,7 @@ Every option is optional. The smallest setup is one entry in `plugins`:
 
 ```json
 {
-  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.6" }]
+  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.7" }]
 }
 ```
 
@@ -12,7 +12,7 @@ To set options, use the object form:
 
 ```json
 {
-  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.6", "options": { "allowUntestedHost": true } }]
+  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.7", "options": { "allowUntestedHost": true } }]
 }
 ```
 
@@ -22,7 +22,7 @@ Set options with the object form of the plugin entry:
 
 ```json
 {
-  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.6", "options": { "access": "ask-changes" } }]
+  "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.7", "options": { "access": "ask-changes" } }]
 }
 ```
 
@@ -243,7 +243,7 @@ Every error from the plugin reads `CODE: What happened. Next step: What to do.`
 For example:
 
 ```text
-OPTIONS_INVALID: Unknown option "apiKey". Accepted options: "allowUntestedHost". Next step: Fix the plugin options in opencode.json, for example "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.6", "options": { "allowUntestedHost": true } }].
+OPTIONS_INVALID: Unknown option "apiKey". Accepted options: "allowUntestedHost". Next step: Fix the plugin options in opencode.json, for example "plugins": [{ "package": "github:joe-broadhead/opencode-ashby#v0.0.7", "options": { "allowUntestedHost": true } }].
 ```
 
 Errors from Ashby's server and from OpenCode pass through unchanged, except in the tools RPC for scripts, whose codes
@@ -275,7 +275,7 @@ model. It holds no token, no header and no URL query, and makes no Ashby call. `
 | `nextStep` | Exactly one next step: the `Next step` row, `Nothing to do.` when nothing is needed |
 
 The `Access` row states the posture the default rules fix, from the tool lists: at `all` "every Ashby tool is allowed,
-reads and changes alike"; at `ask-changes` "reads run without asking; the 3 writes and the 2 destructive tools ask
+reads and changes alike"; at `ask-changes` "reads run without asking; the 6 writes and the 2 destructive tools ask
 first"; at `read-only` the same list "are denied". Then it says whether those rules are in place:
 "no agent runs new Ashby tools unasked", "default rules missing in the agents listed below", or "default rules not
 added (see the OpenCode row)".

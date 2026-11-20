@@ -143,9 +143,9 @@ describe("buildStatus", () => {
     expect(formatStatus(buildStatus(base))).toContain(`- Access: ${ACCESS}\n`)
     expect(ACCESS).toBe("access all: every Ashby tool is allowed, reads and changes alike; every agent has the block")
     const restrictive = { ...base, access: "read-only" as const }
-    expect(formatStatus(buildStatus(restrictive))).toContain("- Access: access read-only: reads run without asking; the 3 writes and the 2 destructive tools are denied; every agent has the block\n")
+    expect(formatStatus(buildStatus(restrictive))).toContain("- Access: access read-only: reads run without asking; the 6 writes and the 2 destructive tools are denied; every agent has the block\n")
     const missing = buildStatus({ ...restrictive, agents: [{ id: "reviewer", permissions: [allow("*")] }] })
-    expect(formatStatus(missing)).toContain("- Access: access read-only: reads run without asking; the 3 writes and the 2 destructive tools are denied; default rules missing in the agents listed below\n")
+    expect(formatStatus(missing)).toContain("- Access: access read-only: reads run without asking; the 6 writes and the 2 destructive tools are denied; default rules missing in the agents listed below\n")
     const problem = "RULES_NOT_ADDED: Ashby's default permission rules could not be added (boom). Next step: Restart OpenCode."
     // DR-7: with the rules not added, restarting is the fault's own step, even though an agent is listed too.
     expect(buildStatus({ ...base, problems: [problem], agents: [{ id: "reviewer", permissions: [allow("*")] }] }).nextStep).toBe("Restart OpenCode.")

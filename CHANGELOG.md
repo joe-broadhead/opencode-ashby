@@ -2,6 +2,31 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.7] - 2026-11-20
+
+### Added
+
+- **Six AI screening tools Ashby's server now lists**, captured read-only on 20 November 2026
+  (`test/fixtures/live-tools.json` holds the 22 tools' names, descriptions, schemas and annotations):
+  `get_ai_interviewer_details`,
+  `get_ai_screening_interview_analytics` and `get_ai_screening_interview_results` are reads, and
+  `create_ai_interviewer`, `create_ai_interviewer_version` and `update_ai_interviewer_outline` are writes. The three
+  writes change only a **draft** definition: nothing reaches a candidate until it is published and assigned to a job in
+  Ashby's web app, and no tool here does either. The three reads ran as unknown names before this release, so at
+  `ask-changes` each asked and at `read-only` each was denied; they are now allowed like every read. Screening results
+  are Ashby's AI output and candidate data: shown side by side, summarised and never ranked, and a human interview's
+  recordings and transcripts stay Metaview's. The namespace description names AI screening interviewers and says
+  human interview recordings and transcripts are Metaview's while AI screening results and analytics are Ashby's; both
+  skills route AI screening to Ashby's own tools. `jelly.tools` grows to 22 tools (14 read-only), so Jelly asks for
+  consent again.
+
+### Changed
+
+- source-contract is pinned at v0.3.0 (`github:we-the-rebel-alliance/source-contract#v0.3.0`), still bundled into
+  `dist/index.js` with no runtime dependency. The declaration and both methods are unchanged and carry none of the keys
+  v0.3.0 adds (`facts`, `hints`, `routines`, an actor's `kind`, an event's `sections` and `parts`), so jelly, Memory and
+  Artifacts on v0.2.x read them as before.
+
 ## [0.0.6] - 2026-11-18
 
 ### Changed

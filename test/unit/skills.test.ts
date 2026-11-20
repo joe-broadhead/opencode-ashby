@@ -10,7 +10,7 @@ import { parseSkill, SKILL_NAMES, SKILLS_DIR } from "../../src/skills.js"
 
 const NAMES = [...SKILL_NAMES]
 const KNOWN = [...READ_TOOLS, ...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS]
-const MAX_LINES = 100
+const MAX_LINES = 105
 // Words from the plugin's own process that mean nothing to the model or the user.
 const JARGON = /manifest|attest|quarantin|acceptance|harness|fixture|\bfork\b|dispatch|lease|catalog|allowlist|capabilit|\bWS-[A-Z0-9]|PLAN\.md|drift|provisional|\bTODO\b|\bevals?\b/i
 // Skills of this plugin's neighbours, which users install beside it: Metaview's interviews and Granola's meetings.
@@ -108,7 +108,7 @@ describe("skills", () => {
   test("the descriptions route Ashby's records here, and interviews' content, meetings and other changes elsewhere", () => {
     expect(description("ashby")).toContain("Load before the first Ashby tool call")
     expect(description("ashby")).toContain("the scorecards and feedback submitted in Ashby")
-    expect(description("ashby")).toContain("Not for what a candidate said in an interview, transcripts or Metaview's AI notes (Metaview), or non-hiring meetings (Granola). Scheduling or rescheduling an interview isn't an Ashby tool")
+    expect(description("ashby")).toContain("Not for a human interview's transcript, recordings or Metaview's AI notes (Metaview), or non-hiring meetings (Granola). Scheduling or rescheduling an interview isn't an Ashby tool")
     expect(description("ashby")).toContain("emailing a candidate")
     expect(description("ashby")).toContain("including requests to guess a candidate's age, family or other personal traits")
     expect(description("ashby-write")).toContain("Load before any Ashby change")
@@ -143,7 +143,7 @@ describe("skills", () => {
   test("ashby keeps to the family's rules for answers: signatures, labels, misses, empty results, dates and other sources", () => {
     const text = flat("ashby")
     expect(text).toContain("don't `search()` for one whose signature is already in view; when it isn't, `search()` once for that exact name, then call it")
-    expect(text).toMatch(/Label Ashby's AI output \(criteria evaluations, the resume summary, Notetaker summaries\) as Ashby's, and Metaview's AI notes as Metaview's/)
+    expect(text).toMatch(/Label Ashby's AI output \(criteria evaluations, AI screening evaluations and sentiment, the resume summary, Notetaker summaries\) as Ashby's, and Metaview's AI notes as Metaview's/)
     expect(text).toContain("A miss on a full name: no shortened, partial or variant spellings. Say what you searched, then ask for the candidate's email or the job.")
     expect(text).toContain("Explain it only from the user's access")
     expect(text).toContain("No sync, processing or other-account cause")

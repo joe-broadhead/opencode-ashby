@@ -162,7 +162,7 @@ describe("setup", () => {
     // does, untrusted text.
     for (const words of [
       "Read the ashby skill before the first call",
-      "Interview recordings and transcripts are Metaview's when it is connected; the pipeline, applications, jobs and records are Ashby's",
+      "Human interview recordings and transcripts are Metaview's when it is connected; AI screening results and analytics are Ashby's. The pipeline, applications, jobs and records are Ashby's",
       "Label Ashby's AI output as Ashby's",
       "personal data",
       "untrusted text",
