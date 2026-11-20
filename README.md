@@ -129,6 +129,8 @@ methods, never tools the model sees:
   a phone number, feedback, a scorecard, a note or a transcript, and its text is always empty.
 - `probe` names who is signed in. Ashby's MCP has no account tool, so the owner is OpenCode's sign-in for Ashby,
   which Ashby does not confirm, and `probe` calls Ashby for nothing.
+  `events_list` never depends on `probe`: it reads the sign-in from OpenCode on every call and keeps nothing, so it works
+  after a restart of OpenCode with no `probe` first.
 
 The source has one account, `default`. A cursor is bound to the sign-in: after you sign in again, a consumer starts
 again from a time. `npm run conformance` runs the contract's conformance kit over both methods on invented interviews
@@ -450,6 +452,12 @@ The status RPC's own error is `unavailable`, with a next step, when the status c
   an interviewer added afterwards, or a calendar sync that lands late. Seven days is how far `list_interviews`' own
   default window reaches back. The cursor remembers at most the 40 newest interviews it listed, and one read looks back on
   at most 8 calls, newest part first, so after a busy stretch the look back is shorter, from the cursor backwards. An interview that becomes visible later than that is not listed.
+- **Whose interviews is Ashby's call.** The plugin lists what `list_interviews` returns, which Ashby's own description
+  says is "the current Ashby user's interviews" (a signed-in capture of the tool list, `test/fixtures/live-tools.json`). It
+  sends no candidate name and no other filter, and it cannot check that you are an interviewer on each one, because
+  Ashby's MCP has no tool that names you. The source contract has no consent sentence for a source with no scope key to
+  choose, so the statement of what is read is this section and the `events_list` description: your own interviews,
+  metadata only.
 - **Ashby does not confirm the source's owner.** Ashby names no signed-in user, so a page's owner is OpenCode's sign-in
   for Ashby. The contract says this with the owner's `verified: false`, and the declaration would say the probe asserts
   no identity operation with an empty `permission.identity`. A consumer on source-contract 0.1.x refuses both, so

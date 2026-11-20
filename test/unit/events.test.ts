@@ -589,6 +589,74 @@ describe("the owner", () => {
   })
 })
 
+describe("after a restart", () => {
+  const call = { sessionID: "ses_1", agent: "build", messageID: "msg_1", id: "call_1", signal: new AbortController().signal, progress: async () => {} }
+
+  test("a fresh instance lists with no probe before it: the owner is read from OpenCode's sign-in on every listing, and nothing is kept", async () => {
+    let probes = 0
+    const { ctx } = context()
+    const wrapped = { ...ctx, mcp: { list: async () => ((probes++, ctx.mcp.list())) } } as unknown as EventsContext
+    // A new method, as a new OpenCode process builds it: no probe ran in it.
+    const page = (await eventsMethod(wrapped, () => true, () => NOW).run({ since: SINCE, limit: PAGE.max }, call)) as EventsListResult
+    expect(page.events.map((event) => event.external_id)).toEqual(EXPECTED)
+    expect(page.owner).toEqual(OWNER)
+    expect(probes).toBeGreaterThan(0)
+    // A second fresh instance continues from the first one's cursor, still with no probe.
+    const next = (await eventsMethod(context().ctx, () => true, () => NOW).run({ account: ACCOUNT, cursor: page.cursor }, call)) as EventsListResult
+    expect(next).toMatchObject({ events: [], more: false, owner: OWNER })
+  })
+
+  test("a different sign-in than the cursor's is still refused in a fresh instance", async () => {
+    const page = (await eventsMethod(context().ctx, () => true, () => NOW).run({ since: SINCE, limit: 1 }, call)) as EventsListResult
+    const other = context({ list: ashby().list })
+    const switched = { ...other.ctx, integration: { connection: { active: async () => ({ type: "credential", id: "cred-2", label: "bo@example.test" }) } } } as unknown as EventsContext
+    await expect(eventsMethod(switched, () => true, () => NOW).run({ account: ACCOUNT, cursor: page.cursor }, call)).rejects.toThrow(/^ACCOUNT_MISMATCH: /)
+  })
+})
+
+describe("what an event carries", () => {
+  // Every field a real interview could hold that is not metadata, with invented values.
+  const HOSTILE = [
+    {
+      interviewEventId: "ie-9001",
+      interviewTitle: "Screen",
+      jobTitle: "Platform Engineer",
+      startTime: "2026-10-01T09:00:00.000Z",
+      candidate: { id: "cand-9001", name: "Casey Sample", email: "casey.sample@example.test", phone: "+44 7700 900123", phoneNumber: "+44 7700 900124", linkedIn: "https://linkedin.example.test/in/casey" },
+      candidateEmail: "casey.sample@example.test",
+      interviewers: [{ id: "user-9001", name: "Ada Example", email: "ada@example.test", phone: "+44 7700 900125" }],
+      feedback: "FEEDBACK-TEXT strong hire",
+      scorecard: { overall: "STRONG-YES", notes: "SCORECARD-NOTES" },
+      score: 4,
+      rating: "RATING-4",
+      notes: "NOTE-TEXT",
+      transcript: "TRANSCRIPT-TEXT",
+      recordingUrl: "https://recordings.example.test/r/9001",
+      meetingLink: "https://meet.example.net/xyz",
+      resumeUrl: "https://app.ashbyhq.com/resume/9001.pdf",
+      url: "https://app.ashbyhq.com/interviews/ie-9001",
+    },
+  ]
+
+  test("is metadata only: no email, phone, feedback, score, scorecard, note, transcript or recording, whatever the answer holds", async () => {
+    const page = (await list(ashby(HOSTILE))({ since: SINCE, limit: PAGE.max })) as EventsListResult
+    expect(page.events.map((event) => event.external_id)).toEqual(["ie-9001"])
+    // The events, not the owner: the owner is the user's own sign-in label.
+    const out = JSON.stringify(page.events)
+    for (const absent of ["@example.test", "+44 7700", "FEEDBACK-TEXT", "STRONG-YES", "SCORECARD-NOTES", "RATING-4", "NOTE-TEXT", "TRANSCRIPT-TEXT", "recordings.example.test", "meet.example.net", "linkedin.example.test", "resume"]) {
+      expect({ absent, found: out.includes(absent) }).toEqual({ absent, found: false })
+    }
+    expect(page.events[0]).toMatchObject({ text: "", labels: [], thread: null, actors: [{ role: "candidate", id: "ashby:candidate:cand-9001" }, { role: "interviewer", id: "ashby:user:user-9001" }] })
+    // Only these keys, and no others, ever leave the plugin.
+    expect(Object.keys(page.events[0]!).sort()).toEqual(["account", "actors", "external_id", "hash", "kind", "labels", "occurred_at", "source", "text", "thread", "title", "url"])
+  })
+
+  test("a name that is an address is dropped, not kept", async () => {
+    const page = (await list(ashby([{ ...HOSTILE[0]!, candidate: { id: "cand-9002", name: "casey.sample@example.test" }, interviewers: [{ id: "user-9002", name: "ada@example.test" }] }]))({ since: SINCE, limit: PAGE.max })) as EventsListResult
+    expect(JSON.stringify(page.events)).not.toContain("@")
+  })
+})
+
 describe("probe", () => {
   test("names OpenCode's sign-in as the owner every page names, and reads nothing", async () => {
     const page = (await list()({ since: SINCE, limit: 1 })) as EventsListResult

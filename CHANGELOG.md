@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **`events_list` says exactly what it reads.** Its description now says it lists the signed-in user's own interviews, the
+  ones Ashby's `list_interviews` returns for them, as metadata only, and never contact details (email, phone), feedback,
+  scorecards, notes or transcripts. Nothing it reads or answers changes.
+
+### Tests
+
+- A fresh instance with no `probe` before it lists, and a cursor from another sign-in is still `ACCOUNT_MISMATCH`: the
+  plugin keeps no sign-in in memory, so Ashby never had the restart defect that `UNAVAILABLE` until a `probe` caused
+  elsewhere.
+- An answer that holds emails, phone numbers, feedback, a scorecard, a score, notes, a transcript and a recording link
+  yields events with none of them.
+
 ## [0.0.7] - 2026-11-20
 
 ### Added
