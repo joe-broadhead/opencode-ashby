@@ -130,7 +130,7 @@ opencode api post /api/rpc/ashby.recruiting.tools/events_list -H "x-opencode-dir
   does not confirm it. It calls Ashby for nothing.
 - `events_list` takes `since`, `cursor`, `limit` (1 to 500), `account` (`default`, required with a cursor) and `source`
   (`ashby`), and answers a page: `events`, oldest first, `cursor`, `more`, `refused` when an interview's title holds a
-  secret, and `trust: "untrusted"`. An event is one of your interviews that started at least 30 minutes ago and was not
+  secret, and `trust: "untrusted"`. An event is one of the interviews Ashby returns for your sign-in that started at least 30 minutes ago and was not
   cancelled: `external_id` is Ashby's interview event id, `occurred_at` its start, `title` its title and job, `actors`
   the candidate (`ashby:candidate:<id>`) and the interviewers (`ashby:user:<id>`), or `name:` and the name when Ashby
   gives no id, and `url` its page on ashbyhq.com, or null. `text` is always empty, and no event carries an email, a phone
