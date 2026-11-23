@@ -119,10 +119,10 @@ See [Scripting](https://github.com/joe-broadhead/opencode-ashby/blob/HEAD/docs/s
 
 The plugin declares one source of the shared source contract
 ([`source-contract`](https://github.com/we-the-rebel-alliance/source-contract)), so a consumer such as Memory can
-read your Ashby interviews as dated events: `ashby.interviews`, in `package.json`'s `sources`. It has two tools RPC
+read the interviews Ashby returns for your sign-in as dated events: `ashby.interviews`, in `package.json`'s `sources`. It has two tools RPC
 methods, never tools the model sees:
 
-- `events_list` lists your own interviews, oldest first, from a cursor or a start time: an interview once it started
+- `events_list` lists the interviews Ashby's `list_interviews` returns for your sign-in, oldest first, from a cursor or a start time: an interview once it started
   30 minutes ago, never a cancelled one. It reads them through `list_interviews`, one week per call (in halves when Ashby marks a week cut short), under that tool's
   own permission. Each event carries metadata only: Ashby's interview event id, the start, the interview's title and
   job, the candidate and the interviewers by Ashby's ids and names, and a link into Ashby. It never carries an email,

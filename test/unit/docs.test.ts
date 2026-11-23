@@ -45,6 +45,12 @@ describe("docs", () => {
     expect(text(file)).not.toMatch(/provisional|not yet (?:checked|published|signed)|private package|TODO/i)
   })
 
+  test("the interviews source is never described as the user's own", () => {
+    for (const file of ["README.md", "docs/architecture.md", "docs/scripting.md"]) {
+      expect({ file, own: /your own interviews|your Ashby interviews|one of your interviews|signed-in user's interviews/i.test(text(file)) }).toEqual({ file, own: false })
+    }
+  })
+
   // The one exception is the install spec, which names the release tag by design (the GitHub install takes `#v<x.y.z>`).
   test("the README names no version of the plugin, except its install spec", () => {
     expect(text("README.md").replace(/opencode-ashby#v\d+\.\d+\.\d+/g, "")).not.toMatch(/opencode-ashby@\d|\b0\.\d+\.\d+\b|\bv\d+\.\d+\.\d+\b/)

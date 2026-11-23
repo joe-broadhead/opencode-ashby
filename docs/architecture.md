@@ -23,7 +23,7 @@ OpenCode's executor under that tool's own permission.
 | `src/redact.ts` | Redaction for everything status shows: URL credentials, queries and token shapes removed, one line, controls and bidi characters stripped, cut by whole characters |
 | `src/skills.ts` | Loading and registering the skills |
 | `src/tools-rpc.ts` | Ashby's part of the tools RPC for scripts, `ashby.recruiting.tools`: the method table and the plugin value that the source contract's `tools-rpc` module (`@we-the-rebel-alliance/source-contract`, bundled into `dist/index.js`) takes |
-| `src/events.ts` | The interviews source, `ashby.interviews` (`package.json`'s `sources`): `events_list`, the signed-in user's interviews as the contract's events, and `probe`, OpenCode's sign-in as the owner. Built on the contract's `events` and `cursor` modules |
+| `src/events.ts` | The interviews source, `ashby.interviews` (`package.json`'s `sources`): `events_list`, the interviews Ashby's `list_interviews` returns for the signed-in user as the contract's events, and `probe`, OpenCode's sign-in as the owner. Built on the contract's `events` and `cursor` modules |
 | `src/tui.ts` | The terminal UI part: the plugin `ashby.recruiting.tui` and the `/ashby` dialog |
 | `src/constants.ts` | IDs, the server name and URL, the Code Mode namespace description, the supported host range, the tested releases (`TESTED_HOSTS`, the one list the checks and status use) and the error shape. No imports, so `scripts/check.mjs` can load it |
 | `src/version.ts` | The plugin's version from `package.json`; the build replaces it with the version string alone |
