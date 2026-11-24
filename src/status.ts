@@ -1,7 +1,7 @@
 import type { Plugin, Rpc } from "@opencode/plugin"
 import { codeText, DISPLAY_NAME, PLUGIN_ID, SERVER_NAME, TESTED_HOSTS } from "./constants.js"
 import { isSupportedHost, type HostCheck } from "./host-version.js"
-import { classify, DESTRUCTIVE_TOOLS, WRITE_TOOLS } from "./ashby-tools.js"
+import { classify, DESTRUCTIVE_TOOLS, PLUGIN_METHODS, WRITE_TOOLS } from "./ashby-tools.js"
 import { ACCESS, defaultRules, unguardedAgents, type Access, type Rule } from "./permissions.js"
 import { cut, oneLine, shortReason } from "./redact.js"
 import { VERSION } from "./version.js"
@@ -70,8 +70,6 @@ export interface Status {
    * asks for each, and `read-only` denies them. A later rule of the user's still wins.
    */
   readonly destructiveTools: readonly string[]
-  /** @deprecated The family field's old name; it carries the same list as `destructiveTools`. */
-  readonly deniedTools: readonly string[]
   /** True while a server that just connected may still be listing its tools. */
   readonly listing: boolean
   /** How many of them the plugin does not know. */
@@ -102,7 +100,7 @@ const AGENTS_NEXT_STEP =
 
 const NOTHING_TO_DO = "Nothing to do."
 
-const TESTED_TEXT = `${TESTED_HOSTS.slice(0, -1).join(", ")} or ${TESTED_HOSTS.at(-1)}`
+const TESTED_TEXT = TESTED_HOSTS.length === 1 ? TESTED_HOSTS[0]! : `${TESTED_HOSTS.slice(0, -1).join(", ")} or ${TESTED_HOSTS.at(-1)}`
 const LISTED_UNKNOWN = 20
 // A tool name comes from the server; list only plain names.
 const SAFE_NAME = /^[a-z][a-z0-9_]{0,63}$/
@@ -139,7 +137,6 @@ export function buildStatus(facts: StatusFacts): Status {
     ...(account ? { account } : {}),
     tools: listed.length,
     destructiveTools: destructive,
-    deniedTools: destructive,
     listing: state === "connected" && listed.length === 0 && facts.settling === true,
     unknownCount: unknown.length,
     unknownTools: unknown.filter((name) => SAFE_NAME.test(name)).slice(0, LISTED_UNKNOWN),
@@ -318,7 +315,7 @@ export async function readStatus(ctx: StatusContext, input: ReadFacts | (() => R
     access: access ?? "all",
     ...(server ? { server: server.status } : {}),
     ...(connection?.type === "credential" && connection.label ? { account: connection.label } : {}),
-    tools: tools.filter((tool) => tool.options?.namespace === SERVER_NAME).map((tool) => tool.name),
+    tools: tools.filter((tool) => tool.options?.namespace === SERVER_NAME && !PLUGIN_METHODS.includes(tool.name)).map((tool) => tool.name),
     settling,
     agents: agents.data,
     ...(own && listed ? { skills: { own, listed } } : {}),
@@ -349,7 +346,7 @@ export const StatusRpc = {
       input: { type: "object" },
       output: {
         type: "object",
-        required: ["version", "access", "state", "tools", "destructiveTools", "deniedTools", "listing", "unknownCount", "unknownTools", "unguardedAgents", "host", "problems", "nextStep"],
+        required: ["version", "access", "state", "tools", "destructiveTools", "listing", "unknownCount", "unknownTools", "unguardedAgents", "host", "problems", "nextStep"],
         properties: {
           version: { type: "string" },
           access: { enum: [...ACCESS] },
@@ -363,7 +360,6 @@ export const StatusRpc = {
           account: { type: "string" },
           tools: count,
           destructiveTools: strings,
-          deniedTools: strings,
           listing: { type: "boolean" },
           unknownCount: count,
           unknownTools: strings,
