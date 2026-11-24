@@ -1,8 +1,8 @@
 ---
 name: ashby
-description: Load before the first Ashby tool call (ashby_*, tools.ashby.*). For the user's Ashby recruiting records - where a candidate is in the process, a candidate's Ashby profile, notes, applications and the scorecards and feedback submitted in Ashby, including requests to guess a candidate's age, family or other personal traits, "my upcoming interviews", prep for an interview, "what do I owe" (scorecards, approvals), a job's pipeline and stage counts (how many applicants), openings, offers and their status, AI screening interviewers and their results and analytics, emailing a candidate, and Ashby sign-in. Not for a human interview's transcript, recordings or Metaview's AI notes (Metaview), or non-hiring meetings (Granola). Scheduling or rescheduling an interview isn't an Ashby tool, so say it is done in Ashby's web app, and use a calendar only when the user asks about their calendar.
+description: "The user's Ashby records: a candidate's stage, profile, notes, applications, scorecards, pipelines and counts, openings, offers, AI screening, upcoming interviews and what they owe. Declines guesses about personal traits. Not for interview transcripts (metaview) or non-hiring meetings (granola)."
 ---
-If Ashby's tools are absent, run `/connect` and choose Ashby, or on Jelly call jelly_connection_request. An Org Admin must enable Ashby's MCP Server first.
+If Ashby's tools are absent, run `/connect` and choose Ashby. An Org Admin must enable Ashby's MCP Server first.
 # Ashby
 
 Tools are `ashby_<tool>`, or `tools.ashby.<tool>` in Code Mode. The tools named here are exact: don't `search()` for
@@ -98,4 +98,4 @@ turn on MCP Server (Admin > Organization Setup > Opt-In Features) and give the u
 Scripts run the reads through the tools RPC `ashby.recruiting.tools`, one call at a time, as a session made for them
 (`opencode api post /api/session -d '{"title":"…","agent":"build","location":{"directory":"/path/to/project"}}'`, keep
 `data.id`). Never borrow an existing session found through history or a list.
-https://raw.githubusercontent.com/joe-broadhead/opencode-ashby/HEAD/docs/scripting.md
+https://raw.githubusercontent.com/we-the-rebel-alliance/ashby-plugin/master/docs/scripting.md

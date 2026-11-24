@@ -41,7 +41,7 @@ OpenCode project.
 - **One line restricts it.** Set `"access": "ask-changes"` in the plugin options and every change asks first, or
   `"access": "read-only"` and every change is denied. A rule in an agent's own `permissions` restricts one agent, and a
   `deny` in the top-level `permissions` restricts every agent. The README's
-  [Permissions](https://github.com/joe-broadhead/opencode-ashby/blob/HEAD/README.md#permissions) has the three blocks.
+  [Permissions](https://github.com/we-the-rebel-alliance/ashby-plugin/blob/master/README.md#permissions) has the three blocks.
 
 ## Permissions
 
@@ -82,7 +82,7 @@ Things to know:
 ## Scripts
 
 The tools RPC (`ashby.recruiting.tools`, see
-[docs/scripting.md](https://github.com/joe-broadhead/opencode-ashby/blob/HEAD/docs/scripting.md)) exposes every known
+[docs/scripting.md](https://github.com/we-the-rebel-alliance/ashby-plugin/blob/master/docs/scripting.md)) exposes every known
 Ashby tool as a method for a script, with no model, each with a class: read, write or destructive. It adds no
 authority:
 

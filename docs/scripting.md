@@ -1,6 +1,6 @@
 # Scripting
 
-A script can call Ashby's tools with no model: a cron job, a shell script, or any program that can reach the OpenCode
+A script can call Ashby's tools with no model: an OpenCode automation, a shell script, or any program that can reach the OpenCode
 server. It uses the tools RPC, `ashby.recruiting.tools`, through `opencode api` or an OpenCode client.
 
 Every tool the plugin knows is a method, named after Ashby's tool, without the `ashby_` prefix. Each method carries a
@@ -11,7 +11,7 @@ class: the worst thing that tool can do.
 | `read` | one per known read: `search_records_by_name`, `filter_records`, `get_candidate`, `get_pending_tasks` and the others | it only reads |
 | `write` | `create_candidate`, `add_note_to_candidate`, `consider_candidate_for_job` | it changes records the hiring team sees; one can reach the candidate |
 | `destructive` | `change_application_stage`, `submit_mcp_feedback` | moves or archives a candidate, or sends text to Ashby's team |
-| `read` (the plugin's own) | `events_list`, `probe` | the interviews source's two methods: they only read, and are always allowed (see [The interviews source](#the-interviews-source)) |
+| `read` (the plugin's own) | `events_list`, `probe` | the interviews source's two methods: they only read, are always allowed, and are also tools in the `ashby` namespace (see [The interviews source](#the-interviews-source)) |
 | `describe` | none: lists the methods, their class, their permission action, whether OpenCode lists each tool now, each tool's input as JSON Schema, and — given a session — whether that session may call it |
 
 The methods come from the plugin's one tool table, `src/ashby-tools.ts`: the known reads (`READ_TOOLS` in
@@ -116,9 +116,10 @@ loaded before, send the call again once: the request loads the location. Jobs ke
 ## The interviews source
 
 `events_list` and `probe` are the plugin's own methods for the shared source contract's source `ashby.interviews`
-(`package.json`'s `sources`), for a consumer such as Memory. They are not Ashby tools, and no tool the model sees calls
-them. Their actions, `ashby_events_list` and `ashby_probe`, are allowed under every `access` value; `events_list`'s
-read of `list_interviews` is still checked against `ashby_list_interviews`.
+(`package.json`'s `sources`), for a consumer such as Memory. They are not Ashby tools, and the same two handlers are
+registered as tools in the `ashby` namespace, so the model and Code Mode reach them too. Their actions,
+`ashby_events_list` and `ashby_probe`, are allowed under every `access` value; `events_list`'s read of
+`list_interviews` is still checked against `ashby_list_interviews`.
 
 ```sh
 opencode api post /api/rpc/ashby.recruiting.tools/probe -H "x-opencode-directory:$PWD" -d '{"input":{"sessionID":"ses_…","input":{}}}'
