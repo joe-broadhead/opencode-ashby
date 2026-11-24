@@ -39,9 +39,9 @@ before you change code, and [CONTRIBUTING.md](CONTRIBUTING.md) for the checks an
 - **Candidate data is personal data.** Tests, fixtures, docs and skills use only invented people and companies. The
   skills label Ashby's AI output as Ashby's and never infer protected characteristics or rank candidates.
 - **Tests.** Unit tests use narrow `Pick<Plugin.Context, ...>` fakes. Host tests use the public `@opencode/sdk` with
-  `OpenCode.create({ app: { version } })`, a loopback fake server and the temp root from `test/host/isolate.ts`. Every
-  temp root is a git repository under the system's `/tmp`, and each stock server has its own port. Never sign in to
-  Ashby or call its API from a check.
+  `PromiseSdk.create` (what `OpenCode.create` calls) and its Automation scheduler override, a loopback fake server and
+  the temp root from `test/host/isolate.ts`. Every temp root is a git repository under the system's `/tmp`, and the
+  stock pack server has its own port. Never sign in to Ashby or call its API from a check.
 - **One check command.** `npm run check` passes before every commit. Never skip, weaken or delete a test to get green.
 
 ## Forbidden in this repository

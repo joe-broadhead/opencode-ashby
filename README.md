@@ -23,9 +23,14 @@ them.
 
 ## Install
 
+Install from a release:
+
 ```sh
-opencode plugin add github:we-the-rebel-alliance/ashby-plugin#v0.0.0
+opencode plugin add github:we-the-rebel-alliance/ashby-plugin#v<version>
 ```
+
+The first release on plugin-contract is `v0.0.0` (phase 4b). Install only from a release tag: there is no untagged
+install and no `master` install.
 
 Run `opencode reload`, or restart OpenCode. Then run `/ashby-status`: it shows `sign-in required` until you sign in
 (see [Sign in](#sign-in)).
@@ -36,7 +41,7 @@ entry and add the new tag.
 Or add the plugin to `opencode.json` instead, with the same spec:
 
 ```json
-{ "plugins": [{ "package": "github:we-the-rebel-alliance/ashby-plugin#v0.0.0" }] }
+{ "plugins": [{ "package": "github:we-the-rebel-alliance/ashby-plugin#v<version>" }] }
 ```
 
 The plugin registers Ashby's MCP server under the name `ashby`, adds default permission rules, the `/ashby-status`
@@ -116,7 +121,7 @@ There are three ways to restrict it.
 ```json
 {
   "plugins": [
-    { "package": "github:we-the-rebel-alliance/ashby-plugin#v0.0.0", "options": { "access": "ask-changes" } }
+    { "package": "github:we-the-rebel-alliance/ashby-plugin#v<version>", "options": { "access": "ask-changes" } }
   ]
 }
 ```
@@ -282,7 +287,7 @@ Set options with the object form of the plugin entry:
 
 ```json
 {
-  "plugins": [{ "package": "github:we-the-rebel-alliance/ashby-plugin#v0.0.0", "options": { "allowUntestedHost": true } }]
+  "plugins": [{ "package": "github:we-the-rebel-alliance/ashby-plugin#v<version>", "options": { "allowUntestedHost": true } }]
 }
 ```
 
@@ -352,7 +357,7 @@ store.
    in `/connect` → Ashby. If it answers `MCP server not found: ashby`, OpenCode is still opening that folder: wait a
    few seconds and run it again.
 2. Check: `opencode auth list` no longer lists **Ashby**.
-3. Remove the plugin: `opencode plugin remove github:we-the-rebel-alliance/ashby-plugin#v0.0.0`, then
+3. Remove the plugin: `opencode plugin remove github:we-the-rebel-alliance/ashby-plugin#v<version>`, then
    `opencode reload`. `opencode mcp list` no longer lists `ashby`.
 4. Remove any Ashby rules you copied into your agents' own `permissions`.
 

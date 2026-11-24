@@ -18,7 +18,7 @@ import { METHODS, TOOLS_RPC_ID } from "../../src/tools-rpc.js"
 
 const root = fileURLToPath(new URL("../..", import.meta.url))
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as { name: string; version: string; sources: unknown }
-/** The declaration as Memory's schema parses it, which is what the kit takes. */
+/** The declaration as the source contract's schema parses it, which is what the kit takes. */
 const checked = SOURCES_SCHEMA.check(pkg.sources)
 if (!checked.ok) throw new Error(`the sources declaration is invalid: ${checked.problems.join("; ")}`)
 const sources: Sources = checked.value
@@ -121,8 +121,8 @@ describe("the source contract's conformance kit", () => {
     expect(source.accounts).toEqual({ named: false })
     const probed = (await probe({})) as { account: string; owner: unknown }
     expect(probed).toMatchObject({ account: ACCOUNT, owner: { id: "ashby:credential:cred-conformance", label: "ada@example.test" } })
-    // Keys a consumer on source-contract 0.1.x refuses are neither declared nor sent until jelly and Memory have
-    // re-vendored 0.2.0 (CHANGELOG, Known limits); then the owner carries verified: false and identity is [].
+    // Keys a consumer on source-contract 0.1.x refuses are neither declared nor sent until consumers have re-vendored
+    // 0.2.0 (CHANGELOG, Known limits); then the owner carries verified: false and identity is [].
     expect(probed.owner).not.toHaveProperty("verified")
     expect(sources.items[0]!.permission).not.toHaveProperty("identity")
     expect(await list({ account: probed.account, since: FIXTURE.since, limit: 1 })).toMatchObject({ account: ACCOUNT, owner: probed.owner })

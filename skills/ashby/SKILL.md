@@ -1,6 +1,6 @@
 ---
 name: ashby
-description: "The user's Ashby records: a candidate's stage, profile, notes, applications, scorecards, pipelines and counts, openings, offers, AI screening, upcoming interviews and what they owe. Declines guesses about personal traits. Not for interview transcripts (metaview) or non-hiring meetings (granola)."
+description: "The user's Ashby records: a candidate's stage, profile, notes, applications, scorecards, pipelines and counts, openings, offers, AI screening, upcoming interviews and what they owe. Declines guesses about personal traits. Not for interview transcripts (metaview)."
 ---
 If Ashby's tools are absent, run `/connect` and choose Ashby. An Org Admin must enable Ashby's MCP Server first.
 # Ashby
@@ -78,7 +78,7 @@ calls in flight at most; on a rate limit wait a minute and call less, on a timeo
 - What a candidate said in a human interview, recordings and transcripts: Metaview, if connected. Ashby's own Notetaker
   transcripts are in `get_candidate`, and an AI screening interview's results and analytics are Ashby's (below).
 - Scheduling or rescheduling an interview: Ashby's tools can't, so say it is done in Ashby's web app. A calendar only
-  when the user asks about their calendar; non-hiring meetings are Granola's.
+  when the user asks about their calendar; non-hiring meetings belong to another connector.
 - Ashby's tools don't email a candidate directly, but a stage move or a new application can trigger the stage's automatic email (see `ashby-write`).
   For "email the candidate", offer a draft, or the mail plugin's send only if the user asks, with the address confirmed and nothing from the record attached.
 - Posting a summary anywhere is that plugin's write, on request only: counts and stages, no names, unless asked.

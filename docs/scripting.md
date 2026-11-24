@@ -116,7 +116,7 @@ loaded before, send the call again once: the request loads the location. Jobs ke
 ## The interviews source
 
 `events_list` and `probe` are the plugin's own methods for the shared source contract's source `ashby.interviews`
-(`package.json`'s `sources`), for a consumer such as Memory. They are not Ashby tools, and the same two handlers are
+(`package.json`'s `sources`), for a consumer. They are not Ashby tools, and the same two handlers are
 registered as tools in the `ashby` namespace, so the model and Code Mode reach them too. Their actions,
 `ashby_events_list` and `ashby_probe`, are allowed under every `access` value; `events_list`'s read of
 `list_interviews` is still checked against `ashby_list_interviews`.

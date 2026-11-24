@@ -1,5 +1,5 @@
 // The shipped skills: exactly the two, loadable by the plugin, short, free of internal jargon, naming only Ashby tools
-// the plugin knows, routing apart from the Metaview and Granola skills, and keeping to the family's rules for candidate
+// the plugin knows, routing apart from the neighbouring skill fixtures, and keeping to the family's rules for candidate
 // data and for changes.
 import { describe, expect, test } from "bun:test"
 import { readdirSync, readFileSync } from "node:fs"
@@ -12,7 +12,7 @@ const KNOWN = [...READ_TOOLS, ...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS]
 const MAX_LINES = 105
 // Words from the plugin's own process that mean nothing to the model or the user.
 const JARGON = /manifest|attest|quarantin|acceptance|harness|fixture|\bfork\b|dispatch|lease|catalog|allowlist|capabilit|\bWS-[A-Z0-9]|PLAN\.md|drift|provisional|\bTODO\b|\bevals?\b/i
-// Skills of this plugin's neighbours, which users install beside it: Metaview's interviews and Granola's meetings.
+// Skills of this plugin's neighbours, which users install beside it: Metaview's interviews and the meeting connectors' notes.
 const NEIGHBOURS = (JSON.parse(readFileSync(new URL("./neighbour-skills.json", import.meta.url), "utf8")) as { skills: Record<string, string> }).skills
 
 const read = (name: string) => readFileSync(join(SKILLS_DIR, name, "SKILL.md"), "utf8")
@@ -109,7 +109,7 @@ describe("skills", () => {
   test("the descriptions route Ashby's records here, and interviews' content, meetings and other changes elsewhere", () => {
     expect(description("ashby")).toContain("The user's Ashby records: a candidate's stage, profile, notes, applications, scorecards, pipelines and counts")
     expect(description("ashby")).toContain("Declines guesses about personal traits.")
-    expect(description("ashby")).toContain("Not for interview transcripts (metaview) or non-hiring meetings (granola).")
+    expect(description("ashby")).toContain("Not for interview transcripts (metaview).")
     expect(description("ashby-write")).toContain("Before any Ashby change: create a candidate")
     expect(description("ashby-write")).toContain("email a candidate")
     expect(description("ashby-write")).toContain("Not for changes in Metaview (metaview-write).")

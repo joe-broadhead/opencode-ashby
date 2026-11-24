@@ -1,10 +1,13 @@
 # Configuration
 
-Every option is optional. The smallest setup is one entry in `plugins`:
+Every option is optional. Install from a release tag: use `#v<version>` in the plugin spec. The first release on
+plugin-contract is `v0.0.0` (phase 4b); there is no untagged or `master` install.
+
+The smallest setup is one entry in `plugins`:
 
 ```json
 {
-  "plugins": [{ "package": "github:we-the-rebel-alliance/ashby-plugin#v0.0.0" }]
+  "plugins": [{ "package": "github:we-the-rebel-alliance/ashby-plugin#v<version>" }]
 }
 ```
 
@@ -12,7 +15,7 @@ To set options, use the object form:
 
 ```json
 {
-  "plugins": [{ "package": "github:we-the-rebel-alliance/ashby-plugin#v0.0.0", "options": { "allowUntestedHost": true } }]
+  "plugins": [{ "package": "github:we-the-rebel-alliance/ashby-plugin#v<version>", "options": { "allowUntestedHost": true } }]
 }
 ```
 
@@ -22,7 +25,7 @@ Set options with the object form of the plugin entry:
 
 ```json
 {
-  "plugins": [{ "package": "github:we-the-rebel-alliance/ashby-plugin#v0.0.0", "options": { "access": "ask-changes" } }]
+  "plugins": [{ "package": "github:we-the-rebel-alliance/ashby-plugin#v<version>", "options": { "access": "ask-changes" } }]
 }
 ```
 
@@ -243,7 +246,7 @@ Every error from the plugin reads `CODE: What happened. Next step: What to do.`
 For example:
 
 ```text
-OPTIONS_INVALID: Unknown option "apiKey". Accepted options: "allowUntestedHost". Next step: Fix the plugin options in opencode.json, for example "plugins": [{ "package": "github:we-the-rebel-alliance/ashby-plugin#v0.0.0", "options": { "allowUntestedHost": true } }].
+OPTIONS_INVALID: Unknown option "apiKey". Accepted options: "allowUntestedHost". Next step: Fix the plugin options in opencode.json, for example "plugins": [{ "package": "github:we-the-rebel-alliance/ashby-plugin#v<version>", "options": { "allowUntestedHost": true } }].
 ```
 
 Errors from Ashby's server and from OpenCode pass through unchanged, except in the tools RPC for scripts, whose codes

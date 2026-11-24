@@ -260,8 +260,8 @@ describe(`the plugin on OpenCode ${HOST_VERSION}`, () => {
     const elsewhere = join(ROOT, "elsewhere")
     mkdirSync(elsewhere, { recursive: true })
     const rpc = (host.client.rpc as unknown as (definition: object) => ToolsClient)(TOOLS_CONTRACT)
-    // From OpenCode 2.2.7 a location opened by a call answers before its plugins have loaded: until the plugin has
-    // registered there, the call is rpc.unavailable. Any other error fails the test at once.
+    // A location opened by a call can answer before its plugins have loaded: until the plugin has registered there,
+    // the call is rpc.unavailable. Any other error fails the test at once.
     const loaded = (options: object) =>
       until("the plugin has loaded in the location", () =>
         rpc.describe!({}, options).then(

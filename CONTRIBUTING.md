@@ -5,8 +5,7 @@ Read [AGENTS.md](AGENTS.md) first: it lists the rules for this repository and th
 
 ## Set up
 
-You need Node.js 22.18 or later, npm, and [Bun](https://bun.sh). CI and the release use Node.js 24 and Bun 1.4.4,
-the Bun inside the stock OpenCode 2.4.1 release.
+You need Node.js 22.18 or later, npm, and [Bun](https://bun.sh). CI uses Node.js 24 and Bun 1.4.5.
 
 ```sh
 npm ci --ignore-scripts
@@ -18,15 +17,10 @@ npm ci --ignore-scripts
 npm run build
 ```
 
-Then list the folder in `plugins`, as an absolute path or a path relative to the config file that contains it, and
-restart OpenCode. One entry loads both the server part and the terminal UI part. Run `npm run build` again after you
+Then point a development OpenCode config at your checkout: use the checkout's absolute path as a `plugins` entry in a
+config that is not published. This is a development setup, not an installation path: releases install only from a
+release tag. One entry loads both the server part and the terminal UI part. Run `npm run build` again after you
 pull changes.
-
-```json
-{
-  "plugins": ["/path/to/ashby-plugin"]
-}
-```
 
 ## Check
 
@@ -45,9 +39,9 @@ npm run check
 | `host` | `bun test ./test/host`: the plugin inside an embedded OpenCode host, on the tested release (`@opencode/sdk` 2.4.1) |
 | `pack` | `bun test ./test/pack`: builds, packs and installs the package, imports both entry points, and loads it in stock OpenCode 2.4.1 |
 | `forbidden` | `node scripts/check-forbidden.mjs`: scans `src/`, `test/`, `scripts/` and `dist/` for forbidden APIs and machine-local paths |
-| `copies` | `node scripts/check-copies.mjs`: Jelly's setting rules in `test/support/jelly-settings.ts` and the release kit match the copies every plugin carries. The tools RPC is the source contract package's, pinned in `package-lock.json` |
+| `copies` | `node scripts/check-copies.mjs`: the `jelly` setting rules in `test/support/jelly-settings.ts` and the release kit match the copies every plugin carries. The tools RPC is the source contract package's, pinned in `package-lock.json` |
 | `conformance` | `npm run conformance`: the source contract's conformance kit over `ashby.interviews` (`events_list` and `probe`) on invented interviews, `test/fixtures/conformance.json`; writes `reports/conformance-report.json`, which a release attaches, and fails unless the report is ok |
-| `lint:actions` | `actionlint` over the workflows, when it is on PATH; CI runs it as its own job |
+| `lint:actions` | `actionlint` over the workflows, when it is on PATH; it is skipped when absent |
 | `whitelist` | Checks `package.json` against the approved package shape, and that `dist/` holds exactly `index.js` and `tui.js` |
 
 To run some stages only, name them; they run in the order given:
@@ -63,14 +57,8 @@ Shortcuts: `npm run typecheck`, `npm run build`, `npm test` (the `unit` stage), 
 release there, and to the README's requirements, when every check passes on it.
 
 The host stage starts an embedded OpenCode host in a temporary home folder, with a local fake of Ashby's MCP server and
-sign-in server, once for each tested release. A request to any address other than the local machine fails the test.
-2.4.1 is the locked `@opencode/sdk`, so the stage runs on it directly. To run the host stage on another SDK build,
-install it in a separate folder and point `HOST_SDK_DIR` at it:
-
-```sh
-mkdir ../sdk-next && cd ../sdk-next && npm init -y && npm install @opencode/sdk@2.5.0 --ignore-scripts && cd -
-HOST_SDK_DIR=../sdk-next node scripts/check.mjs host
-```
+sign-in server, on the tested release. A request to any address other than the local machine fails the test.
+2.4.1 is the locked `@opencode/sdk`, so the stage runs on it directly and has no per-release switch.
 
 Every temporary folder of the host and pack stages is a git repository under the system's `/tmp`, never under
 `TMPDIR` or your home folder. OpenCode looks for `.opencode` folders and project config upwards from a project, and
@@ -167,7 +155,7 @@ a deny that is not hidden (`notHidden`). Fix each in `src/ashby-tools.ts`, then 
    `access`, and scripts cannot call it by name.
 4. Update `PARAMETERS` from the schemas, `jelly.tools` in `package.json`, and any skill text that names a changed tool.
    With parameters recorded, a skill may give a literal call such as `get_candidate({ … })`, and the skills test checks
-   its keys against `PARAMETERS`. Run `npm run check`: the Jelly test fails if `jelly.tools` differs from the lists, the
+   its keys against `PARAMETERS`. Run `npm run check`: the declaration test fails if `jelly.tools` differs from the lists, the
    skills test if a skill names a tool or parameter the record doesn't have, and the docs test if a doc names a tool in
    no list.
 5. Record the change in `CHANGELOG.md`. Moving a tool between the lists changes the default rules and the tools RPC's
@@ -194,9 +182,9 @@ check (`SUPPORTED_HOST` in `src/constants.ts`). Both must change together, with 
 ### Releasing
 
 Each release is the GitHub tag `v<version>`, where `<version>` is the `version` in `package.json`, and users install from
-that tag. The release is one commit on top of a `master` head that CI passed, and the tag points at it. The release
-workflow makes both, in GitHub Actions: nobody builds, commits or tags a release on their own machine, and no personal
-key signs it.
+that tag. The first release on plugin-contract is `v0.0.0` (phase 4b); there is no untagged or `master` install. The
+release is one commit on top of a `master` head that CI passed, and the tag points at it. The release workflow makes
+both, in GitHub Actions: nobody builds, commits or tags a release on their own machine, and no personal key signs it.
 
 While changes land, their notes go under `## [Unreleased]` at the top of `CHANGELOG.md`. Each earlier GitHub release is
 a `## [x.y.z] - YYYY-MM-DD` heading below it, newest first, and the npm history stays last, under
@@ -206,9 +194,8 @@ a `## [x.y.z] - YYYY-MM-DD` heading below it, newest first, and the npm history 
    `CONTRIBUTING.md` and `docs/` to `#v<version>` (`test/docs.test.ts` fails until they match). Then run
    `node scripts/changelog.mjs release`: it turns `## [Unreleased]` into `## [<version>] - <today>`, above the earlier
    releases, and refuses a CHANGELOG it cannot shape. Run `npm run check`.
-2. Push that commit to `master`, and wait for CI to pass on it. A pull request's CI runs the Linux runners only; the
-   push to `master` runs every runner, Apple-silicon macOS (`macos-26`) too, and the release stands on that run. An
-   Intel Mac (`macos-26-intel`) is not required.
+2. Push that commit to `master`, and wait for CI to pass on it. CI runs the same one `ci` job on the public runner for a pull request and
+   for a push to `master`.
 3. Start the release with that commit's full sha:
    `gh workflow run release.yml --ref master -f sha=<full sha>`, or from Actions → release →
    Run workflow, on `master`.
@@ -303,7 +290,7 @@ tag, and restores the ruleset exactly as it was.
 
 **Known limit: a `v*` tag pushed by hand.** No ruleset limits who creates a `v*` tag, so anyone with write access can
 push one by hand, pointing at any commit. Such a tag has no published Release, the forward-only check ignores it, and
-Jelly installs only a published Release whose `SHA256SUMS` it verifies. But a user who installs
+an app installs only a published Release whose `SHA256SUMS` it verifies. But a user who installs
 `github:we-the-rebel-alliance/ashby-plugin#v<x>` directly gets whatever that tag points at. Only the release workflow makes
 release tags; never push one by hand.
 
@@ -321,5 +308,5 @@ Each release has its own tag, and a Git install does not update by itself. To mo
 Or add the plugin to `opencode.json` instead, with the same spec:
 
 ```json
-{ "plugins": [{ "package": "github:we-the-rebel-alliance/ashby-plugin#v0.0.0" }] }
+{ "plugins": [{ "package": "github:we-the-rebel-alliance/ashby-plugin#v<version>" }] }
 ```

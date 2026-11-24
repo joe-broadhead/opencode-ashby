@@ -1,6 +1,6 @@
-// The docs and skills must match the code: tool names, the deny rule, error codes, the uninstall order and the Jelly
-// guide. Every tool count they state is checked against src/ashby-tools.ts, so a change there cannot leave a stale
-// number behind.
+// The docs and skills must match the code: tool names, the deny rule, error codes, the uninstall order and the package's
+// `jelly` declaration. Every tool count they state is checked against src/ashby-tools.ts, so a change there cannot leave
+// a stale number behind.
 import { describe, expect, test } from "bun:test"
 import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
@@ -51,9 +51,10 @@ describe("docs", () => {
     }
   })
 
-  // The one exception is the install spec, which names the release tag by design (the GitHub install takes `#v<x.y.z>`).
-  test("the README names no version of the plugin, except its install spec", () => {
-    expect(text("README.md").replace(/ashby-plugin#v\d+\.\d+\.\d+/g, "")).not.toMatch(/ashby-plugin@\d|\b0\.\d+\.\d+\b|\bv\d+\.\d+\.\d+\b/)
+  // The install spec names the release placeholder, and the text names the first release by design.
+  test("the README names no other version of the plugin", () => {
+    const readme = text("README.md").replace(/ashby-plugin#v(?:<version>|\d+\.\d+\.\d+)/g, "").replace(/`?v0\.0\.0`? \(phase 4b\)/g, "")
+    expect(readme).not.toMatch(/ashby-plugin@\d|\b0\.\d+\.\d+\b|\bv\d+\.\d+\.\d+\b/)
   })
 
   // R18: nothing is denied by default, so the README shows how to restrict instead. Every destructive tool is `ask` in
@@ -147,7 +148,7 @@ describe("docs", () => {
   })
 
   // DR-5: the two one-liners a person sees before installing say the plugin can change records, and that it asks.
-  test("the README's first line and the Jelly summary say the plugin changes records", () => {
+  test("the README's first line and the package's jelly summary say the plugin changes records", () => {
     expect(text("README.md")).toContain("Every tool is allowed by default")
     const { jelly } = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as { jelly: { summary: string } }
     expect(jelly.summary).toMatch(/add a candidate, note or pipeline entry/)
@@ -184,7 +185,7 @@ describe("docs", () => {
     const logout = uninstall.indexOf("opencode mcp logout ashby")
     const connect = uninstall.indexOf("remove the account")
     const list = uninstall.indexOf("opencode auth list")
-    const remove = uninstall.indexOf("opencode plugin remove github:we-the-rebel-alliance/ashby-plugin#v0.0.0")
+    const remove = uninstall.indexOf("opencode plugin remove github:we-the-rebel-alliance/ashby-plugin#v<version>")
     expect(logout).toBeGreaterThanOrEqual(0)
     expect(connect).toBeGreaterThan(logout)
     expect(list).toBeGreaterThan(logout)
@@ -295,7 +296,7 @@ describe("docs", () => {
     // The places that list the releases without the words "tested on" name the same set.
     const list = TESTED_HOSTS.length === 1 ? TESTED_HOSTS[0]! : `${TESTED_HOSTS.slice(0, -1).join(", ")} and ${TESTED_HOSTS.at(-1)}`
     for (const file of ["AGENTS.md", "docs/configuration.md", "CONTRIBUTING.md"]) expect({ file, list: text(file).includes(list) }).toEqual({ file, list: true })
-    // The example of a release the checks do not run on is 2.2.99, never one of the tested ones.
+    // The example of a release the checks do not run on is 2.4.99, never one of the tested ones.
     expect(text("docs/configuration.md")).toContain(UNTESTED_EXAMPLE)
     for (const version of TESTED_HOSTS) expect(text("docs/configuration.md")).not.toContain(`inside the range, such as ${version}`)
   })
