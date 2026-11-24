@@ -1,8 +1,8 @@
 // Pack, install and load the published shape. The tarball holds exactly the files whitelist and installs with
 // lifecycle scripts disabled. Installed alone, it loads in each stock OpenCode release it is tested on, which provides
 // @opencode/plugin, OpenTUI and Solid itself; next to those packages, both entry points also import under Bun.
-// OPENCODE_BIN_2_2_3 to OPENCODE_BIN_2_2_7 and OPENCODE_BIN_2_3_0 name stock binaries; otherwise each release in TESTED_HOSTS is
-// installed with npm, once per run, and a release that did not run fails this suite. Every temp folder is a git repository under the system's /tmp, never under TMPDIR
+// OPENCODE_BIN_2_4_1 names a stock binary; otherwise the tested release in TESTED_HOSTS is installed with npm, once per
+// run, and a release that did not run fails this suite. Every temp folder is a git repository under the system's /tmp, never under TMPDIR
 // or HOME, so OpenCode's upward search for `.opencode` folders never reaches the agents of whoever runs the test.
 // PACK_TARBALL names a tarball that was already packed, such as the one the release publishes, to test it instead.
 // On each release a script also calls every known Ashby tool through the tools RPC, against a loopback fake Ashby, and the
@@ -48,7 +48,7 @@ const DIST = ["dist/index.js", "dist/tui.js"]
 // Modules the host serves to plugins at runtime. Everything else must be inlined in the bundle.
 const SERVER_HOST_MODULES = [/^node:/, /^@opencode\/plugin(?:\/|$)/]
 const TUI_HOST_MODULES = [/^node:/, /^@opencode\/plugin(?:\/|$)/, /^@opentui\//, /^solid-js(?:\/|$)/]
-// The host packages OpenCode 2.2.3 ships; the versions come from devDependencies.
+// The host packages OpenCode 2.4.1 ships; the versions come from devDependencies.
 const HOST_PACKAGES = ["@opencode/plugin", "@opentui/core", "@opentui/solid", "solid-js"]
 // The stock OpenCode releases the package is tested on: the one list in src/constants.ts.
 const HOST_VERSIONS = TESTED_HOSTS
@@ -301,7 +301,7 @@ describe.each(HOST_VERSIONS)("the tools RPC on stock OpenCode %s", (version) => 
     const tools = READ_TOOLS.length + WRITE_TOOLS.length + DESTRUCTIVE_TOOLS.length + 1
     await host.until(`ashby is connected with its ${tools} tools`, async () => {
       const output = await status()
-      return output.state === "connected" && output.tools === tools && output.unknownCount === 1 && output.deniedTools.length === DESTRUCTIVE_TOOLS.length
+      return output.state === "connected" && output.tools === tools && output.unknownCount === 1 && output.destructiveTools.length === DESTRUCTIVE_TOOLS.length
     })
     const create = async (body: Record<string, unknown>) => {
       const created = await host.api<Record<string, any>>("POST", "/api/session", body)

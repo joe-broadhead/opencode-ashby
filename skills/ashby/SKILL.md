@@ -1,8 +1,8 @@
 ---
 name: ashby
-description: Load before the first Ashby tool call (ashby_*, tools.ashby.*). For the user's Ashby recruiting records - where a candidate is in the process, a candidate's Ashby profile, notes, applications and the scorecards and feedback submitted in Ashby, including requests to guess a candidate's age, family or other personal traits, "my upcoming interviews", prep for an interview, "what do I owe" (scorecards, approvals), a job's pipeline and stage counts (how many applicants), openings, offers and their status, AI screening interviewers and their results and analytics, emailing a candidate, and Ashby sign-in. Not for a human interview's transcript, recordings or Metaview's AI notes (Metaview), or non-hiring meetings (Granola). Scheduling or rescheduling an interview isn't an Ashby tool, so say it is done in Ashby's web app, and use a calendar only when the user asks about their calendar.
+description: "The user's Ashby records: a candidate's stage, profile, notes, applications, scorecards, pipelines and counts, openings, offers, AI screening, upcoming interviews and what they owe. Declines guesses about personal traits. Not for interview transcripts (metaview)."
 ---
-If Ashby's tools are absent, run `/connect` and choose Ashby, or on Jelly call jelly_connection_request. An Org Admin must enable Ashby's MCP Server first.
+If Ashby's tools are absent, run `/connect` and choose Ashby. An Org Admin must enable Ashby's MCP Server first.
 # Ashby
 
 Tools are `ashby_<tool>`, or `tools.ashby.<tool>` in Code Mode. The tools named here are exact: don't `search()` for
@@ -78,7 +78,7 @@ calls in flight at most; on a rate limit wait a minute and call less, on a timeo
 - What a candidate said in a human interview, recordings and transcripts: Metaview, if connected. Ashby's own Notetaker
   transcripts are in `get_candidate`, and an AI screening interview's results and analytics are Ashby's (below).
 - Scheduling or rescheduling an interview: Ashby's tools can't, so say it is done in Ashby's web app. A calendar only
-  when the user asks about their calendar; non-hiring meetings are Granola's.
+  when the user asks about their calendar; non-hiring meetings belong to another connector.
 - Ashby's tools don't email a candidate directly, but a stage move or a new application can trigger the stage's automatic email (see `ashby-write`).
   For "email the candidate", offer a draft, or the mail plugin's send only if the user asks, with the address confirmed and nothing from the record attached.
 - Posting a summary anywhere is that plugin's write, on request only: counts and stages, no names, unless asked.
@@ -98,4 +98,4 @@ turn on MCP Server (Admin > Organization Setup > Opt-In Features) and give the u
 Scripts run the reads through the tools RPC `ashby.recruiting.tools`, one call at a time, as a session made for them
 (`opencode api post /api/session -d '{"title":"…","agent":"build","location":{"directory":"/path/to/project"}}'`, keep
 `data.id`). Never borrow an existing session found through history or a list.
-https://raw.githubusercontent.com/joe-broadhead/opencode-ashby/HEAD/docs/scripting.md
+https://raw.githubusercontent.com/we-the-rebel-alliance/ashby-plugin/master/docs/scripting.md

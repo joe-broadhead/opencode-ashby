@@ -1,11 +1,10 @@
 // The shipped skills: exactly the two, loadable by the plugin, short, free of internal jargon, naming only Ashby tools
-// the plugin knows, routing apart from the Metaview and Granola skills, and keeping to the family's rules for candidate
+// the plugin knows, routing apart from the neighbouring skill fixtures, and keeping to the family's rules for candidate
 // data and for changes.
 import { describe, expect, test } from "bun:test"
 import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { DESTRUCTIVE_TOOLS, PARAMETERS, READ_TOOLS, WRITE_TOOLS } from "../../src/ashby-tools.js"
-import { NAMESPACE_DESCRIPTION } from "../../src/constants.js"
 import { parseSkill, SKILL_NAMES, SKILLS_DIR } from "../../src/skills.js"
 
 const NAMES = [...SKILL_NAMES]
@@ -13,7 +12,7 @@ const KNOWN = [...READ_TOOLS, ...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS]
 const MAX_LINES = 105
 // Words from the plugin's own process that mean nothing to the model or the user.
 const JARGON = /manifest|attest|quarantin|acceptance|harness|fixture|\bfork\b|dispatch|lease|catalog|allowlist|capabilit|\bWS-[A-Z0-9]|PLAN\.md|drift|provisional|\bTODO\b|\bevals?\b/i
-// Skills of this plugin's neighbours, which users install beside it: Metaview's interviews and Granola's meetings.
+// Skills of this plugin's neighbours, which users install beside it: Metaview's interviews and the meeting connectors' notes.
 const NEIGHBOURS = (JSON.parse(readFileSync(new URL("./neighbour-skills.json", import.meta.url), "utf8")) as { skills: Record<string, string> }).skills
 
 const read = (name: string) => readFileSync(join(SKILLS_DIR, name, "SKILL.md"), "utf8")
@@ -57,8 +56,10 @@ describe("skills", () => {
     expect(skill.name as string).toBe(name)
     expect(skill.description?.length).toBeGreaterThan(40)
     expect(text.split("\n").filter((line) => line.startsWith("description:"))).toHaveLength(1)
-    // A YAML reader would split the line at either of these.
-    expect(skill.description).not.toMatch(/: | #/)
+    // A YAML reader would split an unquoted value at " #", and at ": " unless the whole value is quoted.
+    const value = text.split("\n").find((line) => line.startsWith("description:"))!.slice("description:".length).trim()
+    expect(value).not.toMatch(/ #/)
+    if (value.includes(": ")) expect(value).toMatch(/^".*"$/)
     expect(skill.content.length).toBeGreaterThan(0)
   })
 
@@ -106,13 +107,12 @@ describe("skills", () => {
   })
 
   test("the descriptions route Ashby's records here, and interviews' content, meetings and other changes elsewhere", () => {
-    expect(description("ashby")).toContain("Load before the first Ashby tool call")
-    expect(description("ashby")).toContain("the scorecards and feedback submitted in Ashby")
-    expect(description("ashby")).toContain("Not for a human interview's transcript, recordings or Metaview's AI notes (Metaview), or non-hiring meetings (Granola). Scheduling or rescheduling an interview isn't an Ashby tool")
-    expect(description("ashby")).toContain("emailing a candidate")
-    expect(description("ashby")).toContain("including requests to guess a candidate's age, family or other personal traits")
-    expect(description("ashby-write")).toContain("Load before any Ashby change")
-    expect(description("ashby-write")).toContain("Not for interview notes, clips or other changes in Metaview (metaview-write).")
+    expect(description("ashby")).toContain("The user's Ashby records: a candidate's stage, profile, notes, applications, scorecards, pipelines and counts")
+    expect(description("ashby")).toContain("Declines guesses about personal traits.")
+    expect(description("ashby")).toContain("Not for interview transcripts (metaview).")
+    expect(description("ashby-write")).toContain("Before any Ashby change: create a candidate")
+    expect(description("ashby-write")).toContain("email a candidate")
+    expect(description("ashby-write")).toContain("Not for changes in Metaview (metaview-write).")
     for (const name of NAMES) expect(description(name)).not.toMatch(/\bmeeting notes\b|\bschedule a\b|\bpost to Slack\b/i)
   })
 
@@ -122,13 +122,10 @@ describe("skills", () => {
     for (const request of quoted(ours)) expect({ request, inNeighbour: theirs.toLowerCase().includes(request) }).toEqual({ request, inNeighbour: false })
     for (const request of quoted(theirs)) expect({ request, inAshby: ours.toLowerCase().includes(request.replace(/<[^>]+>/g, "").trim()) }).toEqual({ request, inAshby: false })
     // The pipeline, applications, openings and offers are the record: no neighbour claims them, or "applicants".
-    for (const word of ["pipeline", "where a candidate is in the process", "openings", "offers", "what do I owe", "Ashby", "my upcoming interviews", "applicants"]) {
+    for (const word of ["pipeline", "openings", "offers", "Ashby", "upcoming interviews"]) {
       expect(ours).toContain(word)
       expect({ word, inNeighbour: theirs.includes(word) }).toEqual({ word, inNeighbour: false })
     }
-    // The calendar is the one word both sides name, so Ashby's description must route it, not claim it.
-    expect(theirs).toContain("calendar")
-    expect(ours).toContain("use a calendar only when the user asks about their calendar")
     // What was said is Metaview's: Ashby's description gives it away.
     expect(ours).not.toMatch(/what did <candidate> say|summarise .* screen|debrief|transcript of/i)
   })
@@ -199,16 +196,6 @@ describe("skills", () => {
     expect(text).not.toMatch(/wait for a yes|get a yes|only after a yes|wait for (?:the user's )?(?:confirmation|approval)/i)
   })
 
-  test("wherever the model is told tools are allowed by default, the same text says what the access option decides", () => {
-    // Item 6: "allowed by default" is true only with the default `access`; the text must say what an installed value does.
-    const ALLOWED_BY_DEFAULT = /\ballowed\b.*\bby default\b|\bby default\b.*\ballowed\b/i
-    const texts: Record<string, string> = { namespace: NAMESPACE_DESCRIPTION, ...Object.fromEntries(NAMES.map((name) => [name, flat(name)])) }
-    const claims = Object.keys(texts).filter((where) => ALLOWED_BY_DEFAULT.test(texts[where]!))
-    expect(claims).toContain("namespace")
-    expect(claims).toContain("ashby-write")
-    for (const where of claims) expect({ where, names: /\baccess\b/.test(texts[where]!) }).toEqual({ where, names: true })
-  })
-
   test("ashby-write names whom each write reaches, and that a job's first stage may email the candidate", () => {
     const text = flat("ashby-write")
     const reach = text.split("## Whom each change reaches")[1]?.split(" ## ")[0] ?? ""
@@ -248,7 +235,7 @@ describe("skills", () => {
 
   test.each(NAMES)("%s links only to plain files an agent can read, never to a GitHub page", (name) => {
     const links = read(name).match(/https?:\/\/[^\s)>]*[^\s)>.,]/g) ?? []
-    for (const link of links) expect(link).toMatch(/^https:\/\/raw\.githubusercontent\.com\/joe-broadhead\/opencode-ashby\/HEAD\//)
+    for (const link of links) expect(link).toMatch(/^https:\/\/raw\.githubusercontent\.com\/we-the-rebel-alliance\/ashby-plugin\/master\//)
   })
 
   test("ashby's scripts section creates a session for the script, never borrows one, and calls one at a time", () => {

@@ -1,15 +1,12 @@
 // The one local entry point: `npm run check` runs every stage in order and stops at the first failure.
 // `node scripts/check.mjs <stage>...` runs only the named stages, in the order given.
 import { spawnSync } from "node:child_process"
-import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { delimiter, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const root = fileURLToPath(new URL("..", import.meta.url))
 const env = { ...process.env, PATH: `${join(root, "node_modules", ".bin")}${delimiter}${process.env.PATH ?? ""}` }
-// The one list of tested OpenCode releases. Node loads src/constants.ts by stripping its types, so that file keeps to
-// type-only imports.
-const { TESTED_HOSTS } = await import(new URL("../src/constants.ts", import.meta.url).href)
 
 // The approved package shape. Change it here only together with the release policy.
 const FILES = ["dist", "assets/icon.svg", "assets/icon-128.png", "assets/icon-256.png", "skills", "README.md", "LICENSE", "CHANGELOG.md"]
@@ -19,8 +16,8 @@ const ASSET_EXPORTS = { "./icon.svg": "assets/icon.svg", "./icon-128.png": "asse
 // dist/ holds one self-contained bundle per export, and nothing else (scripts/build.mjs).
 const DIST = Object.values(EXPORTS).map((base) => `${base}.js`).sort()
 // The supported OpenCode range. The host provides @opencode/plugin, OpenTUI and Solid, so the package declares no peers.
-const HOST_RANGE = ">=2.2.3 <2.4.0"
-const HOST_DEV_PIN = "2.2.3"
+const HOST_RANGE = ">=2.4.1 <2.5.0"
+const HOST_DEV_PIN = "2.4.1"
 const ABSENT_FIELDS = ["dependencies", "optionalDependencies", "bundleDependencies", "bundledDependencies", "peerDependencies", "peerDependenciesMeta", "engines", "overrides"]
 const LIFECYCLE_SCRIPTS = ["preinstall", "install", "postinstall", "preprepare", "prepare", "postprepare", "prepublish", "prepublishOnly", "prepack", "postpack", "publish", "postpublish"]
 
@@ -68,41 +65,20 @@ function run(command, args, options = {}) {
   return result.status ?? 1
 }
 
-/**
- * The host suite on each tested release: the locked @opencode/sdk for HOST_DEV_PIN, and the others installed from npm
- * into a temp folder under the system's /tmp, outside the lockfile, once per run. HOST_SDK_DIR runs only that SDK.
- */
+/** The host suite on the locked @opencode/sdk, the only tested release. */
 function host() {
-  if (process.env.HOST_SDK_DIR) return run("bun", ["test", "--preload", "./test/host/preload.ts", "./test/host"])
-  for (const version of TESTED_HOSTS) {
-    console.log(`\n[check] host on @opencode/sdk ${version}`)
-    if (version === HOST_DEV_PIN) {
-      const code = run("bun", ["test", "--preload", "./test/host/preload.ts", "./test/host"])
-      if (code !== 0) return code
-      continue
-    }
-    const dir = mkdtempSync(join(realpathSync("/tmp"), `ashby-sdk-${version}-`))
-    try {
-      // Its own package.json, so npm never walks up to another one.
-      writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "ashby-host-sdk", private: true }))
-      const code = run("npm", ["install", `@opencode/sdk@${version}`, "--ignore-scripts", "--no-audit", "--no-fund", "--prefer-offline"], { cwd: dir })
-        || run("bun", ["test", "--preload", "./test/host/preload.ts", "./test/host"], { env: { HOST_SDK_DIR: dir } })
-      if (code !== 0) return code
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  }
-  return 0
+  console.log(`\n[check] host on @opencode/sdk ${HOST_DEV_PIN}`)
+  return run("bun", ["test", "--preload", "./test/host/preload.ts", "./test/host"])
 }
 
 /**
- * `actionlint` over the workflows, when it is on PATH: CI runs it as its own job, and a local run that has it catches
- * the same mistakes. With no actionlint it prints a notice and passes, so a fresh clone needs no extra tool.
+ * `actionlint` over the workflows, when it is on PATH: a local run that has it catches the same mistakes. With no
+ * actionlint it prints a notice and passes, so a fresh clone needs no extra tool.
  */
 function lintActions() {
   const found = spawnSync("actionlint", ["-no-color"], { cwd: root, env, encoding: "utf8" })
   if (found.error?.code === "ENOENT") {
-    console.log("actionlint is not on PATH: skipped the workflow lint. CI runs it; install it with `brew install actionlint` to run it here.")
+    console.log("actionlint is not on PATH: skipped the workflow lint. Install it with `brew install actionlint` to run it here.")
     return 0
   }
   if (found.status !== 0) {

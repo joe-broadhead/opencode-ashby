@@ -64,9 +64,10 @@ export const DESTRUCTIVE_TOOLS: readonly string[] = ["change_application_stage",
 export const ALL_TOOLS: readonly string[] = [...READ_TOOLS, ...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS]
 
 /**
- * The plugin's own reads, which are tools RPC methods only and never a tool, so not Ashby's and never in a live list:
- * `events_list` and `probe`, the interviews source's two methods (src/events.ts). Their actions, `ashby_events_list` and
- * `ashby_probe`, are allowed like the reads under every `access` value.
+ * The plugin's own reads, which are not Ashby's and never in a live list: `events_list` and `probe`, the interviews
+ * source's two methods (src/events.ts). They are registered once as tools in the `ashby` namespace (agent and Code
+ * Mode) and as methods of the tools RPC. Their actions, `ashby_events_list` and `ashby_probe`, are allowed like the
+ * reads under every `access` value.
  */
 export const PLUGIN_METHODS: readonly string[] = ["events_list", "probe"]
 

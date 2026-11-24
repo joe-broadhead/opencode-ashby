@@ -3,9 +3,10 @@
 The plugin is a thin layer over Ashby's official MCP server. OpenCode owns the MCP transport, OAuth, credentials,
 permission prompts and tool output limits. The plugin registers the server, names its `/connect` entry, adds default
 permission rules, reports status, ships two skills, lets scripts call the known reads through a tools RPC, and declares
-one source of the shared source contract, `ashby.interviews`, whose two methods live on that RPC. It adds no tool of
-its own and has no runtime dependencies; its only Ashby call of its own is the source's `list_interviews`, made through
-OpenCode's executor under that tool's own permission.
+one source of the shared source contract, `ashby.interviews`. Its two methods, `events_list` and `probe`, are also
+tools in the `ashby` namespace, so agents and Code Mode run the same handlers as scripts. It has no runtime
+dependencies; its only Ashby call of its own is the source's `list_interviews`, made through OpenCode's executor under
+that tool's own permission.
 
 ## Layout
 
@@ -23,14 +24,14 @@ OpenCode's executor under that tool's own permission.
 | `src/redact.ts` | Redaction for everything status shows: URL credentials, queries and token shapes removed, one line, controls and bidi characters stripped, cut by whole characters |
 | `src/skills.ts` | Loading and registering the skills |
 | `src/tools-rpc.ts` | Ashby's part of the tools RPC for scripts, `ashby.recruiting.tools`: the method table and the plugin value that the source contract's `tools-rpc` module (`@we-the-rebel-alliance/source-contract`, bundled into `dist/index.js`) takes |
-| `src/events.ts` | The interviews source, `ashby.interviews` (`package.json`'s `sources`): `events_list`, the interviews Ashby's `list_interviews` returns for the signed-in user as the contract's events, and `probe`, OpenCode's sign-in as the owner. Built on the contract's `events` and `cursor` modules |
+| `src/events.ts` | The interviews source, `ashby.interviews` (`package.json`'s `sources`): `events_list`, the interviews Ashby's `list_interviews` returns for the signed-in user as the contract's events, and `probe`, OpenCode's sign-in as the owner. Built on the contract's `events` and `cursor` modules. The same functions register both methods as tools in the `ashby` namespace |
 | `src/tui.ts` | The terminal UI part: the plugin `ashby.recruiting.tui` and the `/ashby` dialog |
 | `src/constants.ts` | IDs, the server name and URL, the Code Mode namespace description, the supported host range, the tested releases (`TESTED_HOSTS`, the one list the checks and status use) and the error shape. No imports, so `scripts/check.mjs` can load it |
 | `src/version.ts` | The plugin's version from `package.json`; the build replaces it with the version string alone |
 
-The default rules, the tools RPC's methods, status's unknown tools, the fake server in the tests and the checks of
-`jelly.tools` and the skills all derive from `src/ashby-tools.ts`, so a change to Ashby's tools is a change there,
-in `jelly.tools`, and in any skill example that names a tool.
+The default rules, the tools RPC's methods, status's unknown tools, the fake server in the tests and the skills all
+derive from `src/ashby-tools.ts`, so a change to Ashby's tools is a change there and in any skill example that names a
+tool.
 
 `scripts/build.mjs` bundles each entry with esbuild into one self-contained file: `src/index.ts` into `dist/index.js`
 and `src/tui.ts` into `dist/tui.js`. Shared code, such as the status model and the RPC contract, is inlined into both.
@@ -44,14 +45,14 @@ adds (`./icon.svg`, `./icon-128.png`, `./icon-256.png`), and ships no declaratio
 ## Setup
 
 1. `parseOptions` validates `allowUntestedHost`; anything else fails with `OPTIONS_INVALID`.
-2. `checkHost` compares `ctx.app.version` with `>=2.2.3 <2.4.0`, the same range as `opencode.host` in `package.json`.
-   Inside it the plugin starts, and status calls only 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7, 2.3.0, 2.3.1 and
-   2.3.2 tested. Outside it, setup fails with `HOST_UNTESTED` unless `allowUntestedHost` is set.
+2. `checkHost` compares `ctx.app.version` with `>=2.4.1 <2.5.0`, the same range as `opencode.host` in `package.json`.
+   Inside it the plugin starts, and status calls only 2.4.1 tested. Outside it, setup fails with `HOST_UNTESTED` unless `allowUntestedHost` is set.
 3. The skills are read from the package's `skills/` folder, before the synchronous skill transform needs them.
 4. `ctx.mcp.transform` registers `ashby` at Ashby's URL with no `oauth` block, or adopts the user's own entry at that
    URL, reading only its type, URL and whether `oauth` is `false`. Any other URL, or a local command, is a conflict:
    nothing is added, and status reports it.
-5. `ctx.tool.transform` gives the `ashby` namespace its Code Mode description.
+5. `ctx.tool.transform` gives the `ashby` namespace its Code Mode description, and registers `events_list` and `probe`
+   in it through the same handlers and read actions as the tools RPC methods.
 6. `ctx.agent.transform` inserts the default rules after each agent's base `* * allow`.
 7. `watchListing` notes when the `ashby` server's status last changes. The plugin adds no tool hook.
 8. `ctx.skill.transform`, `ctx.command.transform` (`/ashby-status`) and `ctx.rpc.register` (`ashby.recruiting/status`).
@@ -80,8 +81,9 @@ sign-in is required. `connection.active` returns the credential alone, so the pl
 ## Status
 
 `readStatus` reads the server's state (`ctx.mcp.list()`), the label of its active sign-in
-(`ctx.integration.connection.active`), the `ashby` tools (`ctx.tool.list()`, by the namespace `ashby`), every agent's
-rules (`ctx.agent.list()`) and the skills OpenCode lists (`ctx.skill.list()`). `buildStatus` turns them into one model,
+(`ctx.integration.connection.active`), the `ashby` tools (`ctx.tool.list()`, by the namespace `ashby`, without the
+plugin's own `events_list` and `probe`), every agent's rules (`ctx.agent.list()`) and the skills OpenCode lists
+(`ctx.skill.list()`). `buildStatus` turns them into one model,
 and `formatStatus` renders it in a fixed order: Connection (state and server), Account (the sign-in's label, or "account
 name not reported by Ashby's MCP"), Access (Ashby's access roles, and what the default rules let run), Tools (counts,
 the destructive tools, and up to 20 unknown names), Agents without default rules (names, then the default rules to paste, one
@@ -97,7 +99,7 @@ reason is cut to one line of 160 characters with no URL query.
 - The RPC method returns the model to the terminal UI and to scripts, with the fields every plugin of this family
   shares (`version`, `host`, `state`, `unguardedAgents`, `nextStep`). Its input and output are JSON Schemas that
   OpenCode validates. A status it cannot read is its declared error `unavailable`, with a next step. The UI part needs
-  the RPC because on OpenCode 2.2.x it receives no plugin options and cannot see the server part's findings.
+  the RPC because it receives no plugin options and cannot see the server part's findings.
 
 ## Tools RPC
 
@@ -187,22 +189,22 @@ and `credential.switched`. The newest answer wins, and a refresh never reopens a
 
 ## Platform facts
 
-These facts about OpenCode 2.2.3 hold on every later tested release too, 2.2.4 to 2.3.2. Links point to the source at tag `v2.2.3`.
+These facts about OpenCode 2.4.1 are what this plugin relies on. Links point to the source at tag `v2.4.1`.
 
 | Topic | Fact | Source |
 | --- | --- | --- |
-| MCP tool permissions | The host asserts every MCP call: action `<server>_<tool>`, resource `*`. A last-matching `deny` on `*` hides the tool. | [`tool/mcp.ts`](https://github.com/anomalyco/opencode/blob/v2.2.3/packages/core/src/tool/mcp.ts) |
-| Rule evaluation | The last match wins. Saved approvals come after all rules as `allow`. An unattended `ask` is refused. | [`permission.ts`](https://github.com/anomalyco/opencode/blob/v2.2.3/packages/core/src/permission.ts) |
-| Agent rule order | Built-in agents start from a base `* * allow` and exist before package plugins run. User `permissions`, and agents defined only in user config, come after. | [`config/plugin/agent.ts`](https://github.com/anomalyco/opencode/blob/v2.2.3/packages/core/src/config/plugin/agent.ts) |
-| User MCP config | `mcp.servers` is applied before package plugins. A later plugin `set` would replace the user's entry. | [`config/plugin/mcp.ts`](https://github.com/anomalyco/opencode/blob/v2.2.3/packages/core/src/config/plugin/mcp.ts) |
-| MCP sign-in scope | OpenCode first sends the server an unauthenticated `initialize` and reads the 401's `WWW-Authenticate` header. It requests `oauth.scope` if the server entry sets one, else the challenge's `scope`; the MCP SDK falls back to the protected-resource metadata's `scopes_supported`, and adds `offline_access` when the authorization server lists it and the client registers the `refresh_token` grant, which OpenCode always does. Ashby's challenge and metadata both name `openid mcp offline_access`, so the plugin sets no `oauth` block: the dynamic client registration and the authorization request both carry `offline_access`. The host test (on the embedded host) and the pack test (on the stock binaries) check both against a fake of Ashby's sign-in server on 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7, 2.3.0, 2.3.1 and 2.3.2. | [`mcp/oauth.ts`](https://github.com/anomalyco/opencode/blob/v2.2.3/packages/core/src/mcp/oauth.ts); the MCP SDK's `determineScope` |
-| MCP client registration | Without `oauth.client_id`, OpenCode uses a client ID metadata document only when the authorization server advertises `client_id_metadata_document_supported` with the `none` auth method; otherwise it registers a client dynamically, as `client_name: "opencode"` with `token_endpoint_auth_method: "none"`, PKCE S256, a loopback `redirect_uris` and `application_type: "native"`. Ashby advertises no client ID metadata documents, so OpenCode registers. The stock 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7, 2.3.0, 2.3.1 and 2.3.2 binaries send no `prompt=consent` with `offline_access`, which the pack test pins; whether Ashby then issues a refresh token is checked live, by status still reading `connected` an hour after a sign-in. | [`mcp/oauth.ts`](https://github.com/anomalyco/opencode/blob/v2.2.3/packages/core/src/mcp/oauth.ts) |
-| MCP integrations | Integration ID `mcp_` + the first 16 hex digits of sha1(`<name>\0<url>`), so credentials are kept per name and URL. | [`mcp/index.ts`](https://github.com/anomalyco/opencode/blob/v2.2.3/packages/core/src/mcp/index.ts) |
-| Code Mode | MCP tools are in Code Mode by default (`tools.ashby.<tool>`). A declined prompt is an error the program can catch. Each tool's signature, with its parameter names, reaches the model; a tool's full description reaches it only through `search()`, so the skills name every tool they use. | [`codemode/tool.ts`](https://github.com/anomalyco/opencode/blob/v2.2.3/packages/core/src/codemode/tool.ts) |
-| Unattended Code Mode | Up to 2.3.0 a schedule's `if: { code }` check runs once at creation, with asks settled unattended. From 2.3.1 `experimental.automation` replaces `experimental.schedule`: a code action's tools are authorized at creation the same way (an ask or a deny is refused), and the program runs, under an unattended grant for those tools, when the scheduler finds it due. Only a server process starts the scheduler; the host test starts it in its embedded host. The flag is `experimental.automations`, also read as `experimental.schedules`. | [`automation/code.ts`](https://github.com/anomalyco/opencode/blob/v2.3.2/packages/core/src/automation/code.ts), [`server/process.ts`](https://github.com/anomalyco/opencode/blob/v2.3.2/packages/server/src/process.ts) |
+| MCP tool permissions | The host asserts every MCP call: action `<server>_<tool>`, resource `*`. A last-matching `deny` on `*` hides the tool. | [`tool/mcp.ts`](https://github.com/anomalyco/opencode/blob/v2.4.1/packages/core/src/tool/mcp.ts) |
+| Rule evaluation | The last match wins. Saved approvals come after all rules as `allow`. An unattended `ask` is refused. | [`permission.ts`](https://github.com/anomalyco/opencode/blob/v2.4.1/packages/core/src/permission.ts) |
+| Agent rule order | Built-in agents start from a base `* * allow` and exist before package plugins run. User `permissions`, and agents defined only in user config, come after. | [`config/plugin/agent.ts`](https://github.com/anomalyco/opencode/blob/v2.4.1/packages/core/src/config/plugin/agent.ts) |
+| User MCP config | `mcp.servers` is applied before package plugins. A later plugin `set` would replace the user's entry. | [`config/plugin/mcp.ts`](https://github.com/anomalyco/opencode/blob/v2.4.1/packages/core/src/config/plugin/mcp.ts) |
+| MCP sign-in scope | OpenCode first sends the server an unauthenticated `initialize` and reads the 401's `WWW-Authenticate` header. It requests `oauth.scope` if the server entry sets one, else the challenge's `scope`; the MCP SDK falls back to the protected-resource metadata's `scopes_supported`, and adds `offline_access` when the authorization server lists it and the client registers the `refresh_token` grant, which OpenCode always does. Ashby's challenge and metadata both name `openid mcp offline_access`, so the plugin sets no `oauth` block: the dynamic client registration and the authorization request both carry `offline_access`. The host test (on the embedded host) and the pack test (on the stock binaries) check both against a fake of Ashby's sign-in server on 2.4.1. | [`mcp/oauth.ts`](https://github.com/anomalyco/opencode/blob/v2.4.1/packages/core/src/mcp/oauth.ts); the MCP SDK's `determineScope` |
+| MCP client registration | Without `oauth.client_id`, OpenCode uses a client ID metadata document only when the authorization server advertises `client_id_metadata_document_supported` with the `none` auth method; otherwise it registers a client dynamically, as `client_name: "opencode"` with `token_endpoint_auth_method: "none"`, PKCE S256, a loopback `redirect_uris` and `application_type: "native"`. Ashby advertises no client ID metadata documents, so OpenCode registers. The stock 2.4.1 binaries send no `prompt=consent` with `offline_access`, which the pack test pins; whether Ashby then issues a refresh token is checked live, by status still reading `connected` an hour after a sign-in. | [`mcp/oauth.ts`](https://github.com/anomalyco/opencode/blob/v2.4.1/packages/core/src/mcp/oauth.ts) |
+| MCP integrations | Integration ID `mcp_` + the first 16 hex digits of sha1(`<name>\0<url>`), so credentials are kept per name and URL. | [`mcp/index.ts`](https://github.com/anomalyco/opencode/blob/v2.4.1/packages/core/src/mcp/index.ts) |
+| Code Mode | MCP tools are in Code Mode by default (`tools.ashby.<tool>`). A declined prompt is an error the program can catch. Each tool's signature, with its parameter names, reaches the model; a tool's full description reaches it only through `search()`, so the skills name every tool they use. | [`codemode/tool.ts`](https://github.com/anomalyco/opencode/blob/v2.4.1/packages/core/src/codemode/tool.ts) |
+| Unattended Code Mode | `experimental.automation` runs a code action's tools as authorized at creation (an ask or a deny is refused), and the program runs when the scheduler finds it due. Only a server process starts the scheduler; the host test starts it in its embedded host. The flag is `experimental.automations`. | [`automation/code.ts`](https://github.com/anomalyco/opencode/blob/v2.4.1/packages/core/src/automation/code.ts), [`server/process.ts`](https://github.com/anomalyco/opencode/blob/v2.4.1/packages/server/src/process.ts) |
 | Dialog close paths | A plugin's `ui.dialog.alert` resolves on its dialog's `onClose`. Opening another dialog (`replace`), `clear` (also a click outside), Escape and Ctrl+C all call `onClose` for each dialog they remove, so the `/ashby` dialog's `r` key and listeners stop on every path. | The pack test reads each stock release's terminal UI code for this |
-| Sign-in label | `ctx.integration.connection.active` returns the active credential with a `label`. For an MCP sign-in OpenCode may keep no name there; the Account row then says so. Ashby's MCP has no account tool, so status has no other source. | `@opencode/plugin` 2.2.3 types |
-| Credential status | A status set with `integration.connection.status` is not on what `connection.active` returns; `integration.get` projects it as `connections[].status`. A 401 whose token refresh fails removes the credential, so the `/connect` mark is only observable while a credential remains: with a token that has no refresh token, as Ashby issues without `prompt=consent`. The host test signs in through the loopback callback and the token endpoint, then challenges, and asserts the mark is set and cleared. | The host test, on 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7, 2.3.0, 2.3.1 and 2.3.2 |
-| UI part options | The UI part of a plugin listed in `opencode.json` gets no plugin options. | Observed on stock 2.2.3, 2.2.4, 2.2.5 and 2.2.6 |
-| Tool executors | `ctx.tool.list()` returns each MCP tool with a callable `execute`, which checks `<server>_<tool>` with the agent's and the session's rules and saved approvals, and gives the `evaluate` hook the call's `source`. A deny is a `Tool.Error` with a cause; the server's `isError` is one without. `execute.before` and `execute.after` hooks do not run for it. Not documented as an entry point: the package test checks it on stock 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7, 2.3.0, 2.3.1 and 2.3.2. | [`tool/mcp.ts`](https://github.com/anomalyco/opencode/blob/v2.2.3/packages/core/src/tool/mcp.ts) |
-| RPC input | An RPC input given as a Standard Schema is validated with it; a plain JSON Schema is decoded with Effect, which drops unknown keys of an object that has properties. The package test checks the envelope on stock 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7, 2.3.0, 2.3.1 and 2.3.2. | `@opencode/core` 2.2.3, the RPC service's `parse` |
+| Sign-in label | `ctx.integration.connection.active` returns the active credential with a `label`. For an MCP sign-in OpenCode may keep no name there; the Account row then says so. Ashby's MCP has no account tool, so status has no other source. | `@opencode/plugin` 2.4.1 types |
+| Credential status | A status set with `integration.connection.status` is not on what `connection.active` returns; `integration.get` projects it as `connections[].status`. A 401 whose token refresh fails removes the credential, so the `/connect` mark is only observable while a credential remains: with a token that has no refresh token, as Ashby issues without `prompt=consent`. The host test signs in through the loopback callback and the token endpoint, then challenges, and asserts the mark is set and cleared. | The host test, on 2.4.1 |
+| UI part options | The UI part of a plugin listed in `opencode.json` gets no plugin options. | Observed on stock 2.4.1 |
+| Tool executors | `ctx.tool.list()` returns each MCP tool with a callable `execute`, which checks `<server>_<tool>` with the agent's and the session's rules and saved approvals, and gives the `evaluate` hook the call's `source`. A deny is a `Tool.Error` with a cause; the server's `isError` is one without. `execute.before` and `execute.after` hooks do not run for it. Not documented as an entry point: the package test checks it on stock 2.4.1. | [`tool/mcp.ts`](https://github.com/anomalyco/opencode/blob/v2.4.1/packages/core/src/tool/mcp.ts) |
+| RPC input | An RPC input given as a Standard Schema is validated with it; a plain JSON Schema is decoded with Effect, which drops unknown keys of an object that has properties. The package test checks the envelope on stock 2.4.1. | `@opencode/core` 2.4.1, the RPC service's `parse` |

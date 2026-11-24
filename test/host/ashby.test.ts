@@ -44,9 +44,11 @@ const hidden = (rules: readonly Rule[], action: string) => {
  * them from the model's tools and refuses them.
  */
 const SERVED = ["get_pending_tasks", "search_records_by_name", "shiny_new_tool", ...WRITE_TOOLS, ...DESTRUCTIVE_TOOLS].map((tool) => `ashby_${tool}`)
+/** The plugin's own two tools in the namespace; `SERVED` is only what the fake Ashby server lists. */
+const OWN_TOOLS = ["ashby_events_list", "ashby_probe"]
 const ashbyTools = (host: Host) =>
   until("Ashby's tools are registered", async () => {
-    const ids = (await host.probe().tool.list()).map((tool) => tool.id).filter((id) => id.startsWith("ashby_"))
+    const ids = (await host.probe().tool.list()).map((tool) => tool.id).filter((id) => id.startsWith("ashby_") && !OWN_TOOLS.includes(id))
     return ids.length === SERVED.length && ids.sort()
   })
 
@@ -101,6 +103,10 @@ describe(`the plugin on OpenCode ${HOST_VERSION}`, () => {
     const { data: servers } = await host.client.mcp.list({ location: host.location })
     expect(servers.find((server) => server.name === "ashby")?.status).toEqual({ status: "connected" })
     expect(await ashbyTools(host)).toEqual([...SERVED].sort())
+    // The same registration also puts the interviews source's two reads in the namespace, as agent tools and Code
+    // Mode entries; their tools RPC methods share the handlers and actions.
+    const own = (await host.probe().tool.list()).map((tool) => tool.id).filter((id) => OWN_TOOLS.includes(id)).sort()
+    expect(own).toEqual([...OWN_TOOLS].sort())
     const { data: skills } = await host.client.skill.list({ location: host.location })
     expect(skills.map((skill) => skill.id).filter((id) => id.startsWith("ashby")).sort()).toEqual([...SKILL_NAMES].sort())
     const { data: commands } = await host.client.command.list({ location: host.location })
@@ -233,12 +239,29 @@ describe(`the plugin on OpenCode ${HOST_VERSION}`, () => {
     expect(host.fake.calls.length).toBe(before)
   })
 
+  test("the interviews source's methods are agent tools and Code Mode entries, on the same read actions as the RPC", async () => {
+    const build = await session(host)
+    for (const tool of ["events_list", "probe"]) {
+      // The agent-tool path: the same handler, the same ashby_<method> action, and the same refusal with no sign-in.
+      const result = await attempt(host, build, "build", tool)
+      expect({ tool, ...result }).toMatchObject({ tool, asked: undefined, ok: false, error: expect.stringContaining("NEEDS_SIGN_IN") })
+      expect(await effect(host, "build", `ashby_${tool}`)).toBe("allow")
+    }
+    // Code Mode reaches the same namespace entries: a missing tool would make the program throw, not return true.
+    const code = [
+      "try { await tools.ashby.events_list({}); return false } catch (error) { if (!String(error).includes('NEEDS_SIGN_IN')) return false }",
+      "try { await tools.ashby.probe({}); return false } catch (error) { if (!String(error).includes('NEEDS_SIGN_IN')) return false }",
+      "return true",
+    ].join("\n")
+    expect(await unattended(host, build, code)).toEqual({ ok: true })
+  })
+
   test("the location: describe reports where the call landed, and a call that names another location is answered there", async () => {
     const elsewhere = join(ROOT, "elsewhere")
     mkdirSync(elsewhere, { recursive: true })
     const rpc = (host.client.rpc as unknown as (definition: object) => ToolsClient)(TOOLS_CONTRACT)
-    // From OpenCode 2.2.7 a location opened by a call answers before its plugins have loaded: until the plugin has
-    // registered there, the call is rpc.unavailable. Any other error fails the test at once.
+    // A location opened by a call can answer before its plugins have loaded: until the plugin has registered there,
+    // the call is rpc.unavailable. Any other error fails the test at once.
     const loaded = (options: object) =>
       until("the plugin has loaded in the location", () =>
         rpc.describe!({}, options).then(
@@ -276,7 +299,7 @@ describe(`the plugin on OpenCode ${HOST_VERSION}`, () => {
     expect(text).toContain(`- OpenCode: ${HOST_VERSION} (${TESTED_HOSTS.includes(HOST_VERSION) ? "tested" : "untested"}; supported range ${SUPPORTED_HOST})`)
     expect(text).not.toContain("Plan")
     const output = await statusRpc(host)
-    expect(output).toMatchObject({ state: "connected", access: "all", tools: listed, deniedTools: [...DESTRUCTIVE_TOOLS], unknownCount: 1, listing: false, unguardedAgents: [] })
+    expect(output).toMatchObject({ state: "connected", access: "all", tools: listed, destructiveTools: [...DESTRUCTIVE_TOOLS], unknownCount: 1, listing: false, unguardedAgents: [] })
     expect(output).not.toHaveProperty("account")
   })
 

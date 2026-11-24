@@ -1,130 +1,52 @@
 # Repository rules
 
-This repository builds `@joe-broadhead/opencode-ashby`, an OpenCode plugin that registers Ashby's official MCP
+This repository builds `@we-the-rebel-alliance/ashby-plugin`, an OpenCode plugin that registers Ashby's official MCP
 server and adds default permission rules, a status command, a status dialog, two skills, a tools RPC for scripts, and
-one source of the shared source contract (`ashby.interviews`, two methods on that RPC). It has no tool of its own. Read [docs/architecture.md](docs/architecture.md) before you change code, and
-[CONTRIBUTING.md](CONTRIBUTING.md) for the checks and the release steps.
+one source of the shared source contract (`ashby.interviews`). `events_list` and `probe` are also tools in the `ashby`
+namespace, so agents and Code Mode reach the same handlers as scripts. Read [docs/architecture.md](docs/architecture.md)
+before you change code, and [CONTRIBUTING.md](CONTRIBUTING.md) for the checks and the release steps.
 
 ## Rules
 
-- **Public API only.** Use only the public `@opencode/plugin` 2.2.3 API. `opencode.host` in `package.json` and
-  `SUPPORTED_HOST` in `src/constants.ts` both say exactly `>=2.2.3 <2.4.0`, never `^2.2.3`. `TESTED_HOSTS` in
-  `src/constants.ts` is the one list of tested releases (2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7, 2.3.0, 2.3.1 and
-  2.3.2): status calls only those tested, and the host and pack stages and CI run on each. Inside the range an
-  untested release, such as 2.2.99, still starts.
+- **Public API only.** Use only the public `@opencode/plugin` 2.4.1 API, tested on 2.4.1. `opencode.host` in
+  `package.json` and `SUPPORTED_HOST` in `src/constants.ts` both say exactly `>=2.4.1 <2.5.0`, never `^2.4.1`.
+  `TESTED_HOSTS` is the one list of tested releases, and the host and pack stages and CI run on each.
 - **Greenfield.** No legacy, migration code, compatibility shim, dual path or deprecated alias, and nothing dead.
   Delete rather than deprecate.
 - **No peers, no runtime dependencies, no lifecycle scripts.** `@opencode/plugin`, `@opencode/sdk` and
-  `@opencode/client` (whose types the host tests use) are devDependencies pinned to exactly `2.2.3`. The source
-  contract, `@we-the-rebel-alliance/source-contract`, is a devDependency pinned to one commit or tag, and the build
-  inlines what `src/` imports from it into `dist/index.js`. Do not add another
-  host version to the lockfile: the host stage installs the other tested SDKs into a temp folder.
+  `@opencode/client` are devDependencies pinned to exactly `2.4.1`; the host supplies `effect`. The source contract,
+  `@we-the-rebel-alliance/source-contract`, is a devDependency pinned to one commit, and the build inlines what `src/`
+  imports from it into `dist/index.js`.
 - **Ship prebuilt, one file per entry.** `scripts/build.mjs` bundles `src/index.ts` and `src/tui.ts` with esbuild into
   the self-contained `dist/index.js` and `dist/tui.js`: no chunks, no relative imports, and only host-provided modules
-  external. `tsc` only typechecks. No declaration files, `.tsx` or JSX.
-- **One endpoint string.** `ENDPOINT` in `src/constants.ts` is the only place Ashby's URL is written in code; the
-  pack test points the built plugin at a fake by replacing its one occurrence in `dist/index.js`.
+  external. `tsc` only typechecks.
+- **One endpoint string.** `ENDPOINT` in `src/constants.ts` is the only place Ashby's URL is written in code.
 - **Default rules, not hooks.** Permissions come from one block, `defaultRules(access)`, inserted through
   `ctx.agent.transform` directly after each agent's base allow. Every tool is allowed by default: `access` is `all`,
-  `ask-changes` or `read-only`, and the tool table's classes decide what the last two restrict. A stricter agent is
-  never weakened. An agent counts as guarded only with the whole block after its base allow. Agents that miss the
-  rules are named in status with the per-agent fix, under the values that restrict, never patched, and the fix never
-  goes in the top-level `permissions`.
+  `ask-changes` or `read-only`. Agents that miss the rules are named in status with the per-agent fix, never patched.
 - **Transforms are cheap, synchronous and never throw.** Record failures for status instead.
 - **Errors** read `CODE: What happened. Next step: What to do.`, built by `ashbyError`, `errorText` or `codeText`.
-  `CODES` in `src/constants.ts` is the one table: the helpers take its `PluginCode`, so a code outside it does not
-  compile, and the README's `Errors` table is checked equal to it in both directions. Codes have no service prefix;
-  shared failures use the shared names (`HOST_UNTESTED`, `OPTIONS_INVALID`, `STATUS_UNAVAILABLE`, `SKILLS_INVALID`).
-- **Status.** `src/status.ts` builds one model for `/ashby-status`, the `/ashby` dialog and the status RPC. The
-  RPC keeps the fields every plugin of this family shares, `version`, `host` (`version`, `range`, `tested`), `state`,
-  `unguardedAgents` and `nextStep`, under those names. It never shows OpenCode's text for a needed sign-in, cuts a
-  failure's reason to one line of 160 characters with `src/redact.ts` (no credentials, URL queries or tokens), and names
-  at most 20 unknown tools, plain names only. A status it cannot read is the declared RPC error `unavailable`, with a
-  next step. Status makes no Ashby call: the account is the label OpenCode keeps on the sign-in, if any.
-- **No `oauth` block.** The registered server is `{ type, url }` only: Ashby's sign-in challenge names its scopes,
-  `offline_access` included, and OpenCode requests them as given. Only the tests' seam sets `oauth: false`.
-- **A user's own server entry** is read for its type, URL and whether `oauth` is `false`, never its `headers`.
-- **`src/ashby-tools.ts` is the one record of Ashby's tools**, and has no runtime imports. Everything else derives from
-  it; `jelly.tools`, the skills and the default rules are checked against it. Its names come from Ashby's docs, and
-  `PARAMETERS` is empty until a tool list from a signed-in server is recorded. `test/unit/ashby-tools.json` is a raw
-  `tools/list` response (`{ "tools": [ { "name", "description", "inputSchema"?, "annotations"? } ] }`) holding the
-  published names and descriptions; replacing it with a saved one is the whole reconcile, and the drift test names each
-  difference. `npm run drift -- <saved.json>` reports the rest. `src/constants.ts` has no
-  imports at all: `scripts/check.mjs` loads it with Node's type stripping.
-- **Candidate data is personal data.** Tests, fixtures, docs and skills use only invented people and companies. The
-  skills label Ashby's AI output as Ashby's and Metaview's AI notes as Metaview's, never infer protected
-  characteristics, make no hiring decision the user did not ask for, and say whom a change reaches before it runs.
-- **The `jelly` section** of `package.json` declares every known tool, the skills, the sign-in, a one-line `summary`
-  and the `icon`, with only the keys Jelly reads: its contracts drop an unknown top-level key, and refuse an unknown key
-  inside a tool, sign-in or `contributes` entry. `test/unit/jelly.test.ts` keeps it in step with the tool lists and the
-  default rules.
-- **The icon** is Ashby's own mark: `assets/icon.svg` is Ashby's app icon (the serif "A" on Ashby purple) as
-  app.ashbyhq.com serves it, with only non-visual changes, and the `icon-128.png` and `icon-256.png` rasters rendered
-  from it. `opencode.icons` declares all three, `opencode.vendor` names Ashby with `mark: true`, and the README
-  carries the trademark line. Don't redraw or recolour it.
-  `scripts/check-icons.mjs` is the kit's check, copied verbatim, and is the one definition of a safe icon: it runs in
-  the `icons` stage of `npm run check`.
-- **TypeScript.** No enums, namespaces or parameter properties. `import type` for types, `.js` in relative imports.
+  `CODES` in `src/constants.ts` is the one table, and the README's `Errors` table is checked equal to it.
+- **Status.** `src/status.ts` builds one model for `/ashby-status`, the `/ashby` dialog and the status RPC. It cuts a
+  failure's reason to one line of 160 characters with `src/redact.ts`, and names at most 20 unknown tools.
 - **The tools RPC.** The transport is the source contract's `tools-rpc` module, shared by the plugin family; never copy
-  or patch it here. Ashby's part is `src/tools-rpc.ts`: its methods are every known tool in `src/ashby-tools.ts`, by
-  exact name and with its class, and never an unknown tool, plus the source's own `events_list` and `probe`
-  (`PLUGIN_METHODS`). A write or a destructive tool is a method but runs only on a resolved `allow`. Keep the RPC id
-  `ashby.recruiting.tools` and its method names stable: scripts call them by name.
-- **The interviews source.** `src/events.ts` implements `package.json`'s `sources` (`ashby.interviews`) on the
-  contract's `events` and `cursor` modules. **Declare or send no key a consumer on source-contract 0.1 refuses**
-  (`readsIdentity`, `removals[]`, `owner.verified`, `identityRules`, `accounts.server`, a price's `conditions` or `min`,
-  an empty `identity`) until the consumers are on 0.2: Jelly's host pins 0.1.0. It declares none, since no Ashby tool
-  names the signed-in user and the source makes no identity read. An event carries metadata only: ids, the start, the title and job, the
-  candidate and the interviewers by Ashby's ids and names, and an ashbyhq.com link. Never an email, a phone number,
-  feedback, a scorecard, a note or a transcript, and `text` stays empty. `permission.operations` is exactly the Ashby
-  tools the source calls, and the conformance stage fails a read that asserts anything else.
+  or patch it here. Ashby's part is `src/tools-rpc.ts`, with every known tool in `src/ashby-tools.ts` by exact name.
+  `events_list` and `probe` are registered once in `src/events.ts`; the tool registration in `src/plugin.ts` and the
+  RPC method table run the same handlers on the same actions.
+- **`src/ashby-tools.ts` is the one record of Ashby's tools**, and has no runtime imports. `test/unit/ashby-tools.json`
+  is a raw `tools/list` response; replacing it with a saved one is the whole reconcile, and `npm run drift` reports the
+  rest.
+- **Candidate data is personal data.** Tests, fixtures, docs and skills use only invented people and companies. The
+  skills label Ashby's AI output as Ashby's and never infer protected characteristics or rank candidates.
 - **Tests.** Unit tests use narrow `Pick<Plugin.Context, ...>` fakes. Host tests use the public `@opencode/sdk` with
-  `OpenCode.create({ app: { version } })`, a loopback fake server and the temp root from `test/host/isolate.ts`. On
-  2.3.1 and later the harness builds that host through `PromiseSdk.create`, which `OpenCode.create` calls, with the
-  SDK's `overrides` so that its Automation service also runs the scheduler, as `opencode serve` does: Code Mode with
-  nobody present runs there as an automation's code action (`unattended` in `test/host/harness.ts`).
-  Every temp root of the host and pack tests is a git repository under the system's `/tmp`, never under `TMPDIR` or
-  `HOME`, so OpenCode never finds a `.opencode` folder of whoever runs them; each stock server has its own port.
-  Never sign in to Ashby or call its API from a check.
-- **Text.** Model-facing text and docs use plain language and describe what the code does now: no process
-  narrative, test counts, machine-local paths, secrets or personal data.
-- **Releases** come only from `.github/workflows/release.yml` ("Releasing" in [CONTRIBUTING.md](CONTRIBUTING.md)). A
-  release-prep PR sets `version` in `package.json` and the install specs and runs `node scripts/changelog.mjs release`;
-  once it is on `master` and CI passed, start the release with
-  `gh workflow run release.yml --ref master -f sha=<its full sha>`. The workflow builds `dist/`, makes the release
-  commit on a temporary `release/v<version>` branch, checks and stages everything, and waits for the owner to approve
-  the `release` environment; only then does it create the tag `v<version>` and the GitHub Release. Never push a tag or a
-  `release/*` branch, and never commit, tag or publish a release by hand. Agents never approve a release, never call the
-  deployment-approval API, and never bypass a ruleset or the environment.
-- **No personal email in anything we publish.** Every commit is authored and committed as
-  `joe-broadhead <91376460+joe-broadhead@users.noreply.github.com>`, except the release commit and tag, which the
-  release workflow makes as `github-actions[bot]`. Before committing or tagging, check that
-  `git config user.email` is that address: a fresh clone inherits the machine's global identity, which is not that
-  address. Never commit, tag or publish with a work or personal address, or with a local hostname.
-- **One check command.** `npm run check` passes before every commit. Never skip, weaken or delete a test to get
-  green.
+  `PromiseSdk.create` (what `OpenCode.create` calls) and its Automation scheduler override, a loopback fake server and
+  the temp root from `test/host/isolate.ts`. Every temp root is a git repository under the system's `/tmp`, and the
+  stock pack server has its own port. Never sign in to Ashby or call its API from a check.
+- **One check command.** `npm run check` passes before every commit. Never skip, weaken or delete a test to get green.
 
 ## Forbidden in this repository
 
-`scripts/check-forbidden.mjs` enforces this list in `src/`, `test/`, `scripts/` and `dist/`; `test/unit/docs.test.ts`
-enforces the same wording rules over the shipped docs:
-
-- internal wording: a decision attributed to the owner, the lead or a reviewer; a lane's name or identifier; and a
-  `hey-jelly` issue reference;
-
-- dispatch-lease, catalog-ownership and text-only markers, and tool `options.mcp` delegation;
-- `Plugin.image` and profile images;
-- imported OAuth grants;
-- the V1 plugin API: `@opencode-ai/*` packages and hooks such as `tool.execute.before`, `chat.message` or
-  `permission.ask`;
-- the deprecated `ctx.generate.text` and `experimental.policies`;
-- importing `@opencode/ai`;
-- a permission hook, except the one `permission.hook("evaluate")` in the source contract's `tools-rpc` module, inlined
-  in `dist/index.js`, exactly once: it turns an `ask` on one of the tools RPC's own script calls in flight into a deny,
-  because no one can answer it, and touches nothing else;
-- references to private host source or host checkouts;
-- machine-local home and temp paths;
-- `.tsx` or `.jsx` files in `dist/`.
-
-The pack test also rejects anything in `dist/` other than the two bundles, any relative, dynamic or `require` import in
-them, and any import of a module OpenCode does not provide.
+`scripts/check-forbidden.mjs` enforces the list in `src/`, `test/`, `scripts/` and `dist/`: internal wording and lane
+names, the V1 plugin API, `@opencode/ai`, escalating permission hooks, private host source, machine-local home and temp
+paths, and `.tsx` or `.jsx` in `dist/`. The pack test also rejects anything in `dist/` other than the two bundles and
+any import of a module OpenCode does not provide.

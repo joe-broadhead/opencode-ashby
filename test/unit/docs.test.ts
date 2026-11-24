@@ -1,6 +1,6 @@
-// The docs and skills must match the code: tool names, the deny rule, error codes, the uninstall order and the Jelly
-// guide. Every tool count they state is checked against src/ashby-tools.ts, so a change there cannot leave a stale
-// number behind.
+// The docs and skills must match the code: tool names, the deny rule, error codes, the uninstall order and the package's
+// `jelly` declaration. Every tool count they state is checked against src/ashby-tools.ts, so a change there cannot leave
+// a stale number behind.
 import { describe, expect, test } from "bun:test"
 import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
@@ -41,7 +41,7 @@ describe("docs", () => {
     expect(named.filter((tool) => !NAMED.includes(tool))).toEqual([])
   })
 
-  test.each(["README.md", "docs/configuration.md", "docs/scripting.md", "docs/jelly.md", "SECURITY.md"])("%s says nothing provisional or pending", (file) => {
+  test.each(["README.md", "docs/configuration.md", "docs/scripting.md", "SECURITY.md"])("%s says nothing provisional or pending", (file) => {
     expect(text(file)).not.toMatch(/provisional|not yet (?:checked|published|signed)|private package|TODO/i)
   })
 
@@ -51,9 +51,10 @@ describe("docs", () => {
     }
   })
 
-  // The one exception is the install spec, which names the release tag by design (the GitHub install takes `#v<x.y.z>`).
-  test("the README names no version of the plugin, except its install spec", () => {
-    expect(text("README.md").replace(/opencode-ashby#v\d+\.\d+\.\d+/g, "")).not.toMatch(/opencode-ashby@\d|\b0\.\d+\.\d+\b|\bv\d+\.\d+\.\d+\b/)
+  // The install spec names the release placeholder, and the text names the first release by design.
+  test("the README names no other version of the plugin", () => {
+    const readme = text("README.md").replace(/ashby-plugin#v(?:<version>|\d+\.\d+\.\d+)/g, "").replace(/`?v0\.0\.0`? \(phase 4b\)/g, "")
+    expect(readme).not.toMatch(/ashby-plugin@\d|\b0\.\d+\.\d+\b|\bv\d+\.\d+\.\d+\b/)
   })
 
   // R18: nothing is denied by default, so the README shows how to restrict instead. Every destructive tool is `ask` in
@@ -147,7 +148,7 @@ describe("docs", () => {
   })
 
   // DR-5: the two one-liners a person sees before installing say the plugin can change records, and that it asks.
-  test("the README's first line and the Jelly summary say the plugin changes records", () => {
+  test("the README's first line and the package's jelly summary say the plugin changes records", () => {
     expect(text("README.md")).toContain("Every tool is allowed by default")
     const { jelly } = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as { jelly: { summary: string } }
     expect(jelly.summary).toMatch(/add a candidate, note or pipeline entry/)
@@ -184,7 +185,7 @@ describe("docs", () => {
     const logout = uninstall.indexOf("opencode mcp logout ashby")
     const connect = uninstall.indexOf("remove the account")
     const list = uninstall.indexOf("opencode auth list")
-    const remove = uninstall.indexOf("opencode plugin remove github:joe-broadhead/opencode-ashby#v0.0.8")
+    const remove = uninstall.indexOf("opencode plugin remove github:we-the-rebel-alliance/ashby-plugin#v<version>")
     expect(logout).toBeGreaterThanOrEqual(0)
     expect(connect).toBeGreaterThan(logout)
     expect(list).toBeGreaterThan(logout)
@@ -292,10 +293,10 @@ describe("docs", () => {
     expect(changelog.length).toBeGreaterThan(0)
     check("CHANGELOG.md (newest tested-on notes)", changelog)
     expect(mentions).toBeGreaterThanOrEqual(2)
-    // The places that list the releases without the words "tested on" name the same four.
-    const list = `${TESTED_HOSTS.slice(0, -1).join(", ")} and ${TESTED_HOSTS.at(-1)}`
+    // The places that list the releases without the words "tested on" name the same set.
+    const list = TESTED_HOSTS.length === 1 ? TESTED_HOSTS[0]! : `${TESTED_HOSTS.slice(0, -1).join(", ")} and ${TESTED_HOSTS.at(-1)}`
     for (const file of ["AGENTS.md", "docs/configuration.md", "CONTRIBUTING.md"]) expect({ file, list: text(file).includes(list) }).toEqual({ file, list: true })
-    // The example of a release the checks do not run on is 2.2.99, never one of the tested ones.
+    // The example of a release the checks do not run on is 2.4.99, never one of the tested ones.
     expect(text("docs/configuration.md")).toContain(UNTESTED_EXAMPLE)
     for (const version of TESTED_HOSTS) expect(text("docs/configuration.md")).not.toContain(`inside the range, such as ${version}`)
   })
@@ -350,23 +351,6 @@ describe("docs", () => {
       }
     }
     expect(examples).toBeGreaterThanOrEqual(3)
-  })
-
-  test("the Jelly guide describes the declaration as Jelly reads it, with no placeholder or version", () => {
-    const guide = text("docs/jelly.md")
-    expect(guide).not.toMatch(/`latest` is|None yet/)
-    expect(guide).toContain("the one line in `jelly.summary`, and beside it the mark in `jelly.icon`")
-    // Jelly's contracts drop an unknown top-level key; they do not refuse the declaration for it.
-    expect(guide).toContain("drop a top-level key they don't know")
-    expect(guide).not.toMatch(/refuses this declaration|accepts no unknown keys/)
-    // R18: every declared tool is allowed, and a tool Ashby adds later is undeclared, so Jelly runs it with the
-    // plugin's own default: the guide says so plainly, a write included.
-    expect(guide).toContain("22 tools are declared (14 read-only), every tool in `src/ashby-tools.ts`")
-    expect(guide).toContain("A tool Ashby adds later, a write included, is not declared, so in Jelly it runs with the plugin's own default: allowed")
-    const destructive = guide.split("- `ashby_create_candidate`")[1]?.split("A Jelly admin restricts")[0] ?? ""
-    for (const name of DESTRUCTIVE_TOOLS) expect(destructive).toContain(`ashby_${name}`)
-    const skills = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).jelly.skills as string[]
-    expect(guide).toContain(`Declared: ${skills.map((name) => `\`${name}\``).join(", ")}.`)
   })
 
   test("the scripting guide points at the known reads, and gives Ashby's rate limits with one call at a time", () => {
