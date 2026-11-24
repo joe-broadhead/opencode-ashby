@@ -5,7 +5,8 @@ Read [AGENTS.md](AGENTS.md) first: it lists the rules for this repository and th
 
 ## Set up
 
-You need Node.js 22.18 or later, npm, and [Bun](https://bun.sh). CI uses Node.js 24 and Bun 1.4.5.
+You need Node.js 24, npm, and [Bun](https://bun.sh) 1.4.5. CI uses the same Node 24 and Bun 1.4.5; the embedded
+host in `test/host/harness.ts` needs Node 24.
 
 ```sh
 npm ci --ignore-scripts
@@ -123,8 +124,8 @@ npm run drift -- tools-list.json
 npm run drift -- tools-list.json --strict
 ```
 
-- It needs Node.js 22.18 or later, which loads `src/ashby-tools.ts` by stripping its types. Keep that file free of
-  runtime imports.
+- Type stripping, which loads `src/ashby-tools.ts`, needs Node.js 22.18 or later; the full check itself runs on
+  Node.js 24. Keep that file free of runtime imports.
 - It prints only tool names, parameter names and types, and annotations, grouped as added (listed, but in no list),
   removed (in a list, but not in the file; information only, since access differs), possibly renamed (a removed and an
   added tool that take mostly the same parameters), parameters changed (added, removed, now required or optional, or a
