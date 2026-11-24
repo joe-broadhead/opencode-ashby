@@ -13,8 +13,8 @@ before you change code, and [CONTRIBUTING.md](CONTRIBUTING.md) for the checks an
   `TESTED_HOSTS` is the one list of tested releases, and the host and pack stages and CI run on each.
 - **Greenfield.** No legacy, migration code, compatibility shim, dual path or deprecated alias, and nothing dead.
   Delete rather than deprecate.
-- **No peers, no runtime dependencies, no lifecycle scripts.** `@opencode/plugin`, `@opencode/sdk`, `@opencode/client`
-  and `effect` are devDependencies pinned to exactly `2.4.1` (`effect` `4.1.0`). The source contract,
+- **No peers, no runtime dependencies, no lifecycle scripts.** `@opencode/plugin`, `@opencode/sdk` and
+  `@opencode/client` are devDependencies pinned to exactly `2.4.1`; the host supplies `effect`. The source contract,
   `@we-the-rebel-alliance/source-contract`, is a devDependency pinned to one commit, and the build inlines what `src/`
   imports from it into `dist/index.js`.
 - **Ship prebuilt, one file per entry.** `scripts/build.mjs` bundles `src/index.ts` and `src/tui.ts` with esbuild into
