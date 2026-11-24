@@ -30,7 +30,10 @@ const stages = {
   // The source contract's conformance kit over the declared source, on invented interviews; it writes
   // reports/conformance-report.json for a release to attach.
   conformance: () => run("bun", ["test", "./test/conformance"]),
-  kit: () => run("node", ["--test", "scripts/release-kit.test.mjs"]),
+  // The copied release kit's two CI-shape tests still require the family's old macOS matrix. The rebuild replaces that
+  // matrix with one `ci` job on the public runner, so those two tests assert a policy this repository deleted; the rest
+  // of the copied kit runs unchanged, and plugin-kit replaces it in 4b.
+  kit: () => run("node", ["--test", "--test-skip-pattern", "this repository's ci\\.yml|the kit tests, whatever the ambient", "scripts/release-kit.test.mjs"]),
   build: () => run("node", ["scripts/build.mjs"]),
   icons: () => run("node", ["scripts/check-icons.mjs"]),
   host: host,
