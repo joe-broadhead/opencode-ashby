@@ -12,28 +12,30 @@ import { assertHost, register } from "@we-the-rebel-alliance/plugin-contract/reg
 import { createHandlers } from "./handlers/index.ts"
 import { manifest, version } from "./manifest.ts"
 import { createProvider, serverConfig } from "./provider/index.ts"
-import { loadSkills, registerSkills } from "./skills.ts"
+import { loadSkills } from "./skills.ts"
 
 export default Plugin.define({
   id: manifest.plugin.name,
-  async setup(context) {
-    assertHost(context, manifest)
-    const options = context.options
+  async setup(ctx) {
+    assertHost(ctx, manifest)
+    const options = ctx.options
     const { skills, problems: skillProblems } = await loadSkills()
-    const accounts = await registerAccounts(context, { manifest, options, server: () => serverConfig() })
-    const provider = createProvider(context)
+    const accounts = await registerAccounts(ctx, { manifest, options, server: () => serverConfig() })
+    const provider = createProvider(ctx)
     const handlers = createHandlers({
       manifest,
       options,
       provider,
-      context,
+      context: ctx,
       version,
-      hostVersion: context.app.version,
+      hostVersion: ctx.app.version,
       accountProblems: accounts.problems,
       skillProblems,
     })
-    const registration = await register(context, manifest, handlers)
-    const skillRegistration = await registerSkills(context.skill, skills)
+    const registration = await register(ctx, manifest, handlers)
+    const skillRegistration = await ctx.skill.transform((editor) => {
+      for (const skill of skills) editor.add(skill)
+    })
     return async () => {
       await skillRegistration.dispose()
       await registration.dispose()

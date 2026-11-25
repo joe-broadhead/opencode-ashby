@@ -33,8 +33,8 @@ status, and registers its two skills. It has no runtime dependencies and no cred
 5. `createHandlers(...)` builds one handler per own method and passes the manifest's `maxBytes` for the source.
 6. `register(ctx, manifest, handlers)` validates the table against `methods`, generates the access rules into every
    agent, and registers the three tools in the `ashby` namespace and the one RPC id `ashby`.
-7. `registerSkills(ctx.skill, skills)` adds each valid skill through OpenCode's skill editor. Setup returns one cleanup
-   that disposes the skill registration and the registration.
+7. `ctx.skill.transform(...)` adds each valid skill through OpenCode's skill editor. Setup returns one cleanup that
+   disposes the skill registration and the registration.
 
 The manifest declares the vendor's tools as 22 explicit `mcp:<tool>` rows. `register` refuses a handler for an `mcp:`
 method: the vendor's server owns the tool and its input, so the plugin neither proxies nor re-registers it. That is why

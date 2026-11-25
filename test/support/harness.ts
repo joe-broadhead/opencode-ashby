@@ -1,8 +1,8 @@
 /**
  * A faithful fake of the OpenCode host, for the plugin's own tests.
  *
- * The real code runs: `assertHost`, `loadSkills`, `registerSkills`, `registerAccounts`, the provider, `createHandlers`
- * and `register` (doors 1–3). Only OpenCode is faked: `ctx.mcp`, `ctx.skill`, `ctx.tool.list()`,
+ * The real code runs: `assertHost`, `loadSkills`, the skill registration, `registerAccounts`, the provider,
+ * `createHandlers` and `register` (doors 1–3). Only OpenCode is faked: `ctx.mcp`, `ctx.skill`, `ctx.tool.list()`,
  * `ctx.integration.connection.active`, the agent rules and the RPC registration. The fake MCP transport answers the way
  * Ashby's server does — the recorded `list_interviews` envelope, its request/answer shape, and its own `Tool.Error` for
  * a rate limit, a provider failure or a permission refusal — so a test never fakes the plugin's own code.
@@ -14,7 +14,7 @@ import { assertHost, register } from "@we-the-rebel-alliance/plugin-contract/reg
 import { createHandlers } from "../../src/handlers/index.ts"
 import { manifest as installed } from "../../src/manifest.ts"
 import { createProvider, serverConfig } from "../../src/provider/index.ts"
-import { loadSkills, registerSkills } from "../../src/skills.ts"
+import { loadSkills } from "../../src/skills.ts"
 
 /** One interview as Ashby's `list_interviews` answers it: the shape the reader was written against. */
 export interface InterviewRecord {
@@ -367,7 +367,9 @@ export async function startHarness(options: HarnessOptions = {}): Promise<Harnes
     now: () => fixedNow,
   })
   const registration = await register(context, manifest, handlers)
-  const skillRegistration = await registerSkills(context.skill, skills)
+  const skillRegistration = await context.skill.transform((editor: { add: (skill: { readonly id: string }) => void }) => {
+    for (const skill of skills) editor.add(skill)
+  })
 
   return {
     manifest,

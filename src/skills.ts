@@ -7,7 +7,7 @@
 import { readdir, readFile } from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { type Plugin, Skill } from "@opencode/plugin"
+import { Skill } from "@opencode/plugin"
 
 /** `skills/` at the package root, next to `dist/` (and next to `src/` in the repository). */
 export const SKILLS_DIR = fileURLToPath(new URL("../skills/", import.meta.url))
@@ -77,11 +77,4 @@ export async function loadSkills(directory = SKILLS_DIR) {
     }
   }
   return { skills, problems }
-}
-
-/** Adds every loaded skill through the host's skill editor; the registration is disposed with the plugin. */
-export function registerSkills(skill: Pick<Plugin.Context["skill"], "transform">, skills: readonly Skill.Info[]) {
-  return skill.transform((editor) => {
-    for (const info of skills) editor.add(info)
-  })
 }

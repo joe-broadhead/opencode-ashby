@@ -12941,33 +12941,30 @@ async function loadSkills(directory = SKILLS_DIR) {
   }
   return { skills, problems };
 }
-function registerSkills(skill, skills) {
-  return skill.transform((editor) => {
-    for (const info of skills) editor.add(info);
-  });
-}
 
 // src/index.ts
 var index_default = Plugin.define({
   id: manifest.plugin.name,
-  async setup(context) {
-    assertHost(context, manifest);
-    const options = context.options;
+  async setup(ctx) {
+    assertHost(ctx, manifest);
+    const options = ctx.options;
     const { skills, problems: skillProblems } = await loadSkills();
-    const accounts = await registerAccounts(context, { manifest, options, server: () => serverConfig() });
-    const provider = createProvider(context);
+    const accounts = await registerAccounts(ctx, { manifest, options, server: () => serverConfig() });
+    const provider = createProvider(ctx);
     const handlers = createHandlers({
       manifest,
       options,
       provider,
-      context,
+      context: ctx,
       version: version2,
-      hostVersion: context.app.version,
+      hostVersion: ctx.app.version,
       accountProblems: accounts.problems,
       skillProblems
     });
-    const registration = await register(context, manifest, handlers);
-    const skillRegistration = await registerSkills(context.skill, skills);
+    const registration = await register(ctx, manifest, handlers);
+    const skillRegistration = await ctx.skill.transform((editor) => {
+      for (const skill of skills) editor.add(skill);
+    });
     return async () => {
       await skillRegistration.dispose();
       await registration.dispose();
