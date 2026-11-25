@@ -150,6 +150,33 @@ describe("events_list", () => {
     }
   })
 
+  test("keeps a since filter across cursor pages, including at the since boundary", async () => {
+    const at = "2026-11-18T10:00:00.000Z"
+    const harness = await two([
+      record("at-since", at),
+      record("at-since-b", at),
+      record("after", "2026-11-18T11:00:00.000Z"),
+      record("before", "2026-11-18T09:00:00.000Z"),
+    ])
+    try {
+      // The contract's repro: since with limit 1, then the cursor. The event at the boundary must not repeat, and the
+      // event before since must never appear.
+      let answer = page(await read(harness, { since: at, limit: 1 }))
+      const listed = listIds(answer)
+      expect(listed).toEqual(["at-since"])
+      expect(answer["more"]).toBe(true)
+      for (let guard = 0; guard < 10 && answer["more"] === true; guard++) {
+        answer = page(await read(harness, { cursor: answer["cursor"], limit: 1 }))
+        listed.push(...listIds(answer))
+      }
+      expect(listed).toEqual(["at-since", "at-since-b", "after"])
+      expect(new Set(listed).size).toBe(3)
+      expect(listed).not.toContain("before")
+    } finally {
+      await harness.dispose()
+    }
+  })
+
   test("orders by (start, id), so three interviews at the same start are neither skipped nor repeated", async () => {
     const at = "2026-11-18T10:00:00.000Z"
     // The provider's own order is neither the start order nor the id order; the cursor's total order decides.
