@@ -67,6 +67,10 @@ not for answering questions: `events_list` returns a page with a cursor, and eve
 - **Late arrivals.** With a cursor, the 7 days behind its position are read again, newest part first, for an interview
   that became visible late. The cursor carries a digest of up to 40 interviews already listed inside that lookback, so
   nothing is listed twice. An interview that becomes visible later than the lookback is not listed.
+- **A total order.** The cursor's position is `(start, interview id)`, compared by start and then by Ashby's id, and a
+  read resumes strictly after that pair. Two interviews that start at the same instant are therefore neither skipped nor
+  repeated; a page that read a whole window carries the window's end, and an interview at that instant still follows
+  the empty id.
 - **Read whole or not at all.** An answer with one entry the plugin cannot read is `UNAVAILABLE`, and the page lists
   nothing: a shorter or empty week is never invented.
 - **Free.** The source declares `cost: { class: "free" }` and is private: everything it reads is personal.

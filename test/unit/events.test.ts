@@ -31,6 +31,7 @@ const refused = (answer: CallAnswer): { code: string; message: string } => {
 }
 
 const ids = (answer: CallAnswer): string[] => (page(answer)["events"] as { external_id: string }[]).map((event) => event.external_id)
+const listIds = (answer: Record<string, unknown>): string[] => (answer["events"] as { external_id: string }[]).map((event) => event.external_id)
 
 const two = (interviews: readonly InterviewRecord[], now = NOW, extra: { work?: Record<string, unknown>; personal?: InterviewRecord[] } = {}) =>
   startHarness({
@@ -144,6 +145,54 @@ describe("events_list", () => {
       expect(seen).toEqual(["a", "b", "c"])
       expect(answer["more"]).toBe(false)
       expect(page(await read(harness, { cursor: answer["cursor"] }))["events"]).toEqual([])
+    } finally {
+      await harness.dispose()
+    }
+  })
+
+  test("orders by (start, id), so three interviews at the same start are neither skipped nor repeated", async () => {
+    const at = "2026-11-18T10:00:00.000Z"
+    // The provider's own order is neither the start order nor the id order; the cursor's total order decides.
+    const harness = await two([record("same-3", at), record("same-1", at), record("same-2", at)])
+    try {
+      const first = page(await read(harness, { since: SINCE, limit: 1 }))
+      expect(listIds(first)).toEqual(["same-1"])
+      expect(first["more"]).toBe(true)
+      const second = page(await read(harness, { cursor: first["cursor"], limit: 1 }))
+      expect(listIds(second)).toEqual(["same-2"])
+      expect(second["more"]).toBe(true)
+      const third = page(await read(harness, { cursor: second["cursor"], limit: 1 }))
+      expect(listIds(third)).toEqual(["same-3"])
+      expect(third["more"]).toBe(false)
+      const fourth = page(await read(harness, { cursor: third["cursor"] }))
+      expect(fourth["events"]).toEqual([])
+      const listed = [...listIds(first), ...listIds(second), ...listIds(third)]
+      expect(listed).toEqual(["same-1", "same-2", "same-3"])
+      expect(new Set(listed).size).toBe(3)
+    } finally {
+      await harness.dispose()
+    }
+  })
+
+  test("the lookback does not duplicate or drop one at the cursor's own start", async () => {
+    const at = "2026-11-18T10:00:00.000Z"
+    const lives: InterviewRecord[] = [record("same-1", at)]
+    const harness = await two(lives)
+    try {
+      const first = page(await read(harness, { since: SINCE, limit: 1 }))
+      expect(listIds(first)).toEqual(["same-1"])
+      // A late arrival at the exact same start, lexicographically before the position: the lookback lists it once.
+      lives.push(record("same-0", at))
+      const second = page(await read(harness, { cursor: first["cursor"], limit: 1 }))
+      expect(listIds(second)).toEqual(["same-0"])
+      const third = page(await read(harness, { cursor: second["cursor"], limit: 1 }))
+      expect(third["events"]).toEqual([])
+      // A late arrival at the same start, lexicographically after the position, is still after the cursor's pair.
+      lives.push(record("same-2", at))
+      const fourth = page(await read(harness, { cursor: third["cursor"], limit: 1 }))
+      expect(listIds(fourth)).toEqual(["same-2"])
+      const fifth = page(await read(harness, { cursor: fourth["cursor"] }))
+      expect(fifth["events"]).toEqual([])
     } finally {
       await harness.dispose()
     }
