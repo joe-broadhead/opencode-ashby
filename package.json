@@ -29,10 +29,10 @@
     "LICENSE"
   ],
   "scripts": {
-    "check": "npm run lint && npm run typecheck && npm run build && npm run test && npm run conformance && npm run test:pack",
+    "check": "npm run lint && npm run typecheck && npm run bundle && git diff --exit-code dist/ && npm run test && npm run conformance && npm run test:pack",
     "lint": "biome check .",
     "typecheck": "tsc --noEmit",
-    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/index.js --external:'@opencode/*'",
+    "bundle": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/index.js --external:'@opencode/*'",
     "test": "vitest run",
     "conformance": "plugin-kit check",
     "test:pack": "node test/pack/pack.mjs"

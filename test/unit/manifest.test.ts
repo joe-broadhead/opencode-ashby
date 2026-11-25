@@ -77,7 +77,10 @@ describe("the capabilities manifest", () => {
     expect(pkg["repository"]).toBe("github:we-the-rebel-alliance/ashby-plugin")
     expect(pkg["exports"]).toEqual({ "./server": "./dist/index.js" })
     expect(pkg["files"]).toEqual(["dist", "skills", "assets", "README.md", "LICENSE"])
-    expect(Object.keys(pkg["scripts"]).sort()).toEqual(["build", "check", "conformance", "lint", "test", "test:pack", "typecheck"])
+    expect(Object.keys(pkg["scripts"]).sort()).toEqual(["bundle", "check", "conformance", "lint", "test", "test:pack", "typecheck"])
+    // npm prepares a git dependency that has any of these lifecycle scripts by running `npm install` inside it, which
+    // fails inside OpenCode 2.4.1; the committed dist/ means none is needed.
+    for (const script of ["build", "prepack", "prepare", "preinstall", "install", "postinstall"]) expect(pkg["scripts"]).not.toHaveProperty(script)
     expect(pkg["devDependencies"]).toEqual({
       "@biomejs/biome": "2.6.9",
       "@opencode/client": "2.4.1",

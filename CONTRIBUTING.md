@@ -13,7 +13,7 @@ npm run check
 ```
 
 `npm ci` installs dev tooling only: the plugin has no runtime dependencies, and `dist/index.js` is self-contained except
-for `@opencode/*`.
+for `@opencode/*`. The bundle is committed, so a fresh clone and an OpenCode install both have it without a build step.
 
 ## Checks
 
@@ -21,10 +21,13 @@ for `@opencode/*`.
 
 1. `biome check .` (lint and format);
 2. `tsc --noEmit`;
-3. the esbuild bundle;
+3. `npm run bundle` and `git diff --exit-code dist/` (the committed bundle must be current);
 4. `vitest run` (unit, conformance and the real 2.4.1 host);
 5. `plugin-kit check` (T0, the declaration, the recordings, T1 and the unsupported host);
 6. `npm pack` and an import of the packed entry.
+
+`package.json` has no `build`, `prepack`, `prepare`, `preinstall`, `install` or `postinstall` script: npm prepares a git
+dependency that has one by running `npm install` inside it, which fails inside OpenCode. `dist/` is committed instead.
 
 A full check loads the real host; run one at a time on a shared machine.
 
