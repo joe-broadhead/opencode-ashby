@@ -94,5 +94,5 @@ nothing; a missed nudge costs one re-read, never data.
 | `ctx.agent.transform`, `ctx.agent.list` (through `register`) | The generated access rules, and status's unguarded agents |
 | `ctx.rpc.register` (through `register`)                      | The one RPC id `ashby`                                    |
 
-No private OpenCode API is used. The build keeps only `@opencode/*` external; the contract is bundled, and there are no
-runtime dependencies.
+No private OpenCode API is used. The bundle keeps only `@opencode/*` external; the contract is bundled, and there are no
+runtime dependencies. `npm run bundle` writes the committed `dist/index.js`, and `npm run check` fails when it is stale.
