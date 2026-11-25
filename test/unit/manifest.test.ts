@@ -91,6 +91,7 @@ describe("the capabilities manifest", () => {
       esbuild: "0.28.2",
       typescript: "5.9.3",
       vitest: "5.1.1",
+      yaml: "2.9.1",
     })
   })
 

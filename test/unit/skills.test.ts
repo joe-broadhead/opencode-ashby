@@ -27,6 +27,11 @@ describe("parseSkill", () => {
     expect(() => parseSkill("ashby", path("ashby"), "---\nname: ashby\n---\n\nThe body.")).toThrow(/has no description/)
   })
 
+  test("refuses a block scalar description it cannot read", () => {
+    expect(() => parseSkill("ashby", path("ashby"), skill("ashby", ">", "The body."))).toThrow(/unreadable block scalar/)
+    expect(() => parseSkill("ashby", path("ashby"), skill("ashby", "|", "The body."))).toThrow(/unreadable block scalar/)
+  })
+
   test("refuses an empty body", () => {
     expect(() => parseSkill("ashby", path("ashby"), "---\nname: ashby\ndescription: Use Ashby.\n---\n\n")).toThrow(/has an empty body/)
   })

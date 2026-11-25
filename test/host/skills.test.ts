@@ -6,16 +6,25 @@
  * empty HOME so no user skill can shadow one, then asks the host's own skill list. Every `skills/<id>/SKILL.md` must be
  * there under this package's path: that is the proof that `ctx.skill.transform` ran at setup.
  */
-import { cp, mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises"
+import { cp, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import type { Plugin } from "@opencode/plugin"
 import { waitForActivation } from "@we-the-rebel-alliance/plugin-contract/kit"
 import { afterAll, beforeAll, describe, expect, test } from "vitest"
+import { parse as parseYaml } from "yaml"
 
 const root = fileURLToPath(new URL("../..", import.meta.url))
 const skillsDir = join(root, "skills")
+
+/** The bundled SKILL.md's frontmatter, as a real YAML parser reads it. */
+const frontmatter = async (id: string) => {
+  const text = await readFile(join(skillsDir, id, "SKILL.md"), "utf8")
+  const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text)
+  if (!match) throw new Error(`skills/${id}/SKILL.md has no frontmatter`)
+  return (parseYaml(match[1]!) ?? {}) as Record<string, unknown>
+}
 const HOME_KEYS = ["HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME"] as const
 type HomeKey = (typeof HOME_KEYS)[number]
 
@@ -93,8 +102,14 @@ describe("the built plugin's skills on OpenCode 2.4.1", () => {
         const skill = listed.data.find((entry) => entry.id === id)
         expect(skill?.path).toBe(join(skillsDir, id, "SKILL.md"))
         expect(skill?.name).toBe(id)
-        expect(skill?.description?.trim()).not.toBe("")
         expect(skill?.content.trim()).not.toBe("")
+        const source = await frontmatter(id)
+        const expected = source["description"]
+        expect(typeof expected).toBe("string")
+        expect(String(expected).trim()).not.toBe("")
+        expect(String(expected).trim()).not.toBe(">")
+        expect(String(expected).trim()).not.toBe("|")
+        expect(skill?.description).toBe(expected)
       }
     } finally {
       await host.close()

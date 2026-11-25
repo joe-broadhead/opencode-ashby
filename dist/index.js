@@ -12914,6 +12914,7 @@ function parseSkill(name, path, text3) {
   if (fields.get("name") !== name) throw fail(`must be named "${name}" in its frontmatter`);
   const description = fields.get("description");
   if (!description) throw fail("has no description");
+  if (/^[>|][+-]?\d*$/.test(description)) throw fail("has an unreadable block scalar description");
   const content = match[2].trim();
   if (content === "") throw fail("has an empty body");
   return { id: Skill.ID.make(name), name: Skill.Name.make(name), description, path: Skill.Info.fields.path.make(path), content };
