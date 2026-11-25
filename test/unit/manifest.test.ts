@@ -65,18 +65,18 @@ describe("the capabilities manifest", () => {
     ])
     expect(manifestHash(manifest)).toMatch(/^sha256:[0-9a-f]{64}$/)
     expect(packageName).toBe("@we-the-rebel-alliance/ashby-plugin")
-    expect(version).toBe("0.0.0")
+    expect(version).toBe("0.0.8")
   })
 
   test("declares the package shape the standard names: one server entry, no runtime dependencies, pinned dev tooling", () => {
     expect(pkg["name"]).toBe("@we-the-rebel-alliance/ashby-plugin")
-    expect(pkg["version"]).toBe("0.0.0")
+    expect(pkg["version"]).toBe("0.0.8")
     expect(pkg["engines"]).toEqual({ node: ">=24" })
     expect(pkg["type"]).toBe("module")
     expect(pkg["license"]).toBe("MIT")
     expect(pkg["repository"]).toBe("github:we-the-rebel-alliance/ashby-plugin")
     expect(pkg["exports"]).toEqual({ "./server": "./dist/index.js" })
-    expect(pkg["files"]).toEqual(["dist", "skills", "assets", "README.md", "LICENSE"])
+    expect(pkg["files"]).toEqual(["dist", "skills", "assets", "README.md", "LICENSE", "NOTICE"])
     expect(Object.keys(pkg["scripts"]).sort()).toEqual(["bundle", "check", "conformance", "lint", "test", "test:pack", "typecheck"])
     // npm prepares a git dependency that has any of these lifecycle scripts by running `npm install` inside it, which
     // fails inside OpenCode 2.4.1; the committed dist/ means none is needed.
@@ -91,6 +91,7 @@ describe("the capabilities manifest", () => {
       esbuild: "0.28.2",
       typescript: "5.9.3",
       vitest: "5.1.1",
+      yaml: "2.9.1",
     })
   })
 
@@ -179,7 +180,6 @@ describe("the capabilities manifest", () => {
         service: { id: "ashby.interviews", label: "Interviews" },
         operations: ["list_interviews"],
         cadence: { suggestMinutes: 2 },
-        signals: ["bus"],
         private: true,
         cost: { class: "free" },
         maxBytes: 65536,
@@ -189,7 +189,7 @@ describe("the capabilities manifest", () => {
     expect(manifest.sources[0]).not.toHaveProperty("thumbnails")
   })
 
-  test("declares the one bus event and nothing else", () => {
-    expect(manifest.events).toEqual({ changed: {} })
+  test("declares no bus event, because it makes no write of its own", () => {
+    expect(manifest.events).toEqual({})
   })
 })

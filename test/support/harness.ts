@@ -1,20 +1,20 @@
 /**
  * A faithful fake of the OpenCode host, for the plugin's own tests.
  *
- * The real code runs: `assertHost`, `registerAccounts`, the provider, `createHandlers`, `register` (doors 1–3) and the
- * one `execute.after` hook. Only OpenCode is faked: `ctx.mcp`, `ctx.tool.list()`, `ctx.integration.connection.active`,
- * the agent rules and the RPC registration. The fake MCP transport answers the way Ashby's server does — the recorded
- * `list_interviews` envelope, its request/answer shape, and its own `Tool.Error` for a rate limit, a provider failure
- * or a permission refusal — so a test never fakes the plugin's own code.
+ * The real code runs: `assertHost`, `readSkills`, `registerSkills`, `registerAccounts`, the provider,
+ * `createHandlers` and `register` (doors 1–3). Only OpenCode is faked: `ctx.mcp`, `ctx.skill`, `ctx.tool.list()`,
+ * `ctx.integration.connection.active`, the agent rules and the RPC registration. The fake MCP transport answers the way
+ * Ashby's server does — the recorded `list_interviews` envelope, its request/answer shape, and its own `Tool.Error` for
+ * a rate limit, a provider failure or a permission refusal — so a test never fakes the plugin's own code.
  */
 import { evaluate, type PermissionRule, toolAction } from "@we-the-rebel-alliance/plugin-contract/access"
 import { accountName, registerAccounts } from "@we-the-rebel-alliance/plugin-contract/accounts"
 import type { Manifest } from "@we-the-rebel-alliance/plugin-contract/manifest"
 import { assertHost, register } from "@we-the-rebel-alliance/plugin-contract/register"
-import { installChangedHook } from "../../src/bus.ts"
 import { createHandlers } from "../../src/handlers/index.ts"
 import { manifest as installed } from "../../src/manifest.ts"
 import { createProvider, serverConfig } from "../../src/provider/index.ts"
+import { readSkills, registerSkills } from "../../src/skills.ts"
 
 /** One interview as Ashby's `list_interviews` answers it: the shape the reader was written against. */
 export interface InterviewRecord {
@@ -96,10 +96,9 @@ interface CapturedTool {
 export interface Harness {
   readonly manifest: Manifest
   readonly tools: readonly CapturedTool[]
-  readonly emitted: readonly { readonly event: string; readonly data: unknown }[]
+  readonly skillIds: readonly string[]
   readonly calls: readonly RecordedCall[]
   callTool(method: string, input: unknown, options?: { readonly signal?: AbortSignal }): Promise<CallAnswer>
-  fireToolHook(event: Record<string, unknown>): Promise<void>
   callsOf(alias: string): readonly RecordedCall[]
   dispose(): Promise<void>
 }
@@ -139,13 +138,12 @@ export async function startHarness(options: HarnessOptions = {}): Promise<Harnes
   const servers: { name: string; alias: string; state: NonNullable<HarnessAccount["status"]>; reason?: string; integrationID: string; config: unknown }[] = []
   const credentials = new Map<string, { id: string; label: string }>()
   const calls: RecordedCall[] = []
-  const emitted: { event: string; data: unknown }[] = []
   let requests = 0
   const requestId = (tool: string) => {
     requests += 1
     return `req_ashby_${String(requests).padStart(4, "0")}_${tool}`
   }
-  const hookCallbacks: ((event: Record<string, unknown>) => Promise<void> | void)[] = []
+  const skillIds: string[] = []
   const agents: { id: string; permissions: PermissionRule[] }[] = [
     { id: "build", permissions: [{ action: "*", resource: "*", effect: "allow" }] },
     { id: "plan", permissions: [{ action: "*", resource: "*", effect: "allow" }] },
@@ -251,6 +249,20 @@ export async function startHarness(options: HarnessOptions = {}): Promise<Harnes
         },
       },
     },
+    skill: {
+      async transform(callback: (editor: unknown) => void) {
+        callback({
+          list: () => [],
+          get: () => undefined,
+          add: (skill: { readonly id: string }) => {
+            skillIds.push(String(skill.id))
+          },
+          update: () => undefined,
+          remove: () => undefined,
+        })
+        return { async dispose() {} }
+      },
+    },
     tool: {
       async list() {
         return allTools().map((entry) => ({
@@ -277,10 +289,6 @@ export async function startHarness(options: HarnessOptions = {}): Promise<Harnes
           update: () => undefined,
           remove: () => undefined,
         })
-        return { async dispose() {} }
-      },
-      async hook(name: string, callback: (event: Record<string, unknown>) => Promise<void> | void) {
-        if (name === "execute.after") hookCallbacks.push(callback)
         return { async dispose() {} }
       },
     },
@@ -331,9 +339,7 @@ export async function startHarness(options: HarnessOptions = {}): Promise<Harnes
         void definition
         return {
           events: {
-            async emit(event: string, data: unknown) {
-              emitted.push({ event, data })
-            },
+            async emit() {},
           },
           async dispose() {},
         }
@@ -343,6 +349,7 @@ export async function startHarness(options: HarnessOptions = {}): Promise<Harnes
 
   sessions.set("ses_test", { agent: "build", permissions: [] })
   assertHost(context, manifest)
+  const skills = readSkills()
   const registered = await registerAccounts(context, { manifest, options: pluginOptions, server: () => serverConfig() })
   const provider = createProvider(context)
   const handlers = createHandlers({
@@ -350,23 +357,18 @@ export async function startHarness(options: HarnessOptions = {}): Promise<Harnes
     options: pluginOptions,
     provider,
     context,
-    version: "0.0.0",
+    version: "0.0.8",
     hostVersion: context.app.version,
     accountProblems: registered.problems,
     now: () => fixedNow,
   })
   const registration = await register(context, manifest, handlers)
-  const hook = await installChangedHook(
-    context,
-    manifest,
-    registered.accounts.map((account) => account.alias),
-    registration.bus,
-  )
+  const skillRegistration = await registerSkills(context, skills)
 
   return {
     manifest,
     tools,
-    emitted,
+    skillIds,
     calls,
     async callTool(method, input, callOptions = {}) {
       const tool = tools.find((entry) => entry.name === method)
@@ -387,16 +389,13 @@ export async function startHarness(options: HarnessOptions = {}): Promise<Harnes
         return { ok: false, code, message }
       }
     },
-    async fireToolHook(event) {
-      for (const callback of hookCallbacks) await callback(event)
-    },
     callsOf(alias) {
       return calls.filter((call) => call.alias === alias)
     },
     async dispose() {
       if (disposed) return
       disposed = true
-      await hook.dispose()
+      await skillRegistration.dispose()
       await registration.dispose()
     },
   }

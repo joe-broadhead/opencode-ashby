@@ -1,11 +1,11 @@
 # Configuration
 
-Every option is optional. Install from a release tag (`#v0.0.0` is the first release on plugin-contract v0); there is no
+Every option is optional. Install from a release tag (`#v0.0.8` is the current release on plugin-contract v0); there is no
 `master` install.
 
 ```json
 {
-  "plugins": [{ "package": "github:we-the-rebel-alliance/ashby-plugin#v0.0.0" }]
+  "plugins": [{ "package": "github:we-the-rebel-alliance/ashby-plugin#v0.0.8" }]
 }
 ```
 
@@ -15,7 +15,7 @@ To set options, use the object form:
 {
   "plugins": [
     {
-      "package": "github:we-the-rebel-alliance/ashby-plugin#v0.0.0",
+      "package": "github:we-the-rebel-alliance/ashby-plugin#v0.0.8",
       "options": { "access": "ask-changes", "accounts": { "work": {}, "personal": {} } }
     }
   ]
@@ -57,7 +57,7 @@ One account, asking before every change:
 
 ```json
 {
-  "plugins": [{ "package": "github:we-the-rebel-alliance/ashby-plugin#v0.0.0", "options": { "access": "ask-changes" } }]
+  "plugins": [{ "package": "github:we-the-rebel-alliance/ashby-plugin#v0.0.8", "options": { "access": "ask-changes" } }]
 }
 ```
 
@@ -67,7 +67,7 @@ Two accounts, reads only:
 {
   "plugins": [
     {
-      "package": "github:we-the-rebel-alliance/ashby-plugin#v0.0.0",
+      "package": "github:we-the-rebel-alliance/ashby-plugin#v0.0.8",
       "options": { "access": "read-only", "accounts": { "work": {}, "personal": {} } }
     }
   ]

@@ -21,7 +21,7 @@ const ACCOUNT_KEYS = ["alias", "owner", "reason", "state"]
 const check = (status: Record<string, unknown>) => {
   expect(Object.keys(status).sort()).toEqual(STATUS_KEYS)
   expect(status["name"]).toBe("ashby")
-  expect(status["version"]).toBe("0.0.0")
+  expect(status["version"]).toBe("0.0.8")
   expect(status["host"]).toEqual({ version: "2.4.1", range: ">=2.4.1 <2.5.0", tested: ["2.4.1"] })
   expect(["ready", "needs_sign_in", "error"]).toContain(status["state"])
   expect(Array.isArray(status["unguardedAgents"])).toBe(true)
@@ -47,7 +47,7 @@ describe("the built plugin on OpenCode 2.4.1", () => {
       expect(run.tools.every((tool) => tool.codemode === true)).toBe(true)
       expect(run.rpc?.id).toBe("ashby")
       expect([...(run.rpc?.methods ?? [])].sort()).toEqual(["events_list", "probe", "status"])
-      expect(run.rpc?.events).toEqual(["changed"])
+      expect(run.rpc?.events).toEqual([])
       expect(run.agents.length).toBeGreaterThan(0)
       for (const agent of run.agents) {
         if (evaluate(agent.permissions, "*", "*") === "deny") continue

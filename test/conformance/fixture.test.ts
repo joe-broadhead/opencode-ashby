@@ -7,7 +7,8 @@
  * fails on drift; `UPDATE_FIXTURES=1` writes it. Every person, job, id and link is invented.
  */
 import { readFileSync, writeFileSync } from "node:fs"
-import { probeResultProblems, resultProblems } from "@we-the-rebel-alliance/plugin-contract/events"
+import { eventHash, probeResultProblems, resultProblems, type SourceEvent } from "@we-the-rebel-alliance/plugin-contract/events"
+import { redactValue } from "@we-the-rebel-alliance/plugin-contract/kit"
 import { describe, expect, test } from "vitest"
 import { packageName } from "../../src/manifest.ts"
 import { type InterviewRecord, startHarness } from "../support/harness.ts"
@@ -15,6 +16,41 @@ import { type InterviewRecord, startHarness } from "../support/harness.ts"
 const FILE = new URL("../../fixtures/conformance.json", import.meta.url)
 const NOW = Date.parse("2026-11-20T12:00:00.000Z")
 const SINCE = "2026-11-17T00:00:00Z"
+
+const isEvent = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" &&
+  value !== null &&
+  !Array.isArray(value) &&
+  typeof (value as Record<string, unknown>)["external_id"] === "string" &&
+  typeof (value as Record<string, unknown>)["hash"] === "string" &&
+  Array.isArray((value as Record<string, unknown>)["actors"])
+const withoutHash = (event: Record<string, unknown>) => Object.fromEntries(Object.entries(event).filter(([key]) => key !== "hash"))
+
+/**
+ * The kit's own redaction, then its hash-repair walk: `redactValue` replaces credentials and personal data, and an
+ * event whose redacted fields changed gets a hash of the redacted content, because the recorded hash covered the raw
+ * one. The fixture is written and compared redacted, so `plugin-kit record --check` has nothing left to do.
+ */
+const redact = <T>(value: T): T => {
+  const redacted = redactValue(value) as T
+  const walk = (before: unknown, after: unknown): unknown => {
+    if (Array.isArray(before) && Array.isArray(after)) return after.map((item, index) => walk(before[index], item))
+    if (typeof before !== "object" || before === null || Array.isArray(before)) return after
+    if (typeof after !== "object" || after === null || Array.isArray(after)) return after
+    const source = before as Record<string, unknown>
+    const result = after as Record<string, unknown>
+    for (const key of Object.keys(source)) result[key] = walk(source[key], result[key])
+    if (!isEvent(source) || !isEvent(result)) return result
+    if (eventHash(source as Omit<SourceEvent, "hash">) !== source["hash"]) {
+      throw new Error(`the event ${source["external_id"]} records a hash that does not match its content`)
+    }
+    if (JSON.stringify(withoutHash(source)) !== JSON.stringify(withoutHash(result))) {
+      result["hash"] = eventHash(result as Omit<SourceEvent, "hash">)
+    }
+    return result
+  }
+  return walk(value, redacted) as T
+}
 
 /** Work's interviews: three listed (one with contact details to mask), one cancelled, one too recent to settle. */
 const WORK: InterviewRecord[] = [
@@ -74,7 +110,7 @@ const refusal = (answer: { ok: true } | { ok: false; code: string; message: stri
 }
 
 describe("the conformance recording", () => {
-  test("records two aliases, their pages, probe, status and the one bus event, and matches the committed fixture", async () => {
+  test("records two aliases, their pages, probe, status and no bus event, and matches the committed fixture", async () => {
     const harness = await startHarness({
       accounts: { work: { interviews: WORK }, personal: { interviews: PERSONAL } },
       now: NOW,
@@ -136,16 +172,15 @@ describe("the conformance recording", () => {
         trust: "untrusted",
       })
 
-      // The one nudge: a completed non-read pass-through tool for work.
-      await harness.fireToolHook({ status: "completed", tool: "ashby-work_add_note_to_candidate" })
-      expect(harness.emitted).toEqual([{ event: "changed", data: { capability: "ashby.interviews", account: "work", reason: "write" } }])
+      // The plugin installs no per-request hook and emits no bus event: it makes no write of its own.
+      expect(harness.skillIds).toEqual(["ashby", "ashby-write"])
 
-      const expected = {
+      const raw = {
         $comment:
-          "Recorded by test/conformance/fixture.test.ts through the plugin's real handlers, provider and register, over a fake Ashby MCP transport. Two mcp accounts (work and personal), one events source, its probe, status, and the one changed event. Every person, job, id, link and message is invented.",
+          "Recorded by test/conformance/fixture.test.ts through the plugin's real handlers, provider and register, over a fake Ashby MCP transport. This is a synthetic recording: two mcp accounts (work and personal), one events source, its probe, and status, with every person, job, id, link and message invented. The plugin emits no bus event.",
         plugin: packageName,
         accounts: {
-          real: true,
+          real: false,
           aliases: ["work", "personal"],
           required: { method: "events_list", code: "ACCOUNT_REQUIRED" },
           unknown: { method: "events_list", account: "nobodyhere", code: "ACCOUNT_UNKNOWN" },
@@ -170,10 +205,11 @@ describe("the conformance recording", () => {
             probe: { input: { account: "work" }, answer: probe.output },
           },
         },
-        events: { emitted: harness.emitted.map((entry) => entry.event), status },
+        events: { emitted: [], status },
         namespace: harness.manifest.plugin.summary,
       }
 
+      const expected = redact(raw)
       const serialised = `${JSON.stringify(expected, null, 2)}\n`
       if (process.env["UPDATE_FIXTURES"] === "1") {
         writeFileSync(FILE, serialised)

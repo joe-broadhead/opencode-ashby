@@ -69,7 +69,7 @@ export function createStatusHandler(parts: StatusParts): MethodHandler {
         version: parts.version,
         hostVersion: parts.hostVersion,
         accounts: plan.value.accounts.length === 0 ? [] : accountStatuses(plan.value.accounts, signals),
-        problems: parts.accountProblems,
+        problems: [...parts.accountProblems],
         unguardedAgents: await call.unguardedAgents(),
       })
     },

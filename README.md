@@ -12,19 +12,19 @@ prompts and limits; Ashby owns its own tool inputs and results.
 ## Install
 
 ```sh
-opencode plugin add github:we-the-rebel-alliance/ashby-plugin#v0.0.0
+opencode plugin add github:we-the-rebel-alliance/ashby-plugin#v0.0.8
 ```
 
 Or in `opencode.json(c)`:
 
 ```json
 {
-  "plugins": [{ "package": "github:we-the-rebel-alliance/ashby-plugin#v0.0.0" }]
+  "plugins": [{ "package": "github:we-the-rebel-alliance/ashby-plugin#v0.0.8" }]
 }
 ```
 
 An Org Admin must turn on Ashby's MCP Server (Admin → Organization Setup → Opt-In Features) and give each user
-Elevated Access. This is the `v0.0.0` release on
+Elevated Access. This is the `v0.0.8` release on
 [plugin-contract](https://github.com/we-the-rebel-alliance/plugin-contract).
 
 ## Sign in
@@ -41,7 +41,7 @@ Several accounts are several servers. Add one alias per account:
 {
   "plugins": [
     {
-      "package": "github:we-the-rebel-alliance/ashby-plugin#v0.0.0",
+      "package": "github:we-the-rebel-alliance/ashby-plugin#v0.0.8",
       "options": { "accounts": { "work": {}, "personal": {} } }
     }
   ]
@@ -58,6 +58,13 @@ opencode mcp auth ashby-personal
 `status` lists every alias and its state. `probe({ account })` names the signed-in credential of one alias, which
 Ashby does not confirm. With more than one alias, every method that takes an account needs one: leaving it out is
 `ACCOUNT_REQUIRED`, and an alias the plugin does not serve is `ACCOUNT_UNKNOWN`.
+
+## Skills
+
+The plugin ships two skills. `ashby` covers reads: a candidate's stage and profile, pipelines and counts, interviews,
+feedback and pending tasks. `ashby-write` covers changes: a note, a new candidate, an application stage, an AI screening
+draft, feedback to Ashby. OpenCode loads both when the plugin starts. They say when to use the plugin rather than
+guess, how to pick an account when several are signed in, and whom a change reaches.
 
 ## Access
 
@@ -127,7 +134,7 @@ None.
 
 ### Bus events
 
-`rpc.ashby.changed`
+None.
 <!-- /generated:capabilities -->
 
 ## Errors
@@ -160,6 +167,10 @@ Every failure reads `CODE: What happened. Next step: What to do.` The contract's
 | `UNAVAILABLE` | the provider could not be reached |
 <!-- /generated:errors -->
 
+The bundled skill frontmatter is parsed as YAML, so a `description: >` or `description: |` block scalar registers its
+folded or literal text, not the marker. A malformed file (invalid YAML, a missing field, or a bare block marker) fails
+setup with `SCHEMA_VIOLATION`; the contract's table above describes the code.
+
 ## Troubleshooting
 
 - **No Ashby tools, or `NEEDS_SIGN_IN`.** Sign in to that account's server: `/connect` and choose it, or
@@ -177,10 +188,13 @@ Every failure reads `CODE: What happened. Next step: What to do.` The contract's
   exists for one migration and should stay `false`.
 - **`PERMISSION_DENIED`.** The person's own rules refused the call. Change the rule or the `access` level; the plugin
   never routes around it.
+- **`SCHEMA_VIOLATION` from setup.** A bundled `skills/<id>/SKILL.md` has invalid YAML, a missing field or a bare block
+  marker. The error names the file; reinstall the plugin or fix the file. Descriptions written as `>`, `|`, `>-` or
+  `|-` register their text.
 
 ## Docs
 
-- [Capabilities](docs/capabilities.md): the source, the 22 pass-through tools, and the `changed` event.
+- [Capabilities](docs/capabilities.md): the source and the 22 pass-through tools.
 - [Accounts](docs/accounts.md): one server per alias, sign-in, and picking an account in a call.
 - [Configuration](docs/configuration.md): every option.
 - [Architecture](docs/architecture.md): the provider client, the OpenCode APIs used, and what is cached.
