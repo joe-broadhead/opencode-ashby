@@ -48,7 +48,7 @@ try {
 
   const pkg = JSON.parse(readFileSync(join(installed, "package.json"), "utf8"))
   if (pkg.name !== "@we-the-rebel-alliance/ashby-plugin") fail(`the packed package is named ${pkg.name}`)
-  if (pkg.version !== "0.0.9") fail(`the packed package is version ${pkg.version}`)
+  if (pkg.version !== "0.0.0") fail(`the packed package is version ${pkg.version}`)
   if (pkg.capabilities?.plugin?.name !== "ashby") fail("the packed package carries no ashby capabilities")
   if (pkg.dependencies !== undefined || pkg.peerDependencies !== undefined) fail("the packed package declares runtime dependencies")
 
