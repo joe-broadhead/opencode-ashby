@@ -51,6 +51,7 @@ describe("the capabilities manifest", () => {
       "capabilities",
       "description",
       "devDependencies",
+      "engines",
       "exports",
       "files",
       "homepage",
@@ -70,6 +71,7 @@ describe("the capabilities manifest", () => {
   test("declares the package shape the standard names: one server entry, no runtime dependencies, pinned dev tooling", () => {
     expect(pkg["name"]).toBe("@we-the-rebel-alliance/ashby-plugin")
     expect(pkg["version"]).toBe("0.0.0")
+    expect(pkg["engines"]).toEqual({ node: ">=24" })
     expect(pkg["type"]).toBe("module")
     expect(pkg["license"]).toBe("MIT")
     expect(pkg["repository"]).toBe("github:we-the-rebel-alliance/ashby-plugin")

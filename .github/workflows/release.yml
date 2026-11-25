@@ -1,4 +1,8 @@
-name: release
+name: Release
+
+# A tag v<package.json version> on a master commit whose CI passed creates the GitHub Release. Releases are not
+# published to npm: a consumer pins the tag, github:we-the-rebel-alliance/ashby-plugin#v<version>, and dist/ is built by
+# this workflow. Only the owner decides a release; an agent never pushes a tag on its own.
 
 on:
   push:
@@ -6,13 +10,19 @@ on:
       - "v*"
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release:
     name: release
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 20
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -21,19 +31,29 @@ jobs:
         with:
           node-version: 24
           package-manager-cache: false
+      - name: Fetch the contract over HTTPS
+        run: git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
       - run: npm ci --ignore-scripts
       - run: npm run check
-      - name: Version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
-      - name: Pack the release tarball
+      - name: The tag names this package's version
+        env:
+          TAG: ${{ github.ref_name }}
         run: |
-          mkdir -p release/ashby-plugin
-          cp -R dist skills assets package.json README.md LICENSE release/ashby-plugin/
-          tar -czf "ashby-plugin-${VERSION}.tar.gz" -C release ashby-plugin
-          sha256sum "ashby-plugin-${VERSION}.tar.gz" > SHA256SUMS
-      - name: Conformance report
-        run: npx plugin-kit conformance --json > conformance.json
-      - name: Publish the GitHub release
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          test "v${version}" = "$TAG"
+      - name: Pack the release files
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          npx plugin-kit check --json > release/conformance.json
+          npm pack --pack-destination release
+          sha256sum release/*.tgz release/conformance.json > release/SHA256SUMS
+      - name: Create the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --generate-notes "ashby-plugin-${VERSION}.tar.gz" SHA256SUMS conformance.json
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" release/*.tgz release/conformance.json release/SHA256SUMS --repo "$REPO" --verify-tag --title "$TAG" --generate-notes
