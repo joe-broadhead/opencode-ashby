@@ -357,7 +357,7 @@ export async function startHarness(options: HarnessOptions = {}): Promise<Harnes
     options: pluginOptions,
     provider,
     context,
-    version: "0.0.1",
+    version: "0.0.8",
     hostVersion: context.app.version,
     accountProblems: registered.problems,
     now: () => fixedNow,

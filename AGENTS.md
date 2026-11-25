@@ -41,8 +41,8 @@ A full check binds the host: run one at a time on a shared machine.
 
 ## Release
 
-The maintainer cuts `0.0.1` on `master` with `npx plugin-kit release 0.0.1`, after the owner has removed the old
-pre-transfer `v0.0.1`–`v0.0.7` tags and releases that collide with the new tag.
+The maintainer cuts `0.0.8` on `master` with `npx plugin-kit release 0.0.8`. `v0.0.8` is free: the old pre-transfer
+`v0.0.1`–`v0.0.7` tags stay where they are, and the published `v0.0.0` stays old.
 
 ## Layout
 

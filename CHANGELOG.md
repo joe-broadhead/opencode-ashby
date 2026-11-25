@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.0.1 (2026-11-25)
+## 0.0.8 (2026-11-25)
 
 - One manifest: 25 methods — 3 own (`status`, `events_list`, `probe`) and 22 pass-through `mcp:<tool>` rows (14 read,
   5 write, 3 send) — one events source `ashby.interviews`, no actions and no bus event.

@@ -65,18 +65,18 @@ describe("the capabilities manifest", () => {
     ])
     expect(manifestHash(manifest)).toMatch(/^sha256:[0-9a-f]{64}$/)
     expect(packageName).toBe("@we-the-rebel-alliance/ashby-plugin")
-    expect(version).toBe("0.0.1")
+    expect(version).toBe("0.0.8")
   })
 
   test("declares the package shape the standard names: one server entry, no runtime dependencies, pinned dev tooling", () => {
     expect(pkg["name"]).toBe("@we-the-rebel-alliance/ashby-plugin")
-    expect(pkg["version"]).toBe("0.0.1")
+    expect(pkg["version"]).toBe("0.0.8")
     expect(pkg["engines"]).toEqual({ node: ">=24" })
     expect(pkg["type"]).toBe("module")
     expect(pkg["license"]).toBe("MIT")
     expect(pkg["repository"]).toBe("github:we-the-rebel-alliance/ashby-plugin")
     expect(pkg["exports"]).toEqual({ "./server": "./dist/index.js" })
-    expect(pkg["files"]).toEqual(["dist", "skills", "assets", "README.md", "LICENSE"])
+    expect(pkg["files"]).toEqual(["dist", "skills", "assets", "README.md", "LICENSE", "NOTICE"])
     expect(Object.keys(pkg["scripts"]).sort()).toEqual(["bundle", "check", "conformance", "lint", "test", "test:pack", "typecheck"])
     // npm prepares a git dependency that has any of these lifecycle scripts by running `npm install` inside it, which
     // fails inside OpenCode 2.4.1; the committed dist/ means none is needed.

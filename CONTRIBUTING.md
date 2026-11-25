@@ -72,7 +72,7 @@ Conventional commits (`feat:`, `fix:`, `docs:`, `test:`, `chore:`). One pull req
 The maintainer cuts a release on `master`:
 
 ```sh
-npx plugin-kit release 0.0.1
+npx plugin-kit release 0.0.8
 ```
 
 The command requires `package.json` and `CHANGELOG.md` to be ready, runs the checks, and creates the annotated tag. CI's

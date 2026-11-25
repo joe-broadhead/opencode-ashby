@@ -12,19 +12,19 @@ prompts and limits; Ashby owns its own tool inputs and results.
 ## Install
 
 ```sh
-opencode plugin add github:we-the-rebel-alliance/ashby-plugin#v0.0.1
+opencode plugin add github:we-the-rebel-alliance/ashby-plugin#v0.0.8
 ```
 
 Or in `opencode.json(c)`:
 
 ```json
 {
-  "plugins": [{ "package": "github:we-the-rebel-alliance/ashby-plugin#v0.0.1" }]
+  "plugins": [{ "package": "github:we-the-rebel-alliance/ashby-plugin#v0.0.8" }]
 }
 ```
 
 An Org Admin must turn on Ashby's MCP Server (Admin → Organization Setup → Opt-In Features) and give each user
-Elevated Access. This is the `v0.0.1` release on
+Elevated Access. This is the `v0.0.8` release on
 [plugin-contract](https://github.com/we-the-rebel-alliance/plugin-contract).
 
 ## Sign in
@@ -41,7 +41,7 @@ Several accounts are several servers. Add one alias per account:
 {
   "plugins": [
     {
-      "package": "github:we-the-rebel-alliance/ashby-plugin#v0.0.1",
+      "package": "github:we-the-rebel-alliance/ashby-plugin#v0.0.8",
       "options": { "accounts": { "work": {}, "personal": {} } }
     }
   ]

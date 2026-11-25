@@ -37,6 +37,7 @@ try {
     "assets/icon-256.png",
     "README.md",
     "LICENSE",
+    "NOTICE",
   ]
   for (const file of required) {
     if (!existsSync(join(installed, file))) fail(`the packed tarball is missing ${file}`)
@@ -47,7 +48,7 @@ try {
 
   const pkg = JSON.parse(readFileSync(join(installed, "package.json"), "utf8"))
   if (pkg.name !== "@we-the-rebel-alliance/ashby-plugin") fail(`the packed package is named ${pkg.name}`)
-  if (pkg.version !== "0.0.1") fail(`the packed package is version ${pkg.version}`)
+  if (pkg.version !== "0.0.8") fail(`the packed package is version ${pkg.version}`)
   if (pkg.capabilities?.plugin?.name !== "ashby") fail("the packed package carries no ashby capabilities")
   if (pkg.dependencies !== undefined || pkg.peerDependencies !== undefined) fail("the packed package declares runtime dependencies")
 
@@ -55,7 +56,7 @@ try {
   if (entry.default?.id !== "ashby") fail(`the packed entry exports id ${String(entry.default?.id)}`)
   if (typeof entry.default?.setup !== "function") fail("the packed entry exports no setup function")
 
-  if (process.exitCode === undefined) console.log("pack: ok (the tarball carries dist, skills, assets, README and LICENSE, and its entry imports)")
+  if (process.exitCode === undefined) console.log("pack: ok (the tarball carries dist, skills, assets, README, LICENSE and NOTICE, and its entry imports)")
 } catch (error) {
   fail(error instanceof Error ? error.message : String(error))
 } finally {
