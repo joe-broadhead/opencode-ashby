@@ -2,6 +2,9 @@
   "name": "@we-the-rebel-alliance/ashby-plugin",
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "description": "OpenCode plugin for Ashby: your interviews as events, and Ashby's own MCP tools per account",
   "keywords": [
     "opencode",

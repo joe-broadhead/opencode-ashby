@@ -24,7 +24,8 @@ Or in `opencode.json(c)`:
 ```
 
 An Org Admin must turn on Ashby's MCP Server (Admin → Organization Setup → Opt-In Features) and give each user
-Elevated Access. `v0.0.0` is the first release on plugin-contract v0.
+Elevated Access. This is the `v0.0.0` release on
+[plugin-contract](https://github.com/we-the-rebel-alliance/plugin-contract).
 
 ## Sign in
 
@@ -70,6 +71,16 @@ Ashby does not confirm. With more than one alias, every method that takes an acc
 
 The 22 pass-through tools are one rule per alias (`ashby-work_*` for `work`); a rule or grant for one alias never
 matches another alias's tools. A person can still add a narrower rule, which wins.
+
+## Options
+
+Every option is optional; [Configuration](docs/configuration.md) has examples.
+
+| Option | Default | Meaning |
+|---|---|---|
+| `access` | `all` | The ceiling for the generated rules: `all`, `ask-changes` or `read-only`. |
+| `accounts` | one `default` account | A map of alias to profile. Each alias is its own Ashby MCP server (`ashby`, `ashby-<alias>`). The profile has no fields. |
+| `allowUntestedHost` | `false` | Start outside the tested `>=2.4.1 <2.5.0` range. Leave it `false`; use it for one migration only. |
 
 ## Capabilities
 
@@ -148,6 +159,24 @@ Every failure reads `CODE: What happened. Next step: What to do.` The contract's
 | `OPTIONS_INVALID` | the plugin's options do not match their schema |
 | `UNAVAILABLE` | the provider could not be reached |
 <!-- /generated:errors -->
+
+## Troubleshooting
+
+- **No Ashby tools, or `NEEDS_SIGN_IN`.** Sign in to that account's server: `/connect` and choose it, or
+  `opencode mcp auth ashby` (and `ashby-<alias>` for another alias). An Org Admin must have turned on Ashby's MCP
+  Server and given the person Elevated Access.
+- **`ACCOUNT_REQUIRED`.** The plugin serves several aliases; pass `account`, one of the aliases `status` lists.
+  `ACCOUNT_UNKNOWN` means the alias is not configured; `status` has the real list.
+- **`RATE_LIMITED`.** Wait a minute, then retry with fewer, narrower calls. `UNAVAILABLE` means Ashby could not be
+  reached; retry once, then call `status`.
+- **`CURSOR_INVALID`.** A cursor belongs to one account and source. Read again without it, or pass the cursor with the
+  account that issued it.
+- **No interviews.** An interview is listed once it started 30 minutes ago, and a cancelled one is never listed. Pass
+  `since` (or the previous cursor) to read a longer window; an empty page is not a failed one.
+- **`HOST_UNTESTED`.** OpenCode is outside the plugin's `>=2.4.1 <2.5.0` range; install 2.4.1. `allowUntestedHost`
+  exists for one migration and should stay `false`.
+- **`PERMISSION_DENIED`.** The person's own rules refused the call. Change the rule or the `access` level; the plugin
+  never routes around it.
 
 ## Docs
 
