@@ -12483,10 +12483,10 @@ function echoedWindow(inner) {
 }
 var NONE2 = /^(?:there are )?no (?:upcoming |scheduled |past )?interviews?(?: (?:were )?found)?(?: (?:for|in) (?:this|the|that) (?:window|period|date range|time range|range))?\.?$/i;
 function readInterviews(data, window) {
-  const answer = (interviews, unreadable, truncated = false) => ({
+  const answer = (interviews, unreadable2, truncated = false) => ({
     interviews,
-    readable: unreadable === 0,
-    unreadable,
+    readable: unreadable2 === 0,
+    unreadable: unreadable2,
     truncated
   });
   const fromList = (list2, truncated = false) => {
@@ -12772,7 +12772,7 @@ function createStatusHandler(parts) {
           version: parts.version,
           hostVersion: parts.hostVersion,
           accounts: [],
-          problems: [...parts.accountProblems, ...plan.problems],
+          problems: [...parts.accountProblems, ...parts.skillProblems ?? [], ...plan.problems],
           unguardedAgents: await call.unguardedAgents()
         });
       }
@@ -12783,7 +12783,7 @@ function createStatusHandler(parts) {
         version: parts.version,
         hostVersion: parts.hostVersion,
         accounts: plan.value.accounts.length === 0 ? [] : accountStatuses(plan.value.accounts, signals),
-        problems: parts.accountProblems,
+        problems: [...parts.accountProblems, ...parts.skillProblems ?? []],
         unguardedAgents: await call.unguardedAgents()
       });
     }
@@ -12804,6 +12804,7 @@ function createHandlers(parts) {
       version: parts.version,
       hostVersion: parts.hostVersion,
       accountProblems: parts.accountProblems,
+      skillProblems: parts.skillProblems,
       context: parts.context
     }),
     events_list: {
@@ -12912,12 +12913,71 @@ function createProvider(context) {
   };
 }
 
+// src/skills.ts
+import { readdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Skill } from "@opencode/plugin";
+var SKILLS_DIR = fileURLToPath(new URL("../skills/", import.meta.url));
+var REINSTALL = "Reinstall the plugin.";
+var notLoaded = (name, problem) => `SKILLS_INVALID: The "${name}" skill was not loaded: skills/${name}/SKILL.md ${problem}. Next step: ${REINSTALL}`;
+var unreadable = (problem) => `SKILLS_INVALID: the skills directory could not be read (${problem}). Next step: ${REINSTALL}`;
+var codeOf = (error2) => {
+  const code = error2.code;
+  return typeof code === "string" ? code : "unknown error";
+};
+function parseSkill(name, path, text3) {
+  const fail = (problem) => new Error(notLoaded(name, problem));
+  const match = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/.exec(text3.replace(/\r\n/g, "\n"));
+  if (!match) throw fail("has no frontmatter");
+  const fields = new Map(
+    match[1].split("\n").map((line) => [
+      line.slice(0, line.indexOf(":")).trim(),
+      line.slice(line.indexOf(":") + 1).trim().replace(/^(["'])(.*)\1$/, "$2")
+    ])
+  );
+  if (fields.get("name") !== name) throw fail(`must be named "${name}" in its frontmatter`);
+  const description = fields.get("description");
+  if (!description) throw fail("has no description");
+  const content = match[2].trim();
+  if (content === "") throw fail("has an empty body");
+  return { id: Skill.ID.make(name), name: Skill.Name.make(name), description, path: Skill.Info.fields.path.make(path), content };
+}
+async function loadSkills(directory = SKILLS_DIR) {
+  const skills = [];
+  const problems = [];
+  let names;
+  try {
+    names = (await readdir(directory, { withFileTypes: true })).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
+  } catch (error2) {
+    return { skills, problems: [unreadable(codeOf(error2))] };
+  }
+  for (const name of names) {
+    const path = join(directory, name, "SKILL.md");
+    try {
+      skills.push(parseSkill(name, path, await readFile(path, "utf8")));
+    } catch (error2) {
+      const code = error2.code;
+      problems.push(
+        code === void 0 && error2 instanceof Error && error2.message.startsWith("SKILLS_INVALID:") ? error2.message : notLoaded(name, code === "ENOENT" ? "is missing" : `cannot be read (${codeOf(error2)})`)
+      );
+    }
+  }
+  return { skills, problems };
+}
+function registerSkills(skill, skills) {
+  return skill.transform((editor) => {
+    for (const info of skills) editor.add(info);
+  });
+}
+
 // src/index.ts
 var index_default = Plugin.define({
   id: manifest.plugin.name,
   async setup(context) {
     assertHost(context, manifest);
     const options = context.options;
+    const { skills, problems: skillProblems } = await loadSkills();
     const accounts = await registerAccounts(context, { manifest, options, server: () => serverConfig() });
     const provider = createProvider(context);
     const handlers = createHandlers({
@@ -12927,7 +12987,8 @@ var index_default = Plugin.define({
       context,
       version: version2,
       hostVersion: context.app.version,
-      accountProblems: accounts.problems
+      accountProblems: accounts.problems,
+      skillProblems
     });
     const registration = await register(context, manifest, handlers);
     const hook = await installChangedHook(
@@ -12936,7 +12997,9 @@ var index_default = Plugin.define({
       accounts.accounts.map((account) => account.alias),
       registration.bus
     );
+    const skillRegistration = await registerSkills(context.skill, skills);
     return async () => {
+      await skillRegistration.dispose();
       await hook.dispose();
       await registration.dispose();
     };

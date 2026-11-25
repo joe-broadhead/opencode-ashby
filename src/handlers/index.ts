@@ -32,6 +32,8 @@ export interface HandlerParts {
   readonly version: string
   readonly hostVersion: string
   readonly accountProblems: readonly string[]
+  /** What reading the bundled skills could not do, one sentence each. */
+  readonly skillProblems?: readonly string[] | undefined
   /** The clock the page's windows and `asOf` read; `Date.now` in the plugin, a fixed time in a test. */
   readonly now?: (() => number) | undefined
 }
@@ -48,6 +50,7 @@ export function createHandlers(parts: HandlerParts): HandlerTable {
       version: parts.version,
       hostVersion: parts.hostVersion,
       accountProblems: parts.accountProblems,
+      skillProblems: parts.skillProblems,
       context: parts.context,
     }),
     events_list: {
