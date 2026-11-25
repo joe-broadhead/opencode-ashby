@@ -1,8 +1,8 @@
 {
-  "$comment": "Recorded by test/conformance/fixture.test.ts through the plugin's real handlers, provider and register, over a fake Ashby MCP transport. Two mcp accounts (work and personal), one events source, its probe, and status. The plugin emits no bus event. Every person, job, id, link and message is invented.",
+  "$comment": "Recorded by test/conformance/fixture.test.ts through the plugin's real handlers, provider and register, over a fake Ashby MCP transport. This is a synthetic recording: two mcp accounts (work and personal), one events source, its probe, and status, with every person, job, id, link and message invented. The plugin emits no bus event.",
   "plugin": "@we-the-rebel-alliance/ashby-plugin",
   "accounts": {
-    "real": true,
+    "real": false,
     "aliases": [
       "work",
       "personal"
@@ -29,7 +29,7 @@
     "ashby.interviews": {
       "cases": [
         {
-          "name": "the work account from since",
+          "name": "<redacted:personal>",
           "input": {
             "source": "ashby",
             "account": "work",
@@ -56,19 +56,19 @@
                   {
                     "role": "candidate",
                     "id": "ashby:candidate:cand-1005",
-                    "name": "Eli Example"
+                    "name": "<redacted:personal>"
                   },
                   {
                     "role": "interviewer",
                     "id": "ashby:user:user-1001",
-                    "name": "Ada Example"
+                    "name": "<redacted:personal>"
                   }
                 ],
                 "title": "Screen with [email] — Call [phone]",
                 "text": "",
                 "url": null,
                 "labels": [],
-                "hash": "sha256:530604ab6d496b7ecdeaa9c25d0ce09c277dfb0d5fcab5c19fdbe4f6dafc56f7"
+                "hash": "sha256:95895f52679506e2d907c481cbf4c6d2d2ea480ffe70616117cf911845dd20f7"
               },
               {
                 "source": "ashby",
@@ -81,19 +81,19 @@
                   {
                     "role": "candidate",
                     "id": "ashby:candidate:cand-1001",
-                    "name": "Casey Example"
+                    "name": "<redacted:personal>"
                   },
                   {
                     "role": "interviewer",
                     "id": "ashby:user:user-1001",
-                    "name": "Ada Example"
+                    "name": "<redacted:personal>"
                   }
                 ],
                 "title": "Hiring manager screen — Platform Engineer",
                 "text": "",
                 "url": "https://app.ashbyhq.com/interviews/iv-1001",
                 "labels": [],
-                "hash": "sha256:37f750921e1d64b5b94a090a90ac377b7e370632af85172142aa0dd0f39e0e02"
+                "hash": "sha256:0f1b1dd88e16bc6953183039746b91e592b1f708691d6068abac3825296e4ae3"
               },
               {
                 "source": "ashby",
@@ -106,24 +106,24 @@
                   {
                     "role": "candidate",
                     "id": "ashby:candidate:cand-1002",
-                    "name": "Drew Sample"
+                    "name": "<redacted:personal>"
                   },
                   {
                     "role": "interviewer",
                     "id": "ashby:user:user-1001",
-                    "name": "Ada Example"
+                    "name": "<redacted:personal>"
                   },
                   {
                     "role": "interviewer",
                     "id": "ashby:user:user-1002",
-                    "name": "Bo Example"
+                    "name": "<redacted:personal>"
                   }
                 ],
                 "title": "Systems design — Platform Engineer",
                 "text": "",
                 "url": null,
                 "labels": [],
-                "hash": "sha256:75da3d91bcc02daecddec95d17cc1edfb7746fb15bdae57fa53e274f23d42e04"
+                "hash": "sha256:0029af3f6126597bea6e0a8e98d471b2707235cd3762a1bd791628ac04b4ff50"
               }
             ],
             "cursor": "eyJ2IjoyLCJzIjoiYXNoYnkiLCJiIjoiY2FiMDgxNzEzMWVhYTQzNCIsIm8iOiJjNmJhOTEwODFjYTMxMTU3IiwidCI6MTc5NTA3ODgwMDAwMCwiaSI6Iml2LTEwMDIiLCJmIjoxNzk0ODczNjAwMDAwLCJkIjoiMzU1YTQ3M2QybjBiN2Q2MzdiNTFrb2YxYTFhNTY2MGswIn0",
@@ -134,7 +134,7 @@
           }
         },
         {
-          "name": "the first event of work, one at a time",
+          "name": "<redacted:personal>",
           "input": {
             "account": "work",
             "since": "2026-11-17T00:00:00Z",
@@ -161,19 +161,19 @@
                   {
                     "role": "candidate",
                     "id": "ashby:candidate:cand-1005",
-                    "name": "Eli Example"
+                    "name": "<redacted:personal>"
                   },
                   {
                     "role": "interviewer",
                     "id": "ashby:user:user-1001",
-                    "name": "Ada Example"
+                    "name": "<redacted:personal>"
                   }
                 ],
                 "title": "Screen with [email] — Call [phone]",
                 "text": "",
                 "url": null,
                 "labels": [],
-                "hash": "sha256:530604ab6d496b7ecdeaa9c25d0ce09c277dfb0d5fcab5c19fdbe4f6dafc56f7"
+                "hash": "sha256:95895f52679506e2d907c481cbf4c6d2d2ea480ffe70616117cf911845dd20f7"
               }
             ],
             "cursor": "eyJ2IjoyLCJzIjoiYXNoYnkiLCJiIjoiY2FiMDgxNzEzMWVhYTQzNCIsIm8iOiJjNmJhOTEwODFjYTMxMTU3IiwidCI6MTc5NDkxNjgwMDAwMCwiaSI6Iml2LTEwMDUiLCJmIjoxNzk0ODczNjAwMDAwLCJkIjoiZjFhMWE1NjYwazAifQ",
@@ -184,7 +184,7 @@
           }
         },
         {
-          "name": "the second, from its cursor",
+          "name": "<redacted:personal>",
           "input": {
             "account": "work",
             "cursor": "eyJ2IjoyLCJzIjoiYXNoYnkiLCJiIjoiY2FiMDgxNzEzMWVhYTQzNCIsIm8iOiJjNmJhOTEwODFjYTMxMTU3IiwidCI6MTc5NDkxNjgwMDAwMCwiaSI6Iml2LTEwMDUiLCJmIjoxNzk0ODczNjAwMDAwLCJkIjoiZjFhMWE1NjYwazAifQ",
@@ -211,19 +211,19 @@
                   {
                     "role": "candidate",
                     "id": "ashby:candidate:cand-1001",
-                    "name": "Casey Example"
+                    "name": "<redacted:personal>"
                   },
                   {
                     "role": "interviewer",
                     "id": "ashby:user:user-1001",
-                    "name": "Ada Example"
+                    "name": "<redacted:personal>"
                   }
                 ],
                 "title": "Hiring manager screen — Platform Engineer",
                 "text": "",
                 "url": "https://app.ashbyhq.com/interviews/iv-1001",
                 "labels": [],
-                "hash": "sha256:37f750921e1d64b5b94a090a90ac377b7e370632af85172142aa0dd0f39e0e02"
+                "hash": "sha256:0f1b1dd88e16bc6953183039746b91e592b1f708691d6068abac3825296e4ae3"
               }
             ],
             "cursor": "eyJ2IjoyLCJzIjoiYXNoYnkiLCJiIjoiY2FiMDgxNzEzMWVhYTQzNCIsIm8iOiJjNmJhOTEwODFjYTMxMTU3IiwidCI6MTc5NDk5NjAwMDAwMCwiaSI6Iml2LTEwMDEiLCJmIjoxNzk0ODczNjAwMDAwLCJkIjoiYjdkNjM3YjUxa29mMWExYTU2NjBrMCJ9",
@@ -234,7 +234,7 @@
           }
         },
         {
-          "name": "the third, from its cursor",
+          "name": "<redacted:personal>",
           "input": {
             "account": "work",
             "cursor": "eyJ2IjoyLCJzIjoiYXNoYnkiLCJiIjoiY2FiMDgxNzEzMWVhYTQzNCIsIm8iOiJjNmJhOTEwODFjYTMxMTU3IiwidCI6MTc5NDk5NjAwMDAwMCwiaSI6Iml2LTEwMDEiLCJmIjoxNzk0ODczNjAwMDAwLCJkIjoiYjdkNjM3YjUxa29mMWExYTU2NjBrMCJ9",
@@ -261,24 +261,24 @@
                   {
                     "role": "candidate",
                     "id": "ashby:candidate:cand-1002",
-                    "name": "Drew Sample"
+                    "name": "<redacted:personal>"
                   },
                   {
                     "role": "interviewer",
                     "id": "ashby:user:user-1001",
-                    "name": "Ada Example"
+                    "name": "<redacted:personal>"
                   },
                   {
                     "role": "interviewer",
                     "id": "ashby:user:user-1002",
-                    "name": "Bo Example"
+                    "name": "<redacted:personal>"
                   }
                 ],
                 "title": "Systems design — Platform Engineer",
                 "text": "",
                 "url": null,
                 "labels": [],
-                "hash": "sha256:75da3d91bcc02daecddec95d17cc1edfb7746fb15bdae57fa53e274f23d42e04"
+                "hash": "sha256:0029af3f6126597bea6e0a8e98d471b2707235cd3762a1bd791628ac04b4ff50"
               }
             ],
             "cursor": "eyJ2IjoyLCJzIjoiYXNoYnkiLCJiIjoiY2FiMDgxNzEzMWVhYTQzNCIsIm8iOiJjNmJhOTEwODFjYTMxMTU3IiwidCI6MTc5NTA3ODgwMDAwMCwiaSI6Iml2LTEwMDIiLCJmIjoxNzk0ODczNjAwMDAwLCJkIjoiMzU1YTQ3M2QybjBiN2Q2MzdiNTFrb2YxYTFhNTY2MGswIn0",
@@ -289,7 +289,7 @@
           }
         },
         {
-          "name": "nothing new from its cursor",
+          "name": "<redacted:personal>",
           "input": {
             "account": "work",
             "cursor": "eyJ2IjoyLCJzIjoiYXNoYnkiLCJiIjoiY2FiMDgxNzEzMWVhYTQzNCIsIm8iOiJjNmJhOTEwODFjYTMxMTU3IiwidCI6MTc5NTA3ODgwMDAwMCwiaSI6Iml2LTEwMDIiLCJmIjoxNzk0ODczNjAwMDAwLCJkIjoiMzU1YTQ3M2QybjBiN2Q2MzdiNTFrb2YxYTFhNTY2MGswIn0"
@@ -312,7 +312,7 @@
           }
         },
         {
-          "name": "the personal account from since",
+          "name": "<redacted:personal>",
           "input": {
             "account": "personal",
             "since": "2026-11-17T00:00:00Z"
@@ -338,19 +338,19 @@
                   {
                     "role": "candidate",
                     "id": "ashby:candidate:cand-2001",
-                    "name": "Frankie Example"
+                    "name": "<redacted:personal>"
                   },
                   {
                     "role": "interviewer",
                     "id": "ashby:user:user-2001",
-                    "name": "Gus Sample"
+                    "name": "<redacted:personal>"
                   }
                 ],
                 "title": "Values interview — Data Analyst",
                 "text": "",
                 "url": null,
                 "labels": [],
-                "hash": "sha256:5fb568254c68b45c08421957b03edf26796554b6b249059e23892516517df365"
+                "hash": "sha256:50601d7fcd9c00582f5cd8193c5bae05df7d3bbe3be5dfb259dd8142a1ed1298"
               }
             ],
             "cursor": "eyJ2IjoyLCJzIjoiYXNoYnkiLCJiIjoiYzIwY2NiMzY5MTlhNTAzMCIsIm8iOiI4M2MxOGUxMThmNzU3ZGY4IiwidCI6MTc5NTAxNDAwMDAwMCwiaSI6Iml2LTIwMDEiLCJmIjoxNzk0ODczNjAwMDAwLCJkIjoiZmJmMzBkNTUxdDAifQ",
@@ -361,7 +361,7 @@
           }
         },
         {
-          "name": "work's cursor under the personal account",
+          "name": "<redacted:personal>",
           "input": {
             "account": "personal",
             "cursor": "eyJ2IjoyLCJzIjoiYXNoYnkiLCJiIjoiY2FiMDgxNzEzMWVhYTQzNCIsIm8iOiJjNmJhOTEwODFjYTMxMTU3IiwidCI6MTc5NTA3ODgwMDAwMCwiaSI6Iml2LTEwMDIiLCJmIjoxNzk0ODczNjAwMDAwLCJkIjoiMzU1YTQ3M2QybjBiN2Q2MzdiNTFrb2YxYTFhNTY2MGswIn0"
@@ -391,7 +391,7 @@
     "emitted": [],
     "status": {
       "name": "ashby",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "host": {
         "version": "2.4.1",
         "range": ">=2.4.1 <2.5.0",

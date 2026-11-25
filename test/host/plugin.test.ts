@@ -21,7 +21,7 @@ const ACCOUNT_KEYS = ["alias", "owner", "reason", "state"]
 const check = (status: Record<string, unknown>) => {
   expect(Object.keys(status).sort()).toEqual(STATUS_KEYS)
   expect(status["name"]).toBe("ashby")
-  expect(status["version"]).toBe("0.0.0")
+  expect(status["version"]).toBe("0.0.1")
   expect(status["host"]).toEqual({ version: "2.4.1", range: ">=2.4.1 <2.5.0", tested: ["2.4.1"] })
   expect(["ready", "needs_sign_in", "error"]).toContain(status["state"])
   expect(Array.isArray(status["unguardedAgents"])).toBe(true)

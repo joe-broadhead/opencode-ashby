@@ -39,6 +39,11 @@ dependencies. Its handler table is three methods (`status`, `events_list`, `prob
 
 A full check binds the host: run one at a time on a shared machine.
 
+## Release
+
+The maintainer cuts `0.0.1` on `master` with `npx plugin-kit release 0.0.1`, after the owner has removed the old
+pre-transfer `v0.0.1`–`v0.0.7` tags and releases that collide with the new tag.
+
 ## Layout
 
 ```
