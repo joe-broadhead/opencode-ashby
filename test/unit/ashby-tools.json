@@ -1,4 +1,5 @@
 {
+  "$comment": "The 22 tools Ashby's MCP server listed to a signed-in account on 2026-11-20, names and public descriptions only. The manifest declares each once as an mcp:<tool> row; no tool was called and no credential, account id or result text is recorded.",
   "tools": [
     {
       "name": "search_records_by_name",

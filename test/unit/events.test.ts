@@ -1,749 +1,344 @@
-// The interviews source, events_list and probe, against invented interviews (test/fixtures/conformance.json, and the
-// cases below): list_interviews filters by `onOrAfterDate` and `onOrBeforeDate`, both inclusive, and answers JSON, or
-// markup, or a sentence. No live answer of list_interviews has been recorded, so these are the forms the reader
-// accepts, and anything else must fail loudly. Every person, job, id and link is made up.
-import { describe, expect, test } from "bun:test"
-import { readFileSync } from "node:fs"
-import { encodeBoundCursor } from "@we-the-rebel-alliance/source-contract/cursor"
-import { EVENT_LIMITS, PAGE, assertEventsListConformance, probeResultProblems, resultProblems, type EventsListResult } from "@we-the-rebel-alliance/source-contract/events"
-import { registerToolsRpc } from "@we-the-rebel-alliance/source-contract/tools-rpc"
-import {
-  ACCOUNT,
-  BINDING,
-  EVENTS_ACTION,
-  EVENTS_INPUT,
-  EventsFailure,
-  LIST_REASON,
-  LIST_TOOL,
-  LOOKBACK_CALLS,
-  LOOKBACK_MS,
-  MAX_BYTES,
-  MAX_CALLS,
-  MAX_SEEN,
-  MAX_WINDOWS,
-  MIN_WINDOW_MS,
-  PROBE_ACTION,
-  SETTLE_MS,
-  SOURCE,
-  WINDOW_MS,
-  ashbyProbe,
-  ashbyUrl,
-  eventsMethod,
-  listEvents,
-  probeMethod,
-  readInterviews,
-  resultData,
-  signedIn,
-  type EventsContext,
-} from "../../src/events.js"
-import { defaultRules, evaluate } from "../../src/permissions.js"
-import { PLUGIN } from "../../src/tools-rpc.js"
+/**
+ * The interviews source: the recorded envelope, metadata-only events, the settle window, the 7-day windows and their
+ * 13-window cap, the 7-day lookback with its seen list, and a page that is read whole or not at all.
+ */
 
-interface Fixture {
-  readonly now: string
-  readonly since: string
-  readonly interviews: readonly Record<string, unknown>[]
-}
-const FIXTURE = JSON.parse(readFileSync(new URL("../fixtures/conformance.json", import.meta.url), "utf8")) as Fixture
-const NOW = Date.parse(FIXTURE.now)
-const SINCE = FIXTURE.since
-/** OpenCode's sign-in: the credential's id, labelled with its label (an email here, which never becomes the id). */
-const OWNER = { id: "ashby:credential:cred-1", label: "ada@example.test" }
-/** Listed from SINCE: not ie-0003 (a secret in its title), ie-0005 (cancelled), ie-0007 (too recent) or ie-0008 (ahead). */
-const EXPECTED = ["ie-0001", "ie-0002", "ie-0004a", "ie-0004b", "ie-0006"]
-const SECRET = "ie-0003"
+import { encodeBoundCursor } from "@we-the-rebel-alliance/plugin-contract/cursor"
+import { eventHash, resultProblems, type SourceEvent } from "@we-the-rebel-alliance/plugin-contract/events"
+import { describe, expect, test } from "vitest"
+import { packageName } from "../../src/manifest.ts"
+import { MAX_SEEN, MAX_WINDOWS, SETTLE_MS, WINDOW_MS } from "../../src/provider/interviews.ts"
+import { type CallAnswer, type Harness, type InterviewRecord, startHarness } from "../support/harness.ts"
 
-/** list_interviews over `interviews`, both bounds inclusive, answering with `answer`. */
-/** The envelope a live read recorded, around `found`, echoing the window asked for as UTC times. */
-const envelope = (found: Record<string, unknown>[], input: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
-  data: {
-    interviews: found,
-    returnedCount: found.length,
-    truncated: false,
-    onOrAfterDate: new Date(Date.parse(String(input["onOrAfterDate"]))).toISOString(),
-    onOrBeforeDate: new Date(Date.parse(String(input["onOrBeforeDate"]))).toISOString(),
-    message: found.length === 0 ? "No interviews found." : `Found ${found.length} interviews.`,
-    ...extra,
-  },
+const NOW = Date.parse("2026-11-20T12:00:00.000Z")
+const SINCE = "2026-11-17T00:00:00Z"
+
+const record = (id: string, startTime: string, extra: Partial<InterviewRecord> = {}): InterviewRecord => ({
+  interviewEventId: id,
+  interviewTitle: "Interview",
+  startTime,
+  ...extra,
 })
-const RECORDED = (JSON.parse(readFileSync(new URL("../fixtures/list-interviews-envelope.json", import.meta.url), "utf8")) as { answer: { data: Record<string, unknown> } }).answer
 
-/** list_interviews over `interviews`, both bounds inclusive, answering with `answer` (the recorded envelope by default). */
-function ashby(interviews: readonly Record<string, unknown>[] = FIXTURE.interviews, answer: (found: Record<string, unknown>[], input: Record<string, unknown>) => unknown = envelope) {
-  const calls: Record<string, unknown>[] = []
-  const list = async (input: Record<string, unknown>) => {
-    calls.push(input)
-    const from = Date.parse(String(input["onOrAfterDate"]))
-    const to = Date.parse(String(input["onOrBeforeDate"]))
-    return answer(interviews.filter((interview) => Date.parse(String(interview["startTime"])) >= from && Date.parse(String(interview["startTime"])) <= to), input)
-  }
-  return { list, calls }
+const page = (answer: CallAnswer): Record<string, unknown> => {
+  if (!answer.ok) throw new Error(`expected a page, got ${answer.code}: ${answer.message}`)
+  return answer.output as Record<string, unknown>
 }
 
-const list = (fake = ashby(), now = NOW, owner: typeof OWNER | undefined = OWNER) => (input: unknown) => listEvents(fake.list, owner, input, now)
-const code = async (promise: Promise<unknown>) => {
-  try {
-    await promise
-    return undefined
-  } catch (error) {
-    return error instanceof EventsFailure ? error.code : String(error)
-  }
+const refused = (answer: CallAnswer): { code: string; message: string } => {
+  if (answer.ok) throw new Error("expected a refusal, got a page")
+  return { code: answer.code, message: answer.message }
 }
 
-describe("list_interviews' answer", () => {
-  test("the envelope a live read recorded: an empty week by its structure, cut short by its flag, and its window read as UTC", () => {
-    expect(Object.keys(RECORDED.data).sort()).toEqual(["interviews", "message", "onOrAfterDate", "onOrBeforeDate", "returnedCount", "truncated"])
-    const window = { from: Date.parse("2026-11-01T00:00:00Z"), to: Date.parse("2026-11-08T00:00:00Z") }
-    expect(readInterviews(RECORDED, window)).toEqual({ interviews: [], readable: true, unreadable: 0, truncated: false })
-    // The message plays no part when the structure answers: any wording is the same empty week.
-    expect(readInterviews({ data: { ...RECORDED.data, message: "Here is a list of everything" } }, window)).toMatchObject({ readable: true, interviews: [] })
-    const one = { ...RECORDED.data, interviews: [FIXTURE.interviews[0]], returnedCount: 1 }
-    expect(readInterviews({ data: one }, window)).toMatchObject({ readable: true, truncated: false, interviews: [{ id: "ie-0001" }] })
-    expect(readInterviews({ data: { ...one, truncated: true } }, window).truncated).toBe(true)
-    // A window narrower than the one asked for is cut short too; one that covers it is whole.
-    expect(readInterviews({ data: { ...one, onOrBeforeDate: "2026-11-05T00:00:00.000Z" } }, window).truncated).toBe(true)
-    expect(readInterviews({ data: { ...one, onOrAfterDate: "2026-10-31T00:00:00Z" } }, window).truncated).toBe(false)
-    // A count that is not the list's length, or a bound without its zone, is an answer it does not understand.
-    expect(readInterviews({ data: { ...one, returnedCount: 2 } }, window).readable).toBe(false)
-    expect(readInterviews({ data: { ...one, onOrAfterDate: "2026-11-01T00:00:00" } }, window).readable).toBe(false)
-    // With no list at all, the message is the fallback, and only a whole "no interviews" sentence.
-    expect(readInterviews({ data: { message: "No interviews found." } }, window)).toMatchObject({ readable: true, interviews: [] })
-    expect(readInterviews({ data: { message: "Something went wrong." } }, window).readable).toBe(false)
+const ids = (answer: CallAnswer): string[] => (page(answer)["events"] as { external_id: string }[]).map((event) => event.external_id)
+
+const two = (interviews: readonly InterviewRecord[], now = NOW, extra: { work?: Record<string, unknown>; personal?: InterviewRecord[] } = {}) =>
+  startHarness({
+    accounts: { work: { interviews, ...(extra.work ?? {}) }, personal: { interviews: extra.personal ?? [record("p-1", "2026-11-18T10:00:00.000Z")] } },
+    now,
   })
 
-  test("reads each interview's id, start, title, job, candidate, interviewers and Ashby link, and never an email", () => {
-    const { interviews, readable } = readInterviews({ interviews: FIXTURE.interviews.slice(0, 1) })
-    expect(readable).toBe(true)
-    expect(interviews).toEqual([
-      {
-        id: "ie-0001",
-        time: Date.parse("2026-10-01T09:00:00Z"),
-        title: "Hiring manager screen",
-        job: "Platform Engineer",
-        candidate: { id: "cand-0001", name: "Casey Sample" },
-        interviewers: [{ id: "user-0001", name: "Ada Example" }],
-        url: "https://app.ashbyhq.com/interviews/ie-0001",
-        cancelled: false,
-      },
-    ])
-    expect(JSON.stringify(interviews)).not.toContain("@")
-    expect(JSON.stringify(interviews)).not.toContain("meet.example.net")
-  })
-
-  test("reads a bare array, the candidate's flat fields, a first and last name, and a cancelled status", () => {
-    const { interviews } = readInterviews(FIXTURE.interviews.slice(3, 6))
-    expect(interviews.map((interview) => [interview.id, interview.candidate, interview.interviewers, interview.cancelled])).toEqual([
-      ["ie-0004a", { id: "cand-0004", name: "Frankie Sample" }, [{ id: "user-0003", name: "Gus Placeholder" }], false],
-      ["ie-0004b", { id: "cand-0004", name: "Frankie Sample" }, [{ name: "Hana Example" }], false],
-      ["ie-0005", { id: "cand-0005", name: "Ira Sample" }, [{ id: "user-0002", name: "Bo Placeholder" }], true],
-    ])
-  })
-
-  test("reads markup: one element per interviewEventId, with its Candidate and Interviewer elements", () => {
-    const markup = [
-      "<Interviews>",
-      '  <Interview interviewEventId="ie-m1" title="Pairing &amp; review" jobTitle="Data Analyst" startTime="2026-10-03T10:00:00Z">',
-      '    <Candidate id="cand-m1" name="Lee Sample" email="lee@example.test" />',
-      '    <Interviewer id="user-m1" name="Ada Example" email="ada@example.test" />',
-      "  </Interview>",
-      '  <Interview interviewEventId="ie-m2" title="Screen" startTime="2026-10-04T10:00:00Z" status="CANCELLED" />',
-      "</Interviews>",
-    ].join("\n")
-    const { interviews, readable } = readInterviews(markup)
-    expect(readable).toBe(true)
-    expect(interviews).toEqual([
-      { id: "ie-m1", time: Date.parse("2026-10-03T10:00:00Z"), title: "Pairing & review", job: "Data Analyst", candidate: { id: "cand-m1", name: "Lee Sample" }, interviewers: [{ id: "user-m1", name: "Ada Example" }], cancelled: false },
-      { id: "ie-m2", time: Date.parse("2026-10-04T10:00:00Z"), title: "Screen", interviewers: [], cancelled: true },
-    ])
-  })
-
-  test("an empty answer, or a whole sentence that there are none, is an empty week; any other form is unreadable", () => {
-    for (const empty of [{ interviews: [] }, [], "", "No interviews found for this window.", "No interviews", "There are no upcoming interviews."]) {
-      expect(readInterviews(empty)).toEqual({ interviews: [], readable: true, unreadable: 0, truncated: false })
-    }
-    for (const unknown of [
-      { message: "ok" },
-      [{ eventId: "x" }],
-      "Here is your schedule: Monday at 9",
-      "Showing interviews; no further interviews after these: Onsite with N",
-      "No interviews found. 3 interviews were hidden.",
-      { interviews: [{ interviewEventId: "x", startTime: "Oct 1" }] },
-    ]) {
-      expect({ unknown, readable: readInterviews(unknown).readable }).toEqual({ unknown, readable: false })
-    }
-  })
-
-  test("every entry must be an interview: one it cannot read makes the whole answer unreadable", () => {
-    const good = FIXTURE.interviews[0]!
-    for (const bad of [
-      { ...good, interviewEventId: "ie-x", startTime: undefined, scheduledAt: "2026-10-01T10:00:00Z" },
-      { ...good, interviewEventId: "ie-x", startTime: "2026-10-01T10:00:00" },
-      "ie-x",
-    ]) {
-      expect(readInterviews({ interviews: [good, bad] })).toMatchObject({ readable: false, unreadable: 1 })
-      expect(readInterviews([bad, good])).toMatchObject({ readable: false, unreadable: 1 })
-    }
-    const markup = '<Interviews><Interview interviewEventId="ie-m1" startTime="2026-10-03T10:00:00Z" /><Interview interviewEventId="ie-m2" startTime="Oct 4" /></Interviews>'
-    expect(readInterviews(markup)).toMatchObject({ readable: false, unreadable: 1 })
-  })
-
-  test("takes the interview event id only from interviewEventId, never a bare id", () => {
-    expect(readInterviews([{ id: "sched-1", startTime: "2026-10-01T09:00:00Z" }])).toMatchObject({ interviews: [], readable: false })
-    expect(readInterviews([{ interviewEvent: { id: "ie-n", startTime: "2026-10-01T09:00:00Z" }, id: "sched-1" }]).interviews.map((interview) => interview.id)).toEqual(["ie-n"])
-  })
-
-  test("notices Ashby's markers for an answer cut short: a more flag, a next cursor, or a total above what it lists", () => {
-    const one = [FIXTURE.interviews[0]!]
-    for (const marked of [{ hasMore: true }, { truncated: true }, { moreDataAvailable: "true" }, { nextCursor: "c2" }, { totalCount: 5 }]) {
-      expect({ marked, truncated: readInterviews({ interviews: one, ...marked }).truncated }).toEqual({ marked, truncated: true })
-    }
-    for (const whole of [{}, { hasMore: false }, { nextCursor: null }, { count: 1 }]) expect({ whole, truncated: readInterviews({ interviews: one, ...whole }).truncated }).toEqual({ whole, truncated: false })
-    expect(readInterviews('<Interviews hasMore="true"><Interview interviewEventId="ie-m1" startTime="2026-10-03T10:00:00Z" /></Interviews>').truncated).toBe(true)
-  })
-
-  test("never reads a start without a zone, and keeps only https links on ashbyhq.com", () => {
-    expect(readInterviews([{ interviewEventId: "x", startTime: "2026-10-01T09:00:00" }]).interviews).toEqual([])
-    expect(ashbyUrl("https://app.ashbyhq.com/x")).toBe("https://app.ashbyhq.com/x")
-    for (const url of ["http://app.ashbyhq.com/x", "https://meet.example.net/abc", "https://ashbyhq.com.example.net/x", "https://user:pw@app.ashbyhq.com/x", "not a url"]) expect(ashbyUrl(url)).toBeUndefined()
-  })
-
-  test("takes the structured output, or the text as JSON, or the text itself", () => {
-    expect(resultData({ output: { interviews: [] } })).toEqual({ interviews: [] })
-    expect(resultData({ content: [{ type: "text", text: '{"interviews":[1]}' }] })).toEqual({ interviews: [1] })
-    expect(resultData({ content: [{ type: "text", text: "<Interviews />" }] })).toBe("<Interviews />")
-  })
-})
+const read = (harness: Harness, input: Record<string, unknown>) => harness.callTool("events_list", { account: "work", ...input })
 
 describe("events_list", () => {
-  const fixtures = { source: SOURCE, account: ACCOUNT, owner: OWNER, since: SINCE, expected: EXPECTED, binding: { plugin: "ashby" }, codes: true, maxBytes: MAX_BYTES, kinds: ["meeting"], namespace: "ashby", refused: [SECRET] }
-
-  test("keeps the events_list contract, with the bound cursor, the table's codes and the secret refused", async () => {
-    await assertEventsListConformance(list(), { ...fixtures, pageSize: 2 })
-  })
-
-  test("keeps it with the source named and pages of one", async () => {
-    await assertEventsListConformance(list(), { ...fixtures, sourceInput: true, pageSize: 1 })
-  })
-
-  test("pages: two at a time, then on from the cursor, until more is false", async () => {
-    const seen: string[] = []
-    let page = (await list()({ since: SINCE, limit: 2 })) as EventsListResult
-    seen.push(...page.events.map((event) => event.external_id))
-    while (page.more) {
-      page = (await list()({ account: ACCOUNT, cursor: page.cursor, limit: 2 })) as EventsListResult
-      seen.push(...page.events.map((event) => event.external_id))
+  test("lists a page oldest first, with the owner, the package, asOf and a cursor, and passes the contract's page checks", async () => {
+    const harness = await two([
+      record("iv-2", "2026-11-19T09:00:00.000Z"),
+      record("iv-1", "2026-11-18T10:00:00.000Z"),
+      record("iv-0", "2026-11-17T12:00:00.000Z"),
+    ])
+    try {
+      const answer = page(await read(harness, { since: SINCE }))
+      expect(resultProblems(answer, 100, 65_536)).toEqual([])
+      expect(ids(await read(harness, { since: SINCE }))).toEqual(["iv-0", "iv-1", "iv-2"])
+      expect(answer).toMatchObject({
+        source: "ashby",
+        account: "work",
+        owner: { id: "ashby:credential:cred-work", label: "Ashby (work)", verified: false },
+        trust: "untrusted",
+        more: false,
+        plugin: packageName,
+        asOf: "2026-11-20T12:00:00.000Z",
+      })
+      for (const event of answer["events"] as SourceEvent[]) {
+        const { hash, ...rest } = event
+        expect(eventHash(rest)).toBe(hash)
+        expect(event.kind).toBe("meeting")
+        expect(event.text).toBe("")
+      }
+      expect(typeof answer["cursor"]).toBe("string")
+    } finally {
+      await harness.dispose()
     }
-    expect(seen).toEqual(EXPECTED)
-    // Nothing new: an empty page that names its owner, whose cursor has moved to what it read, and stays there.
-    const empty = (await list()({ account: ACCOUNT, cursor: page.cursor })) as EventsListResult
-    expect(empty).toMatchObject({ events: [], more: false, owner: OWNER, source: SOURCE, account: ACCOUNT, trust: "untrusted" })
-    expect((await list()({ account: ACCOUNT, cursor: empty.cursor })) as EventsListResult).toMatchObject({ events: [], more: false, cursor: empty.cursor })
   })
 
-  test("makes each interview one event of metadata: the title and job, the candidate and interviewers by Ashby id, its link, and no text", async () => {
-    const result = (await list()({ since: SINCE, limit: PAGE.max })) as EventsListResult
-    expect(resultProblems(result, PAGE.max, MAX_BYTES)).toEqual([])
-    const [first, second, , fourB] = result.events
-    expect(first).toMatchObject({
-      external_id: "ie-0001",
-      kind: "meeting",
-      occurred_at: "2026-10-01T09:00:00.000Z",
-      title: "Hiring manager screen — Platform Engineer",
-      text: "",
-      thread: null,
-      labels: [],
-      url: "https://app.ashbyhq.com/interviews/ie-0001",
-      actors: [
-        { role: "candidate", id: "ashby:candidate:cand-0001", name: "Casey Sample" },
-        { role: "interviewer", id: "ashby:user:user-0001", name: "Ada Example" },
-      ],
-    })
-    // The start is read with its offset, and a link that is not Ashby's is never the url.
-    expect(second).toMatchObject({ occurred_at: "2026-10-02T13:00:00.000Z", url: null })
-    expect(fourB!.actors).toContainEqual({ role: "interviewer", id: "name:Hana%20Example", name: "Hana Example" })
-    // The page's owner is the user's own sign-in; the events name no one by an address.
-    const text = JSON.stringify(result.events)
-    for (const absent of ["@example.test", "meet.example.net", "Ira Sample", "Jo Example", "Kai Sample"]) expect({ absent, found: text.includes(absent) }).toEqual({ absent, found: false })
+  test("carries metadata only: no contact details, feedback, transcript or meeting link, and masks a title that has one", async () => {
+    const harness = await two([
+      record("iv-1", "2026-11-18T10:00:00.000Z", {
+        interviewTitle: "Screen with ana@example.test",
+        jobTitle: "Call +1 (415) 555-0100",
+        candidate: { id: "cand-1", name: "Casey Example", email: "casey@example.test", phone: "+1 415 555 0100" },
+        interviewers: [{ id: "user-1", name: "Ada Example", email: "ada@example.test" }],
+        feedback: "a strong hire",
+        transcript: "a transcript that must never be copied",
+        url: "https://app.ashbyhq.com/interviews/iv-1?token=SECRET-1&utm_source=mail#top",
+      }),
+    ])
+    try {
+      const answer = page(await read(harness, { since: SINCE }))
+      const [event] = answer["events"] as {
+        title: string
+        url: string
+        text: string
+        actors: { role: string; id: string; name: string }[]
+      }[]
+      expect(event).toMatchObject({
+        title: "Screen with [email] — Call [phone]",
+        url: "https://app.ashbyhq.com/interviews/iv-1",
+        text: "",
+        actors: [
+          { role: "candidate", id: "ashby:candidate:cand-1", name: "Casey Example" },
+          { role: "interviewer", id: "ashby:user:user-1", name: "Ada Example" },
+        ],
+      })
+      const text = JSON.stringify(answer)
+      for (const absent of [
+        "ana@example.test",
+        "casey@example.test",
+        "ada@example.test",
+        "415",
+        "555-0100",
+        "a strong hire",
+        "a transcript",
+        "SECRET-1",
+        "utm_source",
+      ]) {
+        expect({ absent, found: text.includes(absent) }).toEqual({ absent, found: false })
+      }
+    } finally {
+      await harness.dispose()
+    }
   })
 
-  test("keeps an Ashby link without its query or fragment: a token or a tracking parameter never reaches an event", async () => {
-    // The one filter keeps the weekly window apart from the link cases.
-    const answers: Record<string, unknown>[] = [
-      { interviewEventId: "ie-link-1", interviewTitle: "Screen", startTime: "2026-10-01T09:00:00Z", url: "https://app.ashbyhq.com/interviews/ie-link-1?token=TOKEN-1&utm_source=mail#top" },
-      { interviewEventId: "ie-link-2", interviewTitle: "Screen", startTime: "2026-10-01T10:00:00Z", candidateUrl: "https://app.ashbyhq.com/candidates/c-1?signature=SIGNED-2" },
-    ]
-    const page = (await list(ashby(answers))({ since: SINCE, limit: PAGE.max })) as EventsListResult
-    const byId = Object.fromEntries(page.events.map((event) => [event.external_id, event]))
-    expect(byId["ie-link-1"]!.url).toBe("https://app.ashbyhq.com/interviews/ie-link-1")
-    expect(byId["ie-link-2"]!.url).toBe("https://app.ashbyhq.com/candidates/c-1")
-    for (const absent of ["TOKEN-1", "SIGNED-2", "utm_source", "signature", "#top"]) expect({ absent, found: JSON.stringify(page).includes(absent) }).toEqual({ absent, found: false })
-    // Still strict about the host and the scheme.
-    for (const url of ["http://app.ashbyhq.com/interviews/1", "https://evil.example.test/interviews/1", "https://app.ashbyhq.com.evil.example.test/interviews/1", "https://user:pw@app.ashbyhq.com/interviews/1"]) expect(ashbyUrl(url)).toBeUndefined()
-    expect(ashbyUrl("https://app.ashbyhq.com/interviews/ie-1?x=1#y")).toBe("https://app.ashbyhq.com/interviews/ie-1")
+  test("lists an interview only once it started 30 minutes ago, and never a cancelled one", async () => {
+    const at = new Date(NOW - 29 * 60_000).toISOString()
+    const settled = new Date(NOW - SETTLE_MS).toISOString()
+    const harness = await two([record("too-recent", at), record("settled", settled), record("cancelled", "2026-11-18T10:00:00.000Z", { status: "Cancelled" })])
+    try {
+      expect(ids(await read(harness, { since: SINCE }))).toEqual(["settled"])
+    } finally {
+      await harness.dispose()
+    }
   })
 
-  test("masks an email address or a phone number in an interview's title, and in its job", async () => {
-    const at = "2026-10-02T09:00:00Z"
-    const page = (await list(ashby([
-      { interviewEventId: "ie-mail-1", interviewTitle: "Screen with ana@example.test", jobTitle: "Call +1 (415) 555-0100", startTime: at },
-      { interviewEventId: "ie-mail-2", interviewTitle: "Prep for 2026-10-02 09:00 debrief", startTime: at },
-    ]))({ since: SINCE, limit: PAGE.max })) as EventsListResult
-    const byId = Object.fromEntries(page.events.map((event) => [event.external_id, event]))
-    expect(byId["ie-mail-1"]!.title).toBe("Screen with [email] — Call [phone]")
-    // A date is not a phone number.
-    expect(byId["ie-mail-2"]!.title).toBe("Prep for 2026-10-02 09:00 debrief")
-    const text = JSON.stringify(page.events)
-    for (const absent of ["ana@example.test", "415", "555-0100", "+1 ("]) expect({ absent, found: text.includes(absent) }).toEqual({ absent, found: false })
+  test("pages with limit and the cursor, oldest first and without repeats", async () => {
+    const harness = await two([record("a", "2026-11-17T12:00:00.000Z"), record("b", "2026-11-18T10:00:00.000Z"), record("c", "2026-11-19T09:00:00.000Z")])
+    try {
+      let answer = page(await read(harness, { since: SINCE, limit: 1 }))
+      const seen = (answer["events"] as { external_id: string }[]).map((event) => event.external_id)
+      expect(answer["more"]).toBe(true)
+      for (let guard = 0; guard < 5 && answer["more"] === true; guard++) {
+        answer = page(await read(harness, { cursor: answer["cursor"], limit: 1 }))
+        seen.push(...(answer["events"] as { external_id: string }[]).map((event) => event.external_id))
+      }
+      expect(seen).toEqual(["a", "b", "c"])
+      expect(answer["more"]).toBe(false)
+      expect(page(await read(harness, { cursor: answer["cursor"] }))["events"]).toEqual([])
+    } finally {
+      await harness.dispose()
+    }
+  })
+
+  test("starts 24 hours back without since, and at since when it is given", async () => {
+    const harness = await two([record("recent", "2026-11-20T10:00:00.000Z"), record("old", "2026-11-19T11:00:00.000Z")])
+    try {
+      expect(ids(await read(harness, {}))).toEqual(["recent"])
+      expect(ids(await read(harness, { since: "2026-11-19T00:00:00Z" }))).toEqual(["old", "recent"])
+    } finally {
+      await harness.dispose()
+    }
+  })
+
+  test("refuses a cursor from another account, another plugin or a malformed state, before any read", async () => {
+    const harness = await two([record("a", "2026-11-18T10:00:00.000Z")])
+    try {
+      const work = page(await read(harness, { since: SINCE }))
+      const before = harness.calls.length
+      expect(refused(await harness.callTool("events_list", { account: "personal", cursor: work["cursor"] })).code).toBe("CURSOR_INVALID")
+      expect(refused(await read(harness, { cursor: "not-a-cursor" })).code).toBe("CURSOR_INVALID")
+      const foreign = encodeBoundCursor({ plugin: "another", source: "ashby", account: "work" }, { o: "0123456789abcdef", t: 0, i: "", f: 0, d: "" })
+      expect(refused(await read(harness, { cursor: foreign })).code).toBe("CURSOR_INVALID")
+      const bare = encodeBoundCursor({ plugin: "ashby", source: "ashby", account: "work" }, { o: "0123456789abcdef", t: 0, i: "" })
+      expect(refused(await read(harness, { cursor: bare })).code).toBe("CURSOR_INVALID")
+      expect(harness.calls.length).toBe(before)
+    } finally {
+      await harness.dispose()
+    }
+  })
+
+  test("refuses a cursor issued for another sign-in with ACCOUNT_MISMATCH", async () => {
+    const first = await two([record("a", "2026-11-18T10:00:00.000Z")])
+    try {
+      const cursor = page(await read(first, { since: SINCE }))["cursor"]
+      const second = await startHarness({
+        accounts: { work: { interviews: [record("a", "2026-11-18T10:00:00.000Z")], credential: { id: "cred-other", label: "Other" } }, personal: {} },
+        now: NOW,
+      })
+      try {
+        const answer = refused(await second.callTool("events_list", { account: "work", cursor }))
+        expect(answer.code).toBe("ACCOUNT_MISMATCH")
+        expect(answer.message).toContain("Next step: ")
+        expect(second.calls).toEqual([])
+      } finally {
+        await second.dispose()
+      }
+    } finally {
+      await first.dispose()
+    }
+  })
+
+  test("lists an interview that became visible late inside the lookback exactly once, and never one older than it", async () => {
+    const lives: InterviewRecord[] = [record("a", "2026-11-18T10:00:00.000Z")]
+    const harness = await two(lives)
+    try {
+      const first = page(await read(harness, { since: SINCE }))
+      expect((first["events"] as { external_id: string }[]).map((event) => event.external_id)).toEqual(["a"])
+      lives.push(record("late-behind", "2026-11-17T09:00:00.000Z"))
+      lives.push(record("late-stretch", "2026-11-19T09:00:00.000Z"))
+      const second = page(await read(harness, { cursor: first["cursor"] }))
+      expect((second["events"] as { external_id: string }[]).map((event) => event.external_id)).toEqual(["late-behind", "late-stretch"])
+      const third = page(await read(harness, { cursor: second["cursor"] }))
+      expect(third["events"]).toEqual([])
+      lives.push(record("new", "2026-11-20T10:00:00.000Z"))
+      const fourth = page(await read(harness, { cursor: third["cursor"] }))
+      expect((fourth["events"] as { external_id: string }[]).map((event) => event.external_id)).toEqual(["new"])
+      // One that becomes visible later than the lookback is not listed: the residue the docs state.
+      const tooOld = new Date(NOW - 7 * 86_400_000 - 3_600_000).toISOString()
+      lives.push(record("too-old", tooOld))
+      const fifth = page(await read(harness, { cursor: fourth["cursor"] }))
+      expect(fifth["events"]).toEqual([])
+    } finally {
+      await harness.dispose()
+    }
+  })
+
+  test("reads 13 weeks at most from a long since, and says there is more", async () => {
+    const harness = await two([record("recent", "2026-11-20T10:00:00.000Z")])
+    try {
+      const answer = page(await read(harness, { since: "2026-08-01T00:00:00Z" }))
+      expect(answer["more"]).toBe(true)
+      expect(harness.callsOf("work")).toHaveLength(MAX_WINDOWS)
+      for (const call of harness.callsOf("work")) {
+        const from = Date.parse(String(call.input["onOrAfterDate"]))
+        const to = Date.parse(String(call.input["onOrBeforeDate"]))
+        expect(to - from).toBeLessThanOrEqual(WINDOW_MS)
+      }
+    } finally {
+      await harness.dispose()
+    }
+  })
+
+  test("reads a week Ashby cuts short again in halves, so no interview is dropped", async () => {
+    const harness = await two(
+      [record("a", "2026-11-17T12:00:00.000Z"), record("b", "2026-11-18T10:00:00.000Z"), record("c", "2026-11-19T09:00:00.000Z")],
+      NOW,
+      { work: { cap: 1 } },
+    )
+    try {
+      expect(ids(await read(harness, { since: SINCE }))).toEqual(["a", "b", "c"])
+      expect(harness.callsOf("work").length).toBeGreaterThan(1)
+    } finally {
+      await harness.dispose()
+    }
+  })
+
+  test("a window Ashby still cuts short at one hour is UNAVAILABLE, never a shorter week", async () => {
+    const harness = await two([record("a", "2026-11-18T10:00:00.000Z")], NOW, { work: { cap: 0 } })
+    try {
+      const answer = refused(await read(harness, { since: "2026-11-18T00:00:00Z" }))
+      expect(answer.code).toBe("UNAVAILABLE")
+      expect(answer.message).toContain("one hour")
+      expect(answer.message).toContain("Next step: ")
+    } finally {
+      await harness.dispose()
+    }
+  })
+
+  test("an answer it cannot read whole is UNAVAILABLE, and nothing of the page is listed", async () => {
+    for (const answer of [
+      () => ({ message: "Here are your interviews" }),
+      () => ({ data: { interviews: [{ interviewEventId: "x" }], returnedCount: 1 } }),
+      () => ({ data: { interviews: [], returnedCount: 2 } }),
+      () => ({ data: { interviews: [record("ok", "2026-11-18T10:00:00.000Z"), { interviewEventId: "bad" }], returnedCount: 2 } }),
+    ]) {
+      const harness = await two([record("real", "2026-11-18T10:00:00.000Z")], NOW, { work: { answer } })
+      try {
+        const refusedAnswer = refused(await read(harness, { since: SINCE }))
+        expect(refusedAnswer.code).toBe("UNAVAILABLE")
+        expect(refusedAnswer.message).toContain("Next step: ")
+      } finally {
+        await harness.dispose()
+      }
+    }
   })
 
   test("refuses an interview whose title holds a secret for good, and moves the cursor past it", async () => {
-    const result = (await list()({ since: SINCE, limit: PAGE.max })) as EventsListResult
-    expect(result.refused).toEqual([{ external_id: SECRET, reason: "secret", detail: "holds a secret (connection string)" }])
-    expect(JSON.stringify(result)).not.toContain("Hb3nQ8vTk2")
-  })
-
-  test("lists an interview once it started 30 minutes ago, and never one ahead", async () => {
-    const at = Date.parse("2026-11-08T11:45:00Z")
-    expect((await list(ashby(), at + SETTLE_MS - 1)({ since: "2026-11-08" })) as EventsListResult).toMatchObject({ events: [] })
-    expect(((await list(ashby(), at + SETTLE_MS)({ since: "2026-11-08" })) as EventsListResult).events.map((event) => event.external_id)).toEqual(["ie-0007"])
-  })
-
-  test("reads list_interviews a week at a time, both bounds as UTC times, with the one reason and no other input", async () => {
-    const fake = ashby()
-    await list(fake)({ since: SINCE, limit: PAGE.max })
-    expect(fake.calls[0]).toEqual({ onOrAfterDate: "2026-09-28T00:00:00.000Z", onOrBeforeDate: "2026-10-05T00:00:00.000Z", reason: LIST_REASON })
-    for (const input of fake.calls) {
-      expect(Object.keys(input).sort()).toEqual(["onOrAfterDate", "onOrBeforeDate", "reason"])
-      expect(Date.parse(String(input["onOrBeforeDate"])) - Date.parse(String(input["onOrAfterDate"]))).toBeLessThanOrEqual(WINDOW_MS)
-    }
-    expect(LIST_REASON).not.toMatch(/@|candidate name/i)
-  })
-
-  test("an empty week is an empty page with a cursor that moves on, and an old cursor never expires: it reads on, a few months a call", async () => {
-    const quiet = (await list()({ since: "2026-10-25T00:00:00Z" })) as EventsListResult
-    expect(quiet).toMatchObject({ events: [], more: false })
-    const t = Date.parse("2025-11-01T00:00:00Z")
-    const old = encodeBoundCursor(BINDING, { o: (await ownerDigestOf()), t, i: "", f: t, d: "" })
-    const fake = ashby()
-    const page = (await list(fake)({ account: ACCOUNT, cursor: old })) as EventsListResult
-    expect(page).toMatchObject({ events: [], more: true })
-    expect(fake.calls).toHaveLength(MAX_WINDOWS)
-    let next = page
-    while (next.more) next = (await list()({ account: ACCOUNT, cursor: next.cursor })) as EventsListResult
-    expect(next.more).toBe(false)
-  })
-
-  test("refuses another sign-in's cursor and another account with ACCOUNT_MISMATCH, before any read", async () => {
-    const fake = ashby()
-    const first = (await list()({ since: SINCE, limit: 1 })) as EventsListResult
-    const other = { ...OWNER, id: "ashby:credential:cred-2" }
-    expect(await code(list(fake, NOW, other)({ account: ACCOUNT, cursor: first.cursor }))).toBe("ACCOUNT_MISMATCH")
-    expect(await code(list(fake)({ account: "work", since: SINCE }))).toBe("ACCOUNT_MISMATCH")
-    expect(fake.calls).toEqual([])
-  })
-
-  test("refuses a cursor it did not issue, or one passed without its account, before any read", async () => {
-    const fake = ashby()
-    const first = (await list()({ since: SINCE, limit: 1 })) as EventsListResult
-    expect(await code(list(fake)({ account: ACCOUNT, cursor: "not-a-cursor" }))).toBe("CURSOR_INVALID")
-    expect(await code(list(fake)({ account: ACCOUNT, cursor: encodeBoundCursor({ ...BINDING, plugin: "metaview" }, { o: "0123456789abcdef", t: 0, i: "", f: 0, d: "" }) }))).toBe("CURSOR_INVALID")
-    // This source's binding, without the lookback it always carries.
-    expect(await code(list(fake)({ account: ACCOUNT, cursor: encodeBoundCursor(BINDING, { o: "0123456789abcdef", t: 0, i: "" }) }))).toBe("CURSOR_INVALID")
-    expect(await code(list(fake)({ cursor: first.cursor }))).toBe("INPUT_INVALID")
-    expect(fake.calls).toEqual([])
-  })
-
-  test("refuses another source, a malformed input, a scope, and a listing with no sign-in", async () => {
-    expect(await code(list()({ source: "candidates" }))).toBe("SOURCE_UNKNOWN")
-    expect(await code(list()({ limit: 0 }))).toBe("INPUT_INVALID")
-    expect(await code(list()({ scope: { jobs: ["x"] } }))).toBe("INPUT_INVALID")
-    expect(await code(listEvents(ashby().list, undefined, { since: SINCE }, NOW))).toBe("NEEDS_SIGN_IN")
-  })
-
-  test("stops with UNAVAILABLE when Ashby answers in a form it does not read, rather than report an empty week", async () => {
-    expect(await code(list(ashby(FIXTURE.interviews, () => ({ message: "Here are your interviews" })))({ since: SINCE }))).toBe("UNAVAILABLE")
-    expect(await code(list(ashby(FIXTURE.interviews, (found) => found.map((interview) => ({ ...interview, startTime: "Oct 1" }))))({ since: SINCE }))).toBe("UNAVAILABLE")
-  })
-
-  test("a page where one entry cannot be read answers UNAVAILABLE, lists nothing, and its cursor holds", async () => {
-    const broken = { interviewEventId: "ie-broken", interviewTitle: "Unscheduled", scheduledAt: "2026-10-03T10:00:00Z" }
-    const first = (await list()({ since: SINCE, limit: 1 })) as EventsListResult
-    const mixed = ashby(FIXTURE.interviews, (found, input) => envelope([...found, broken], input))
-    const failure = (await list(mixed)({ account: ACCOUNT, cursor: first.cursor }).catch((error) => error)) as EventsFailure
-    expect(failure).toBeInstanceOf(EventsFailure)
-    expect(failure.code).toBe("UNAVAILABLE")
-    expect(failure.message).toContain("1 of ")
-    // The same cursor reads on once Ashby's answer is whole again: nothing was skipped.
-    const next = (await list()({ account: ACCOUNT, cursor: first.cursor, limit: 1 })) as EventsListResult
-    expect(next.events.map((event) => event.external_id)).toEqual([EXPECTED[1]])
-  })
-
-  test("a week Ashby cuts short is read again in halves, so every interview is listed and none is lost", async () => {
-    const cap = 2
-    const fake = ashby(FIXTURE.interviews, (found, input) => envelope(found.slice(0, cap), input, { truncated: found.length > cap }))
-    const result = (await list(fake)({ since: SINCE, limit: PAGE.max })) as EventsListResult
-    expect(result.events.map((event) => event.external_id)).toEqual(EXPECTED)
-    expect(fake.calls.length).toBeGreaterThan(Math.ceil((NOW - Date.parse(SINCE)) / WINDOW_MS))
-    for (const input of fake.calls) expect(Date.parse(String(input["onOrBeforeDate"])) - Date.parse(String(input["onOrAfterDate"]))).toBeGreaterThanOrEqual(MIN_WINDOW_MS - 1000)
-  })
-
-  test("an hour Ashby still cuts short is UNAVAILABLE; a page out of calls stops before the window, with more and its cursor held", async () => {
-    expect(await code(list(ashby(FIXTURE.interviews, (found) => ({ interviews: found, truncated: true })))({ since: SINCE }))).toBe("UNAVAILABLE")
-    // Each week's first answer is cut short, its halves whole: a page runs out of calls part way, and says there is more.
-    const seen = new Set<string>()
-    const fake = ashby(FIXTURE.interviews, (found) => ({ interviews: found }))
-    const halving = async (input: Record<string, unknown>) => {
-      const span = Date.parse(String(input["onOrBeforeDate"])) - Date.parse(String(input["onOrAfterDate"]))
-      const answer = (await fake.list(input)) as { interviews: unknown[] }
-      return span >= WINDOW_MS ? { ...answer, hasMore: true } : answer
-    }
-    let page = (await listEvents(halving, OWNER, { since: "2025-11-01T00:00:00Z", limit: PAGE.max }, NOW)) as EventsListResult
-    expect(page.more).toBe(true)
-    expect(fake.calls.length).toBeLessThanOrEqual(MAX_CALLS)
-    for (let guard = 0; guard < 40; guard++) {
-      for (const event of page.events) seen.add(event.external_id)
-      if (!page.more) break
-      fake.calls.length = 0
-      page = (await listEvents(halving, OWNER, { account: ACCOUNT, cursor: page.cursor, limit: PAGE.max }, NOW)) as EventsListResult
-      expect(fake.calls.length).toBeLessThanOrEqual(MAX_CALLS)
-    }
-    expect([...seen]).toEqual(EXPECTED)
-  })
-
-  test("an interview that becomes visible late, behind the cursor and inside the lookback, is listed exactly once", async () => {
-    const day = 86_400_000
-    const db: Record<string, unknown>[] = [{ interviewEventId: "a", interviewTitle: "Screen", startTime: "2026-11-05T10:00:00Z" }]
-    const fake = ashby(db)
-    const read = (input: unknown, at: number) => listEvents(fake.list, OWNER, input, at)
-    const first = await read({ since: "2026-11-01" }, NOW)
-    expect(first.events.map((event) => event.external_id)).toEqual(["a"])
-    // Logged two days after it happened, behind the last listed start, and one in the stretch the cursor already passed.
-    db.push({ interviewEventId: "late-behind", interviewTitle: "Debrief", startTime: "2026-11-04T09:00:00Z" })
-    db.push({ interviewEventId: "late-stretch", interviewTitle: "Pairing", startTime: "2026-11-07T09:00:00Z" })
-    const second = await read({ account: ACCOUNT, cursor: first.cursor }, NOW + 3_600_000)
-    expect(second.events.map((event) => event.external_id)).toEqual(["late-behind", "late-stretch"])
-    // Read again and again: nothing is listed twice, and something new is still listed after them.
-    const third = await read({ account: ACCOUNT, cursor: second.cursor }, NOW + 7_200_000)
-    expect(third.events).toEqual([])
-    db.push({ interviewEventId: "new", interviewTitle: "Final", startTime: "2026-11-08T10:00:00Z" })
-    const fourth = await read({ account: ACCOUNT, cursor: third.cursor }, NOW + day)
-    expect(fourth.events.map((event) => event.external_id)).toEqual(["new"])
-    const fifth = await read({ account: ACCOUNT, cursor: fourth.cursor }, NOW + day + 3_600_000)
-    expect(fifth.events).toEqual([])
-    // One that becomes visible later than the lookback is not listed: the residue the README states.
-    db.push({ interviewEventId: "too-late", interviewTitle: "Old", startTime: new Date(NOW + day - SETTLE_MS - LOOKBACK_MS - day).toISOString() })
-    expect((await read({ account: ACCOUNT, cursor: fifth.cursor }, NOW + day + 7_200_000)).events).toEqual([])
-  })
-
-  test("the cursor remembers at most MAX_SEEN listed interviews, stays within the contract's cursor length, and still never lists one twice", async () => {
-    const busy = Array.from({ length: 120 }, (_, index) => ({ interviewEventId: `busy-${String(index).padStart(3, "0")}`, interviewTitle: "Screen", startTime: new Date(Date.parse("2026-11-03T00:00:00Z") + index * 1_800_000).toISOString() }))
-    const fake = ashby(busy)
-    const seen: string[] = []
-    let page = await listEvents(fake.list, OWNER, { since: "2026-11-02", limit: 7 }, NOW)
-    for (let guard = 0; guard < 40; guard++) {
-      seen.push(...page.events.map((event) => event.external_id))
-      expect(page.cursor.length).toBeLessThanOrEqual(EVENT_LIMITS.cursor)
-      const state = JSON.parse(Buffer.from(page.cursor, "base64url").toString("utf8")) as { d: string }
-      expect(state.d.length / 11).toBeLessThanOrEqual(MAX_SEEN)
-      if (!page.more) break
-      page = await listEvents(fake.list, OWNER, { account: ACCOUNT, cursor: page.cursor, limit: 7 }, NOW)
-    }
-    expect(seen).toEqual(busy.map((interview) => interview.interviewEventId))
-    expect((await listEvents(fake.list, OWNER, { account: ACCOUNT, cursor: page.cursor }, NOW)).events).toEqual([])
-  })
-
-  test("a week too dense for one page's calls is read across pages: every page moves on, within its calls, and none is lost", async () => {
-    // Ashby answers at most one interview per call, so a week of 40 needs far more calls than one page has.
-    const dense = Array.from({ length: 40 }, (_, index) => ({ interviewEventId: `d-${String(index).padStart(2, "0")}`, interviewTitle: "Screen", startTime: new Date(Date.parse("2026-11-02T00:00:00Z") + index * 3 * 3_600_000).toISOString() }))
-    let calls = 0
-    const capped = ashby(dense, (found, input) => envelope(found.slice(0, 1), input, { truncated: found.length > 1 }))
-    const counted = async (input: Record<string, unknown>) => ((calls += 1), capped.list(input))
-    const listed: string[] = []
-    let page = await listEvents(counted, OWNER, { since: "2026-11-01T23:00:00Z", limit: PAGE.max }, NOW)
-    let positions = 0
-    for (let guard = 0; guard < 60; guard++) {
-      expect(calls).toBeLessThanOrEqual(MAX_CALLS)
-      listed.push(...page.events.map((event) => event.external_id))
-      if (!page.more) break
-      const before = page.cursor
-      calls = 0
-      page = await listEvents(counted, OWNER, { account: ACCOUNT, cursor: before, limit: PAGE.max }, NOW)
-      expect(page.cursor).not.toBe(before)
-      positions++
-    }
-    expect(positions).toBeGreaterThan(1)
-    expect(listed).toEqual(dense.map((interview) => interview.interviewEventId))
-    expect(LOOKBACK_CALLS).toBeLessThan(MAX_CALLS - 9)
-  })
-
-  test("more than MAX_SEEN interviews in the cursor's minute: every cursor it issues it accepts, and all are listed once (D3)", async () => {
-    for (const [count, limit] of [[45, 100], [50, 45], [60, 10]] as const) {
-      const db: Timed[] = Array.from({ length: count }, (_, k) => ({ id: `j${String(k).padStart(2, "0")}`, t: T0 + DAY + k * 1000, visible: 0 }))
-      db.push({ id: "late-j", t: T0 + DAY + 59_000, visible: T0 + 2 * DAY })
-      const result = await poll(db, T0 + DAY + 2 * HOUR, T0 + 3 * DAY, HOUR, { limit })
-      expect({ count, limit, errors: result.errors }).toEqual({ count, limit, errors: [] })
-      expect(new Set(result.listed).size).toBe(count + 1)
-      expect(result.listed.length).toBe(count + 1)
+    // Built at runtime: the committed file carries no credential-shaped literal, and every part is invented.
+    const scheme = ["ft", "p"].join("")
+    const userinfo = ["ops", "Hb3nQ8vTk2"].join(":")
+    const invented = `${scheme}://${userinfo}@${["files", "example.org", "debrief"].join(".")}`
+    const harness = await two([
+      record("secret", "2026-11-17T12:00:00.000Z", { interviewTitle: `Debrief at ${invented}` }),
+      record("clean", "2026-11-18T10:00:00.000Z"),
+    ])
+    try {
+      const answer = page(await read(harness, { since: SINCE }))
+      expect(ids(await read(harness, { since: SINCE }))).toEqual(["clean"])
+      expect(answer["refused"]).toEqual([{ external_id: "secret", reason: "secret", detail: "holds a secret (connection string)" }])
+      expect(JSON.stringify(answer)).not.toContain("Hb3nQ8vTk2")
+      const next = page(await read(harness, { cursor: answer["cursor"] }))
+      expect(next["events"]).toEqual([])
+      expect(next["refused"]).toBeUndefined()
+    } finally {
+      await harness.dispose()
     }
   })
 
-  test("a dense lookback is read newest part first, so a late arrival near the cursor is listed however small Ashby's cap (E3)", async () => {
-    for (const cap of [2, 4, 8, 16]) {
-      const db: Timed[] = Array.from({ length: 30 }, (_, k) => ({ id: `e${k}`, t: T0 + k * 5.5 * HOUR, visible: 0 }))
-      const started = T0 + 7 * DAY - 3 * HOUR
-      db.push({ id: "late", t: started, visible: started + 30 * HOUR })
-      const result = await poll(db, T0 + 7 * DAY - HOUR, T0 + 10 * DAY, HOUR, { cap, since: new Date(T0).toISOString() })
-      expect({ cap, late: result.listed.includes("late"), errors: result.errors }).toEqual({ cap, late: true, errors: [] })
-      expect(result.listed.length).toBe(new Set(result.listed).size)
-    }
-  })
-
-  test("is allowed by the default rules, and so is probe, at every access", () => {
-    for (const access of ["all", "ask-changes", "read-only"] as const) {
-      for (const action of [EVENTS_ACTION, PROBE_ACTION]) expect(evaluate([{ action: "*", resource: "*", effect: "allow" }, ...defaultRules(access)], action)).toBe("allow")
-    }
-    expect(EVENTS_INPUT.properties.cursor.maxLength).toBeLessThanOrEqual(EVENT_LIMITS.cursor)
-    expect([EVENTS_INPUT.properties.limit.minimum, EVENTS_INPUT.properties.limit.maximum]).toEqual([PAGE.min, PAGE.max])
-  })
-})
-
-const HOUR = 3_600_000
-const DAY = 24 * HOUR
-const T0 = Date.parse("2026-11-01T00:00:00Z")
-/** An interview that started at `t` and that Ashby lists from `visible` on. */
-interface Timed {
-  readonly id: string
-  readonly t: number
-  readonly visible: number
-}
-
-/**
- * A consumer polling every `every` ms from `start` to `stop`, against an Ashby that answers in the recorded envelope, cut
- * short (oldest kept) when more than `cap` fall in the window, and lists an interview only once it is visible.
- */
-async function poll(db: readonly Timed[], start: number, stop: number, every: number, options: { cap?: number; limit?: number; since?: string } = {}) {
-  const clock = { now: start }
-  const ask = async (input: Record<string, unknown>) => {
-    const from = Date.parse(String(input["onOrAfterDate"]))
-    const to = Date.parse(String(input["onOrBeforeDate"]))
-    const all = db.filter((item) => item.visible <= clock.now && item.t >= from && item.t <= to).sort((a, b) => a.t - b.t)
-    const out = all.slice(0, options.cap ?? 1000).map((item) => ({ interviewEventId: item.id, interviewTitle: "Screen", startTime: new Date(item.t).toISOString(), candidate: { id: `c-${item.id}`, name: "Casey Sample" }, interviewers: [] }))
-    return envelope(out, input, { truncated: all.length > out.length })
-  }
-  const listed: string[] = []
-  const errors = new Set<string>()
-  let cursor: string | undefined
-  for (clock.now = start; clock.now <= stop; clock.now += every) {
-    for (let guard = 0; guard < 50; guard++) {
-      try {
-        const page = await listEvents(ask, OWNER, cursor ? { account: ACCOUNT, cursor, limit: options.limit ?? 100 } : { since: options.since ?? new Date(start - DAY).toISOString(), limit: options.limit ?? 100 }, clock.now)
-        listed.push(...page.events.map((event) => event.external_id))
-        cursor = page.cursor
-        if (!page.more) break
-      } catch (error) {
-        errors.add(error instanceof EventsFailure ? error.code : String(error))
-        break
+  test("keeps the cursor within 1024 characters while it remembers at most 40 listed interviews", async () => {
+    const busy = Array.from({ length: 60 }, (_, index) =>
+      record(`busy-${String(index).padStart(2, "0")}`, new Date(Date.parse("2026-11-18T00:00:00.000Z") + index * 1_800_000).toISOString()),
+    )
+    const harness = await two(busy)
+    try {
+      let answer = page(await read(harness, { since: SINCE, limit: 7 }))
+      const seen: string[] = []
+      for (let guard = 0; guard < 20; guard++) {
+        seen.push(...(answer["events"] as { external_id: string }[]).map((event) => event.external_id))
+        expect((answer["cursor"] as string).length).toBeLessThanOrEqual(1024)
+        const state = JSON.parse(Buffer.from(answer["cursor"] as string, "base64url").toString("utf8")) as { d: string }
+        expect(state.d.length / 11).toBeLessThanOrEqual(MAX_SEEN)
+        if (answer["more"] !== true) break
+        answer = page(await read(harness, { cursor: answer["cursor"], limit: 7 }))
       }
+      expect(seen).toEqual(busy.map((interview) => interview.interviewEventId))
+      expect(new Set(seen).size).toBe(seen.length)
+    } finally {
+      await harness.dispose()
     }
-  }
-  return { listed, errors: [...errors] }
-}
-
-/** The owner digest a cursor holds, read back from a cursor the source issued. */
-async function ownerDigestOf(): Promise<string> {
-  const first = (await list()({ since: SINCE, limit: 1 })) as EventsListResult
-  const state = JSON.parse(Buffer.from(first.cursor, "base64url").toString("utf8")) as Record<string, unknown>
-  const digest = state["o"]
-  if (typeof digest !== "string") throw new Error(`the cursor holds no owner digest: ${JSON.stringify(state)}`)
-  return digest
-}
-
-/** A plugin context with OpenCode's sign-in for ashby and its list_interviews executor. */
-function context(options: { label?: string; list?: (input: Record<string, unknown>) => Promise<unknown>; tools?: boolean; status?: string; fail?: unknown } = {}) {
-  const asserted: Record<string, unknown>[] = []
-  const lister = options.list ?? ashby().list
-  const ctx = {
-    tool: {
-      list: async () =>
-        options.tools === false
-          ? []
-          : [
-              {
-                id: `ashby_${LIST_TOOL}`,
-                execute: async (input: Record<string, unknown>) => {
-                  if (options.fail !== undefined) throw options.fail
-                  return { output: await lister(input) }
-                },
-              },
-            ],
-    },
-    mcp: { list: async () => ({ data: [{ name: "ashby", integrationID: "int-1", status: { status: options.status ?? "connected" } }] }) },
-    permission: { assert: async (request: Record<string, unknown>) => void asserted.push(request), hook: async () => ({ dispose: async () => undefined }) },
-    integration: { connection: { active: async () => ({ type: "credential", id: "cred-1", label: options.label ?? "ada@example.test" }) } },
-  }
-  return { ctx: ctx as unknown as EventsContext, asserted }
-}
-
-const toolError = (message: string) => ({ _tag: "Tool.Error", message, error: undefined })
-
-describe("Ashby's failures", () => {
-  const run = (options: Parameters<typeof context>[0]) => eventsMethod(context(options).ctx, () => true, () => NOW).run({ since: SINCE }, { sessionID: "ses_1", agent: "build", messageID: "msg_1", id: "call_1", signal: new AbortController().signal, progress: async () => {} })
-
-  test("Ashby's own error is UNAVAILABLE with its first line redacted, and its rate limit RATE_LIMITED", async () => {
-    const failure = (await run({ fail: toolError("Internal error token=abcdef0123456789\nstack") }).catch((error) => error)) as EventsFailure
-    expect(failure.code).toBe("UNAVAILABLE")
-    expect(failure.message).not.toContain("abcdef0123456789")
-    expect(failure.message).not.toContain("stack")
-    expect(await code(run({ fail: toolError("Rate limit exceeded: 120 requests per minute") }))).toBe("RATE_LIMITED")
-    expect(await code(run({ fail: toolError('MCP server "ashby" is not connected') }))).toBe("UNAVAILABLE")
   })
 
-  test("a missing tool names the server's state: a needed sign-in is NEEDS_SIGN_IN, anything else UNAVAILABLE", async () => {
-    expect(await code(run({ tools: false, status: "needs_auth" }))).toBe("NEEDS_SIGN_IN")
-    expect(await code(run({ tools: false, status: "failed" }))).toBe("UNAVAILABLE")
-    expect(await code(run({ tools: false }))).toBe("UNAVAILABLE")
-  })
-
-  test("a permission refusal passes through unchanged", async () => {
-    const refusal = { _tag: "Tool.Error", message: "denied", error: new Error("the rule denied ashby_list_interviews") }
-    expect(await run({ fail: refusal }).catch((error) => error)).toBe(refusal)
-  })
-})
-
-describe("the owner", () => {
-  test("is always the sign-in's credential id, with its label for display only, and never carries verified yet", async () => {
-    expect(await signedIn(context().ctx)).toEqual(OWNER)
-    expect(await signedIn(context({ label: "" }).ctx)).toEqual({ id: "ashby:credential:cred-1", label: "Ashby sign-in" })
-    const none = { mcp: { list: async () => ({ data: [{ name: "ashby", status: { status: "connected" } }] }) }, integration: { connection: { active: async () => undefined } } }
-    expect(await signedIn(none as never)).toBeUndefined()
-  })
-})
-
-describe("after a restart", () => {
-  const call = { sessionID: "ses_1", agent: "build", messageID: "msg_1", id: "call_1", signal: new AbortController().signal, progress: async () => {} }
-
-  test("a fresh instance lists with no probe before it: the owner is read from OpenCode's sign-in on every listing, and nothing is kept", async () => {
-    let probes = 0
-    const { ctx } = context()
-    const wrapped = { ...ctx, mcp: { list: async () => ((probes++, ctx.mcp.list())) } } as unknown as EventsContext
-    // A new method, as a new OpenCode process builds it: no probe ran in it.
-    const page = (await eventsMethod(wrapped, () => true, () => NOW).run({ since: SINCE, limit: PAGE.max }, call)) as EventsListResult
-    expect(page.events.map((event) => event.external_id)).toEqual(EXPECTED)
-    expect(page.owner).toEqual(OWNER)
-    expect(probes).toBeGreaterThan(0)
-    // A second fresh instance continues from the first one's cursor, still with no probe.
-    const next = (await eventsMethod(context().ctx, () => true, () => NOW).run({ account: ACCOUNT, cursor: page.cursor }, call)) as EventsListResult
-    expect(next).toMatchObject({ events: [], more: false, owner: OWNER })
-  })
-
-  test("a different sign-in than the cursor's is still refused in a fresh instance", async () => {
-    const page = (await eventsMethod(context().ctx, () => true, () => NOW).run({ since: SINCE, limit: 1 }, call)) as EventsListResult
-    const other = context({ list: ashby().list })
-    const switched = { ...other.ctx, integration: { connection: { active: async () => ({ type: "credential", id: "cred-2", label: "bo@example.test" }) } } } as unknown as EventsContext
-    await expect(eventsMethod(switched, () => true, () => NOW).run({ account: ACCOUNT, cursor: page.cursor }, call)).rejects.toThrow(/^ACCOUNT_MISMATCH: /)
-  })
-})
-
-describe("what an event carries", () => {
-  // Every field a real interview could hold that is not metadata, with invented values.
-  const HOSTILE = [
-    {
-      interviewEventId: "ie-9001",
-      interviewTitle: "Screen",
-      jobTitle: "Platform Engineer",
-      startTime: "2026-10-01T09:00:00.000Z",
-      candidate: { id: "cand-9001", name: "Casey Sample", email: "casey.sample@example.test", phone: "+44 7700 900123", phoneNumber: "+44 7700 900124", linkedIn: "https://linkedin.example.test/in/casey" },
-      candidateEmail: "casey.sample@example.test",
-      interviewers: [{ id: "user-9001", name: "Ada Example", email: "ada@example.test", phone: "+44 7700 900125" }],
-      feedback: "FEEDBACK-TEXT strong hire",
-      scorecard: { overall: "STRONG-YES", notes: "SCORECARD-NOTES" },
-      score: 4,
-      rating: "RATING-4",
-      notes: "NOTE-TEXT",
-      transcript: "TRANSCRIPT-TEXT",
-      recordingUrl: "https://recordings.example.test/r/9001",
-      meetingLink: "https://meet.example.net/xyz",
-      resumeUrl: "https://app.ashbyhq.com/resume/9001.pdf",
-      url: "https://app.ashbyhq.com/interviews/ie-9001",
-    },
-  ]
-
-  test("is metadata only: no email, phone, feedback, score, scorecard, note, transcript or recording, whatever the answer holds", async () => {
-    const page = (await list(ashby(HOSTILE))({ since: SINCE, limit: PAGE.max })) as EventsListResult
-    expect(page.events.map((event) => event.external_id)).toEqual(["ie-9001"])
-    // The events, not the owner: the owner is the user's own sign-in label.
-    const out = JSON.stringify(page.events)
-    for (const absent of ["@example.test", "+44 7700", "FEEDBACK-TEXT", "STRONG-YES", "SCORECARD-NOTES", "RATING-4", "NOTE-TEXT", "TRANSCRIPT-TEXT", "recordings.example.test", "meet.example.net", "linkedin.example.test", "resume"]) {
-      expect({ absent, found: out.includes(absent) }).toEqual({ absent, found: false })
+  test("an empty window is an empty page with a cursor that moves on", async () => {
+    const harness = await two([record("a", "2026-11-20T10:00:00.000Z")])
+    try {
+      const quiet = page(await read(harness, { since: "2026-10-25T00:00:00Z", limit: 100 }))
+      expect((quiet["events"] as { external_id: string }[]).map((event) => event.external_id)).toEqual(["a"])
+      const next = page(await read(harness, { cursor: quiet["cursor"] }))
+      expect(next["events"]).toEqual([])
+      expect(next["more"]).toBe(false)
+      const again = page(await read(harness, { cursor: next["cursor"] }))
+      expect(again["events"]).toEqual([])
+    } finally {
+      await harness.dispose()
     }
-    expect(page.events[0]).toMatchObject({ text: "", labels: [], thread: null, actors: [{ role: "candidate", id: "ashby:candidate:cand-9001" }, { role: "interviewer", id: "ashby:user:user-9001" }] })
-    // Only these keys, and no others, ever leave the plugin.
-    expect(Object.keys(page.events[0]!).sort()).toEqual(["account", "actors", "external_id", "hash", "kind", "labels", "occurred_at", "source", "text", "thread", "title", "url"])
-  })
-
-  test("a name that is an address is dropped, not kept", async () => {
-    const page = (await list(ashby([{ ...HOSTILE[0]!, candidate: { id: "cand-9002", name: "casey.sample@example.test" }, interviewers: [{ id: "user-9002", name: "ada@example.test" }] }]))({ since: SINCE, limit: PAGE.max })) as EventsListResult
-    expect(JSON.stringify(page.events)).not.toContain("@")
-  })
-})
-
-describe("probe", () => {
-  test("names OpenCode's sign-in as the owner every page names, and reads nothing", async () => {
-    const page = (await list()({ since: SINCE, limit: 1 })) as EventsListResult
-    const result = ashbyProbe(OWNER, {})
-    expect(probeResultProblems(result, { source: SOURCE, account: ACCOUNT })).toEqual([])
-    expect(result).toEqual({ source: SOURCE, account: ACCOUNT, owner: page.owner, trust: "untrusted" })
-  })
-
-  test("refuses another account, another source, a malformed input and no sign-in", async () => {
-    expect(await code(Promise.resolve().then(() => ashbyProbe(OWNER, { account: "work" })))).toBe("ACCOUNT_MISMATCH")
-    expect(await code(Promise.resolve().then(() => ashbyProbe(OWNER, { source: "candidates" })))).toBe("SOURCE_UNKNOWN")
-    expect(await code(Promise.resolve().then(() => ashbyProbe(OWNER, { since: SINCE })))).toBe("INPUT_INVALID")
-    expect(await code(Promise.resolve().then(() => ashbyProbe(undefined, {})))).toBe("NEEDS_SIGN_IN")
-  })
-})
-
-describe("the tools RPC's events_list and probe", () => {
-  async function rpc(managed = true) {
-    const { ctx, asserted } = context()
-    let handlers: Record<string, (input: unknown, context: unknown) => Promise<unknown>> = {}
-    const host = {
-      ...ctx,
-      location: { directory: "/fixture/project" },
-      rpc: { register: async (_contract: unknown, registered: typeof handlers) => ((handlers = registered), { dispose: async () => undefined }) },
-      session: { get: async ({ sessionID }: { sessionID: string }) => ({ id: sessionID, agent: "build", location: { directory: "/fixture/project" } }) },
-      agent: { get: async () => ({ data: { permissions: [{ action: "*", resource: "*", effect: "allow" }, ...defaultRules("read-only")] } }) },
-    }
-    await registerToolsRpc(host as never, { plugin: PLUGIN, methods: [eventsMethod(ctx, () => managed, () => NOW), probeMethod(ctx, () => managed)], mcp: { server: "ashby", managed: () => managed } })
-    const rpcContext = { signal: new AbortController().signal, error: (type: string, message: string, data?: unknown) => ({ type, message, data }) }
-    return {
-      asserted,
-      run: (input: unknown) => handlers["events_list"]!({ sessionID: "ses_1", input }, rpcContext),
-      probe: (input: unknown) => handlers["probe"]!({ sessionID: "ses_1", input }, rpcContext),
-    }
-  }
-
-  test("asserts ashby_events_list, reads through list_interviews and keeps the contract, under read-only too", async () => {
-    const { run, asserted } = await rpc()
-    const list = async (input: unknown) => {
-      const result = (await run(input)) as Record<string, unknown>
-      if (result["type"] === "failed") throw new Error(String(result["message"]))
-      return result
-    }
-    await assertEventsListConformance(list, { source: SOURCE, account: ACCOUNT, owner: OWNER, since: SINCE, expected: EXPECTED, refused: [SECRET], binding: { plugin: "ashby" }, codes: true, maxBytes: MAX_BYTES })
-    expect(asserted.every((request) => request["action"] === EVENTS_ACTION)).toBe(true)
-  })
-
-  test("probe asserts ashby_probe alone and answers the sign-in", async () => {
-    const { probe, asserted } = await rpc()
-    expect(await probe({})).toEqual({ source: SOURCE, account: ACCOUNT, owner: OWNER, trust: "untrusted" })
-    expect(asserted.map((request) => request["action"])).toEqual([PROBE_ACTION])
-    expect(await probe({ account: "work" })).toMatchObject({ type: "failed", data: { code: "ACCOUNT_MISMATCH" } })
-    expect(await (await rpc(false)).probe({})).toMatchObject({ type: "failed", data: { code: "UNAVAILABLE" } })
-  })
-
-  test("gives a script its code and next step, and refuses beside someone else's ashby server", async () => {
-    expect(await (await rpc()).run({ account: ACCOUNT, cursor: "not-a-cursor" })).toMatchObject({ type: "failed", data: { code: "CURSOR_INVALID", next: expect.stringContaining("since") } })
-    expect(await (await rpc(false)).run({})).toMatchObject({ type: "failed", data: { code: "UNAVAILABLE" } })
   })
 })

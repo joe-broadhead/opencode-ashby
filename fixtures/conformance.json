@@ -1,0 +1,420 @@
+{
+  "$comment": "Recorded by test/conformance/fixture.test.ts through the plugin's real handlers, provider and register, over a fake Ashby MCP transport. Two mcp accounts (work and personal), one events source, its probe, status, and the one changed event. Every person, job, id, link and message is invented.",
+  "plugin": "@we-the-rebel-alliance/ashby-plugin",
+  "accounts": {
+    "real": true,
+    "aliases": [
+      "work",
+      "personal"
+    ],
+    "required": {
+      "method": "events_list",
+      "code": "ACCOUNT_REQUIRED"
+    },
+    "unknown": {
+      "method": "events_list",
+      "account": "nobodyhere",
+      "code": "ACCOUNT_UNKNOWN"
+    },
+    "cursors": [
+      {
+        "method": "events_list",
+        "account": "work",
+        "other": "personal",
+        "code": "CURSOR_INVALID"
+      }
+    ]
+  },
+  "sources": {
+    "ashby.interviews": {
+      "cases": [
+        {
+          "name": "the work account from since",
+          "input": {
+            "source": "ashby",
+            "account": "work",
+            "since": "2026-11-17T00:00:00Z"
+          },
+          "expect": "page",
+          "answer": {
+            "source": "ashby",
+            "account": "work",
+            "owner": {
+              "id": "ashby:credential:cred-work",
+              "label": "Ashby (work)",
+              "verified": false
+            },
+            "events": [
+              {
+                "source": "ashby",
+                "account": "work",
+                "external_id": "iv-1005",
+                "kind": "meeting",
+                "occurred_at": "2026-11-17T12:00:00.000Z",
+                "thread": null,
+                "actors": [
+                  {
+                    "role": "candidate",
+                    "id": "ashby:candidate:cand-1005",
+                    "name": "Eli Example"
+                  },
+                  {
+                    "role": "interviewer",
+                    "id": "ashby:user:user-1001",
+                    "name": "Ada Example"
+                  }
+                ],
+                "title": "Screen with [email] — Call [phone]",
+                "text": "",
+                "url": null,
+                "labels": [],
+                "hash": "sha256:530604ab6d496b7ecdeaa9c25d0ce09c277dfb0d5fcab5c19fdbe4f6dafc56f7"
+              },
+              {
+                "source": "ashby",
+                "account": "work",
+                "external_id": "iv-1001",
+                "kind": "meeting",
+                "occurred_at": "2026-11-18T10:00:00.000Z",
+                "thread": null,
+                "actors": [
+                  {
+                    "role": "candidate",
+                    "id": "ashby:candidate:cand-1001",
+                    "name": "Casey Example"
+                  },
+                  {
+                    "role": "interviewer",
+                    "id": "ashby:user:user-1001",
+                    "name": "Ada Example"
+                  }
+                ],
+                "title": "Hiring manager screen — Platform Engineer",
+                "text": "",
+                "url": "https://app.ashbyhq.com/interviews/iv-1001",
+                "labels": [],
+                "hash": "sha256:37f750921e1d64b5b94a090a90ac377b7e370632af85172142aa0dd0f39e0e02"
+              },
+              {
+                "source": "ashby",
+                "account": "work",
+                "external_id": "iv-1002",
+                "kind": "meeting",
+                "occurred_at": "2026-11-19T09:00:00.000Z",
+                "thread": null,
+                "actors": [
+                  {
+                    "role": "candidate",
+                    "id": "ashby:candidate:cand-1002",
+                    "name": "Drew Sample"
+                  },
+                  {
+                    "role": "interviewer",
+                    "id": "ashby:user:user-1001",
+                    "name": "Ada Example"
+                  },
+                  {
+                    "role": "interviewer",
+                    "id": "ashby:user:user-1002",
+                    "name": "Bo Example"
+                  }
+                ],
+                "title": "Systems design — Platform Engineer",
+                "text": "",
+                "url": null,
+                "labels": [],
+                "hash": "sha256:75da3d91bcc02daecddec95d17cc1edfb7746fb15bdae57fa53e274f23d42e04"
+              }
+            ],
+            "cursor": "eyJ2IjoyLCJzIjoiYXNoYnkiLCJiIjoiY2FiMDgxNzEzMWVhYTQzNCIsIm8iOiJjNmJhOTEwODFjYTMxMTU3IiwidCI6MTc5NTA3ODgwMDAwMCwiaSI6Iml2LTEwMDIiLCJmIjoxNzk0ODczNjAwMDAwLCJkIjoiMzU1YTQ3M2QybjBiN2Q2MzdiNTFrb2YxYTFhNTY2MGswIn0",
+            "more": false,
+            "trust": "untrusted",
+            "plugin": "@we-the-rebel-alliance/ashby-plugin",
+            "asOf": "2026-11-20T12:00:00.000Z"
+          }
+        },
+        {
+          "name": "the first event of work, one at a time",
+          "input": {
+            "account": "work",
+            "since": "2026-11-17T00:00:00Z",
+            "limit": 1
+          },
+          "expect": "page",
+          "answer": {
+            "source": "ashby",
+            "account": "work",
+            "owner": {
+              "id": "ashby:credential:cred-work",
+              "label": "Ashby (work)",
+              "verified": false
+            },
+            "events": [
+              {
+                "source": "ashby",
+                "account": "work",
+                "external_id": "iv-1005",
+                "kind": "meeting",
+                "occurred_at": "2026-11-17T12:00:00.000Z",
+                "thread": null,
+                "actors": [
+                  {
+                    "role": "candidate",
+                    "id": "ashby:candidate:cand-1005",
+                    "name": "Eli Example"
+                  },
+                  {
+                    "role": "interviewer",
+                    "id": "ashby:user:user-1001",
+                    "name": "Ada Example"
+                  }
+                ],
+                "title": "Screen with [email] — Call [phone]",
+                "text": "",
+                "url": null,
+                "labels": [],
+                "hash": "sha256:530604ab6d496b7ecdeaa9c25d0ce09c277dfb0d5fcab5c19fdbe4f6dafc56f7"
+              }
+            ],
+            "cursor": "eyJ2IjoyLCJzIjoiYXNoYnkiLCJiIjoiY2FiMDgxNzEzMWVhYTQzNCIsIm8iOiJjNmJhOTEwODFjYTMxMTU3IiwidCI6MTc5NDkxNjgwMDAwMCwiaSI6Iml2LTEwMDUiLCJmIjoxNzk0ODczNjAwMDAwLCJkIjoiZjFhMWE1NjYwazAifQ",
+            "more": true,
+            "trust": "untrusted",
+            "plugin": "@we-the-rebel-alliance/ashby-plugin",
+            "asOf": "2026-11-20T12:00:00.000Z"
+          }
+        },
+        {
+          "name": "the second, from its cursor",
+          "input": {
+            "account": "work",
+            "cursor": "eyJ2IjoyLCJzIjoiYXNoYnkiLCJiIjoiY2FiMDgxNzEzMWVhYTQzNCIsIm8iOiJjNmJhOTEwODFjYTMxMTU3IiwidCI6MTc5NDkxNjgwMDAwMCwiaSI6Iml2LTEwMDUiLCJmIjoxNzk0ODczNjAwMDAwLCJkIjoiZjFhMWE1NjYwazAifQ",
+            "limit": 1
+          },
+          "expect": "page",
+          "answer": {
+            "source": "ashby",
+            "account": "work",
+            "owner": {
+              "id": "ashby:credential:cred-work",
+              "label": "Ashby (work)",
+              "verified": false
+            },
+            "events": [
+              {
+                "source": "ashby",
+                "account": "work",
+                "external_id": "iv-1001",
+                "kind": "meeting",
+                "occurred_at": "2026-11-18T10:00:00.000Z",
+                "thread": null,
+                "actors": [
+                  {
+                    "role": "candidate",
+                    "id": "ashby:candidate:cand-1001",
+                    "name": "Casey Example"
+                  },
+                  {
+                    "role": "interviewer",
+                    "id": "ashby:user:user-1001",
+                    "name": "Ada Example"
+                  }
+                ],
+                "title": "Hiring manager screen — Platform Engineer",
+                "text": "",
+                "url": "https://app.ashbyhq.com/interviews/iv-1001",
+                "labels": [],
+                "hash": "sha256:37f750921e1d64b5b94a090a90ac377b7e370632af85172142aa0dd0f39e0e02"
+              }
+            ],
+            "cursor": "eyJ2IjoyLCJzIjoiYXNoYnkiLCJiIjoiY2FiMDgxNzEzMWVhYTQzNCIsIm8iOiJjNmJhOTEwODFjYTMxMTU3IiwidCI6MTc5NDk5NjAwMDAwMCwiaSI6Iml2LTEwMDEiLCJmIjoxNzk0ODczNjAwMDAwLCJkIjoiYjdkNjM3YjUxa29mMWExYTU2NjBrMCJ9",
+            "more": true,
+            "trust": "untrusted",
+            "plugin": "@we-the-rebel-alliance/ashby-plugin",
+            "asOf": "2026-11-20T12:00:00.000Z"
+          }
+        },
+        {
+          "name": "the third, from its cursor",
+          "input": {
+            "account": "work",
+            "cursor": "eyJ2IjoyLCJzIjoiYXNoYnkiLCJiIjoiY2FiMDgxNzEzMWVhYTQzNCIsIm8iOiJjNmJhOTEwODFjYTMxMTU3IiwidCI6MTc5NDk5NjAwMDAwMCwiaSI6Iml2LTEwMDEiLCJmIjoxNzk0ODczNjAwMDAwLCJkIjoiYjdkNjM3YjUxa29mMWExYTU2NjBrMCJ9",
+            "limit": 1
+          },
+          "expect": "page",
+          "answer": {
+            "source": "ashby",
+            "account": "work",
+            "owner": {
+              "id": "ashby:credential:cred-work",
+              "label": "Ashby (work)",
+              "verified": false
+            },
+            "events": [
+              {
+                "source": "ashby",
+                "account": "work",
+                "external_id": "iv-1002",
+                "kind": "meeting",
+                "occurred_at": "2026-11-19T09:00:00.000Z",
+                "thread": null,
+                "actors": [
+                  {
+                    "role": "candidate",
+                    "id": "ashby:candidate:cand-1002",
+                    "name": "Drew Sample"
+                  },
+                  {
+                    "role": "interviewer",
+                    "id": "ashby:user:user-1001",
+                    "name": "Ada Example"
+                  },
+                  {
+                    "role": "interviewer",
+                    "id": "ashby:user:user-1002",
+                    "name": "Bo Example"
+                  }
+                ],
+                "title": "Systems design — Platform Engineer",
+                "text": "",
+                "url": null,
+                "labels": [],
+                "hash": "sha256:75da3d91bcc02daecddec95d17cc1edfb7746fb15bdae57fa53e274f23d42e04"
+              }
+            ],
+            "cursor": "eyJ2IjoyLCJzIjoiYXNoYnkiLCJiIjoiY2FiMDgxNzEzMWVhYTQzNCIsIm8iOiJjNmJhOTEwODFjYTMxMTU3IiwidCI6MTc5NTA3ODgwMDAwMCwiaSI6Iml2LTEwMDIiLCJmIjoxNzk0ODczNjAwMDAwLCJkIjoiMzU1YTQ3M2QybjBiN2Q2MzdiNTFrb2YxYTFhNTY2MGswIn0",
+            "more": false,
+            "trust": "untrusted",
+            "plugin": "@we-the-rebel-alliance/ashby-plugin",
+            "asOf": "2026-11-20T12:00:00.000Z"
+          }
+        },
+        {
+          "name": "nothing new from its cursor",
+          "input": {
+            "account": "work",
+            "cursor": "eyJ2IjoyLCJzIjoiYXNoYnkiLCJiIjoiY2FiMDgxNzEzMWVhYTQzNCIsIm8iOiJjNmJhOTEwODFjYTMxMTU3IiwidCI6MTc5NTA3ODgwMDAwMCwiaSI6Iml2LTEwMDIiLCJmIjoxNzk0ODczNjAwMDAwLCJkIjoiMzU1YTQ3M2QybjBiN2Q2MzdiNTFrb2YxYTFhNTY2MGswIn0"
+          },
+          "expect": "page",
+          "answer": {
+            "source": "ashby",
+            "account": "work",
+            "owner": {
+              "id": "ashby:credential:cred-work",
+              "label": "Ashby (work)",
+              "verified": false
+            },
+            "events": [],
+            "cursor": "eyJ2IjoyLCJzIjoiYXNoYnkiLCJiIjoiY2FiMDgxNzEzMWVhYTQzNCIsIm8iOiJjNmJhOTEwODFjYTMxMTU3IiwidCI6MTc5NTE3NDIwMDAwMCwiaSI6IiIsImYiOjE3OTQ4NzM2MDAwMDAsImQiOiIzNTVhNDczZDJuMGI3ZDYzN2I1MWtvZjFhMWE1NjYwazAifQ",
+            "more": false,
+            "trust": "untrusted",
+            "plugin": "@we-the-rebel-alliance/ashby-plugin",
+            "asOf": "2026-11-20T12:00:00.000Z"
+          }
+        },
+        {
+          "name": "the personal account from since",
+          "input": {
+            "account": "personal",
+            "since": "2026-11-17T00:00:00Z"
+          },
+          "expect": "page",
+          "answer": {
+            "source": "ashby",
+            "account": "personal",
+            "owner": {
+              "id": "ashby:credential:cred-personal",
+              "label": "Ashby (personal)",
+              "verified": false
+            },
+            "events": [
+              {
+                "source": "ashby",
+                "account": "personal",
+                "external_id": "iv-2001",
+                "kind": "meeting",
+                "occurred_at": "2026-11-18T15:00:00.000Z",
+                "thread": null,
+                "actors": [
+                  {
+                    "role": "candidate",
+                    "id": "ashby:candidate:cand-2001",
+                    "name": "Frankie Example"
+                  },
+                  {
+                    "role": "interviewer",
+                    "id": "ashby:user:user-2001",
+                    "name": "Gus Sample"
+                  }
+                ],
+                "title": "Values interview — Data Analyst",
+                "text": "",
+                "url": null,
+                "labels": [],
+                "hash": "sha256:5fb568254c68b45c08421957b03edf26796554b6b249059e23892516517df365"
+              }
+            ],
+            "cursor": "eyJ2IjoyLCJzIjoiYXNoYnkiLCJiIjoiYzIwY2NiMzY5MTlhNTAzMCIsIm8iOiI4M2MxOGUxMThmNzU3ZGY4IiwidCI6MTc5NTAxNDAwMDAwMCwiaSI6Iml2LTIwMDEiLCJmIjoxNzk0ODczNjAwMDAwLCJkIjoiZmJmMzBkNTUxdDAifQ",
+            "more": false,
+            "trust": "untrusted",
+            "plugin": "@we-the-rebel-alliance/ashby-plugin",
+            "asOf": "2026-11-20T12:00:00.000Z"
+          }
+        },
+        {
+          "name": "work's cursor under the personal account",
+          "input": {
+            "account": "personal",
+            "cursor": "eyJ2IjoyLCJzIjoiYXNoYnkiLCJiIjoiY2FiMDgxNzEzMWVhYTQzNCIsIm8iOiJjNmJhOTEwODFjYTMxMTU3IiwidCI6MTc5NTA3ODgwMDAwMCwiaSI6Iml2LTEwMDIiLCJmIjoxNzk0ODczNjAwMDAwLCJkIjoiMzU1YTQ3M2QybjBiN2Q2MzdiNTFrb2YxYTFhNTY2MGswIn0"
+          },
+          "expect": "CURSOR_INVALID",
+          "refuses": "CURSOR_INVALID: the cursor was not issued by this source for this account. Next step: Pass a cursor from a previous result for the same account, or start again with since."
+        }
+      ],
+      "probe": {
+        "input": {
+          "account": "work"
+        },
+        "answer": {
+          "source": "ashby",
+          "account": "work",
+          "owner": {
+            "id": "ashby:credential:cred-work",
+            "label": "Ashby (work)",
+            "verified": false
+          },
+          "trust": "untrusted"
+        }
+      }
+    }
+  },
+  "events": {
+    "emitted": [
+      "changed"
+    ],
+    "status": {
+      "name": "ashby",
+      "version": "0.0.0",
+      "host": {
+        "version": "2.4.1",
+        "range": ">=2.4.1 <2.5.0",
+        "tested": [
+          "2.4.1"
+        ]
+      },
+      "state": "ready",
+      "accounts": [
+        {
+          "alias": "work",
+          "state": "ready"
+        },
+        {
+          "alias": "personal",
+          "state": "ready"
+        }
+      ],
+      "unguardedAgents": [],
+      "nextStep": null
+    }
+  },
+  "namespace": "Your Ashby interviews, candidates, pipeline and feedback through Ashby's MCP server; change a candidate, note or stage only when asked."
+}
