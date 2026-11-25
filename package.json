@@ -1,315 +1,322 @@
 {
   "name": "@we-the-rebel-alliance/ashby-plugin",
   "version": "0.0.0",
-  "private": true,
-  "description": "OpenCode plugin for Ashby: find and read your candidates, pipeline, interviews and feedback, and make selected changes, through Ashby's official MCP server",
+  "type": "module",
+  "description": "OpenCode plugin for Ashby: your interviews as events, and Ashby's own MCP tools per account",
   "keywords": [
     "opencode",
     "opencode-plugin",
+    "plugin-contract",
     "ashby"
   ],
   "license": "MIT",
-  "type": "module",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/we-the-rebel-alliance/ashby-plugin.git"
-  },
+  "repository": "github:we-the-rebel-alliance/ashby-plugin",
   "homepage": "https://github.com/we-the-rebel-alliance/ashby-plugin#readme",
   "bugs": {
     "url": "https://github.com/we-the-rebel-alliance/ashby-plugin/issues"
   },
   "exports": {
-    ".": "./dist/index.js",
-    "./tui": "./dist/tui.js",
-    "./icon.svg": "./assets/icon.svg",
-    "./icon-128.png": "./assets/icon-128.png",
-    "./icon-256.png": "./assets/icon-256.png"
+    "./server": "./dist/index.js"
   },
   "files": [
     "dist",
-    "assets/icon.svg",
-    "assets/icon-128.png",
-    "assets/icon-256.png",
     "skills",
+    "assets",
     "README.md",
-    "LICENSE",
-    "CHANGELOG.md"
+    "LICENSE"
   ],
-  "opencode": {
-    "host": ">=2.4.1 <2.5.0",
-    "icons": [
-      {
-        "src": "assets/icon.svg",
-        "mimeType": "image/svg+xml",
-        "sizes": [
-          "any"
-        ]
-      },
-      {
-        "src": "assets/icon-128.png",
-        "mimeType": "image/png",
-        "sizes": [
-          "128x128"
-        ]
-      },
-      {
-        "src": "assets/icon-256.png",
-        "mimeType": "image/png",
-        "sizes": [
-          "256x256"
-        ]
-      }
-    ],
-    "vendor": {
-      "id": "ashby",
-      "name": "Ashby",
-      "domain": "ashbyhq.com",
-      "mark": true
-    }
-  },
   "scripts": {
-    "check": "node scripts/check.mjs",
-    "typecheck": "node scripts/check.mjs typecheck",
-    "build": "node scripts/check.mjs build",
-    "test": "node scripts/check.mjs unit",
-    "test:host": "node scripts/check.mjs host",
-    "test:pack": "node scripts/check.mjs pack",
-    "lint": "node scripts/check.mjs forbidden",
-    "conformance": "node scripts/check.mjs conformance",
-    "drift": "node scripts/check-ashby-tools.mjs",
-    "release:check": "node scripts/release-check.mjs",
-    "capture": "node scripts/capture-tools.mjs"
+    "check": "npm run lint && npm run typecheck && npm run build && npm run test && npm run conformance && npm run test:pack",
+    "lint": "biome check .",
+    "typecheck": "tsc --noEmit",
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/index.js --external:'@opencode/*'",
+    "test": "vitest run",
+    "conformance": "plugin-kit check",
+    "test:pack": "node test/pack/pack.mjs"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.6.9",
     "@opencode/client": "2.4.1",
     "@opencode/plugin": "2.4.1",
     "@opencode/sdk": "2.4.1",
-    "@opentui/core": "0.8.0",
-    "@opentui/solid": "0.8.0",
-    "@types/bun": "1.4.4",
     "@types/node": "24.19.2",
-    "@we-the-rebel-alliance/source-contract": "github:we-the-rebel-alliance/source-contract#2fd55cdc0c6c1067927fefc403a88bfd18c9a971",
+    "@we-the-rebel-alliance/plugin-contract": "github:we-the-rebel-alliance/plugin-contract#v0.0.0",
     "esbuild": "0.28.2",
-    "solid-js": "1.9.17",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "5.1.1"
   },
-  "sources": {
-    "contractVersion": 1,
-    "rpc": "ashby.recruiting.tools",
-    "probe": {
-      "action": "ashby_probe"
+  "capabilities": {
+    "version": 1,
+    "plugin": {
+      "name": "ashby",
+      "title": "Ashby",
+      "summary": "Your Ashby interviews, candidates, pipeline and feedback through Ashby's MCP server; change a candidate, note or stage only when asked.",
+      "vendor": {
+        "id": "ashby",
+        "name": "Ashby",
+        "domain": "ashbyhq.com"
+      },
+      "icons": [
+        {
+          "src": "assets/icon.svg",
+          "type": "image/svg+xml"
+        },
+        {
+          "src": "assets/icon-128.png",
+          "type": "image/png"
+        },
+        {
+          "src": "assets/icon-256.png",
+          "type": "image/png"
+        }
+      ],
+      "host": {
+        "opencode": ">=2.4.1 <2.5.0",
+        "tested": [
+          "2.4.1"
+        ]
+      }
     },
-    "items": [
+    "accounts": {
+      "via": "mcp",
+      "profile": {
+        "$ref": "#/options/properties/accounts/additionalProperties"
+      },
+      "owner": "ashby"
+    },
+    "options": {
+      "type": "object",
+      "properties": {
+        "access": {
+          "type": "string",
+          "enum": [
+            "all",
+            "ask-changes",
+            "read-only"
+          ],
+          "default": "all",
+          "description": "Reads always run. This decides the rest: all runs every change, ask-changes asks before each one, read-only turns them off."
+        },
+        "accounts": {
+          "type": "object",
+          "description": "One profile per account alias. Each alias is its own Ashby MCP server, such as ashby-work.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        },
+        "allowUntestedHost": {
+          "type": "boolean",
+          "default": false,
+          "description": "Start outside the tested OpenCode range."
+        }
+      },
+      "additionalProperties": false
+    },
+    "methods": {
+      "status": {
+        "class": "read",
+        "accounts": "none"
+      },
+      "events_list": {
+        "class": "read",
+        "accounts": "optional",
+        "operations": [
+          "list_interviews"
+        ]
+      },
+      "probe": {
+        "class": "read",
+        "accounts": "optional"
+      },
+      "mcp:add_note_to_candidate": {
+        "class": "write",
+        "accounts": "none",
+        "operations": [
+          "add_note_to_candidate"
+        ]
+      },
+      "mcp:change_application_stage": {
+        "class": "send",
+        "accounts": "none",
+        "operations": [
+          "change_application_stage"
+        ]
+      },
+      "mcp:consider_candidate_for_job": {
+        "class": "send",
+        "accounts": "none",
+        "operations": [
+          "consider_candidate_for_job"
+        ]
+      },
+      "mcp:create_ai_interviewer": {
+        "class": "write",
+        "accounts": "none",
+        "operations": [
+          "create_ai_interviewer"
+        ]
+      },
+      "mcp:create_ai_interviewer_version": {
+        "class": "write",
+        "accounts": "none",
+        "operations": [
+          "create_ai_interviewer_version"
+        ]
+      },
+      "mcp:create_candidate": {
+        "class": "write",
+        "accounts": "none",
+        "operations": [
+          "create_candidate"
+        ]
+      },
+      "mcp:describe_object_fields": {
+        "class": "read",
+        "accounts": "none",
+        "operations": [
+          "describe_object_fields"
+        ]
+      },
+      "mcp:filter_records": {
+        "class": "read",
+        "accounts": "none",
+        "operations": [
+          "filter_records"
+        ]
+      },
+      "mcp:get_ai_interviewer_details": {
+        "class": "read",
+        "accounts": "none",
+        "operations": [
+          "get_ai_interviewer_details"
+        ]
+      },
+      "mcp:get_ai_screening_interview_analytics": {
+        "class": "read",
+        "accounts": "none",
+        "operations": [
+          "get_ai_screening_interview_analytics"
+        ]
+      },
+      "mcp:get_ai_screening_interview_results": {
+        "class": "read",
+        "accounts": "none",
+        "operations": [
+          "get_ai_screening_interview_results"
+        ]
+      },
+      "mcp:get_candidate": {
+        "class": "read",
+        "accounts": "none",
+        "operations": [
+          "get_candidate"
+        ]
+      },
+      "mcp:get_interview_details": {
+        "class": "read",
+        "accounts": "none",
+        "operations": [
+          "get_interview_details"
+        ]
+      },
+      "mcp:get_interview_plan": {
+        "class": "read",
+        "accounts": "none",
+        "operations": [
+          "get_interview_plan"
+        ]
+      },
+      "mcp:get_job_pipeline": {
+        "class": "read",
+        "accounts": "none",
+        "operations": [
+          "get_job_pipeline"
+        ]
+      },
+      "mcp:get_pending_tasks": {
+        "class": "read",
+        "accounts": "none",
+        "operations": [
+          "get_pending_tasks"
+        ]
+      },
+      "mcp:get_record_details": {
+        "class": "read",
+        "accounts": "none",
+        "operations": [
+          "get_record_details"
+        ]
+      },
+      "mcp:get_submitted_feedback": {
+        "class": "read",
+        "accounts": "none",
+        "operations": [
+          "get_submitted_feedback"
+        ]
+      },
+      "mcp:list_interviews": {
+        "class": "read",
+        "accounts": "none",
+        "operations": [
+          "list_interviews"
+        ]
+      },
+      "mcp:search_records_by_name": {
+        "class": "read",
+        "accounts": "none",
+        "operations": [
+          "search_records_by_name"
+        ]
+      },
+      "mcp:submit_mcp_feedback": {
+        "class": "send",
+        "accounts": "none",
+        "operations": [
+          "submit_mcp_feedback"
+        ]
+      },
+      "mcp:update_ai_interviewer_outline": {
+        "class": "write",
+        "accounts": "none",
+        "operations": [
+          "update_ai_interviewer_outline"
+        ]
+      }
+    },
+    "sources": [
       {
         "id": "ashby.interviews",
         "kind": "events",
         "reads": "meeting",
-        "tool": "events_list",
+        "method": "events_list",
         "input": {
           "source": "ashby"
         },
-        "accounts": {
-          "named": false
+        "service": {
+          "id": "ashby.interviews",
+          "label": "Interviews"
         },
-        "permission": {
-          "events": "ashby_events_list",
-          "operations": [
-            "list_interviews"
-          ]
+        "operations": [
+          "list_interviews"
+        ],
+        "cadence": {
+          "suggestMinutes": 2
         },
+        "signals": [
+          "bus"
+        ],
         "private": true,
         "cost": {
           "class": "free"
         },
-        "maxBytes": 65536,
-        "urlHosts": [
-          "*.ashbyhq.com"
-        ]
-      }
-    ]
-  },
-  "jelly": {
-    "title": "Ashby",
-    "summary": "Your Ashby candidates, pipeline, interviews and feedback; add a candidate, note or pipeline entry.",
-    "icon": "assets/icon.svg",
-    "admin": "turn on MCP Server in Ashby (Admin > Organization Setup > Opt-In Features) and give each user Elevated Access",
-    "tools": [
-      {
-        "name": "ashby.describe_object_fields",
-        "permission": "ashby_describe_object_fields",
-        "effect": "allow",
-        "readOnly": true
-      },
-      {
-        "name": "ashby.filter_records",
-        "permission": "ashby_filter_records",
-        "effect": "allow",
-        "readOnly": true
-      },
-      {
-        "name": "ashby.get_candidate",
-        "permission": "ashby_get_candidate",
-        "effect": "allow",
-        "readOnly": true
-      },
-      {
-        "name": "ashby.get_interview_details",
-        "permission": "ashby_get_interview_details",
-        "effect": "allow",
-        "readOnly": true
-      },
-      {
-        "name": "ashby.get_interview_plan",
-        "permission": "ashby_get_interview_plan",
-        "effect": "allow",
-        "readOnly": true
-      },
-      {
-        "name": "ashby.get_job_pipeline",
-        "permission": "ashby_get_job_pipeline",
-        "effect": "allow",
-        "readOnly": true
-      },
-      {
-        "name": "ashby.get_pending_tasks",
-        "permission": "ashby_get_pending_tasks",
-        "effect": "allow",
-        "readOnly": true
-      },
-      {
-        "name": "ashby.get_record_details",
-        "permission": "ashby_get_record_details",
-        "effect": "allow",
-        "readOnly": true
-      },
-      {
-        "name": "ashby.get_submitted_feedback",
-        "permission": "ashby_get_submitted_feedback",
-        "effect": "allow",
-        "readOnly": true
-      },
-      {
-        "name": "ashby.list_interviews",
-        "permission": "ashby_list_interviews",
-        "effect": "allow",
-        "readOnly": true
-      },
-      {
-        "name": "ashby.search_records_by_name",
-        "permission": "ashby_search_records_by_name",
-        "effect": "allow",
-        "readOnly": true
-      },
-      {
-        "name": "ashby.add_note_to_candidate",
-        "permission": "ashby_add_note_to_candidate",
-        "effect": "allow",
-        "readOnly": false
-      },
-      {
-        "name": "ashby.consider_candidate_for_job",
-        "permission": "ashby_consider_candidate_for_job",
-        "effect": "allow",
-        "readOnly": false
-      },
-      {
-        "name": "ashby.create_candidate",
-        "permission": "ashby_create_candidate",
-        "effect": "allow",
-        "readOnly": false
-      },
-      {
-        "name": "ashby.change_application_stage",
-        "permission": "ashby_change_application_stage",
-        "effect": "allow",
-        "readOnly": false
-      },
-      {
-        "name": "ashby.submit_mcp_feedback",
-        "permission": "ashby_submit_mcp_feedback",
-        "effect": "allow",
-        "readOnly": false
-      },
-      {
-        "name": "ashby.get_ai_interviewer_details",
-        "permission": "ashby_get_ai_interviewer_details",
-        "effect": "allow",
-        "readOnly": true
-      },
-      {
-        "name": "ashby.get_ai_screening_interview_analytics",
-        "permission": "ashby_get_ai_screening_interview_analytics",
-        "effect": "allow",
-        "readOnly": true
-      },
-      {
-        "name": "ashby.get_ai_screening_interview_results",
-        "permission": "ashby_get_ai_screening_interview_results",
-        "effect": "allow",
-        "readOnly": true
-      },
-      {
-        "name": "ashby.create_ai_interviewer",
-        "permission": "ashby_create_ai_interviewer",
-        "effect": "allow",
-        "readOnly": false
-      },
-      {
-        "name": "ashby.create_ai_interviewer_version",
-        "permission": "ashby_create_ai_interviewer_version",
-        "effect": "allow",
-        "readOnly": false
-      },
-      {
-        "name": "ashby.update_ai_interviewer_outline",
-        "permission": "ashby_update_ai_interviewer_outline",
-        "effect": "allow",
-        "readOnly": false
+        "maxBytes": 65536
       }
     ],
-    "skills": [
-      "ashby",
-      "ashby-write"
-    ],
-    "rpc": [],
-    "views": [],
-    "signIns": [
-      {
-        "id": "ashby",
-        "label": "Ashby",
-        "server": "ashby"
-      }
-    ],
-    "contributes": {
-      "homeFeeds": [],
-      "homeWidgets": [],
-      "workKinds": [],
-      "settings": [
-        {
-          "key": "access",
-          "label": "Access",
-          "type": "string",
-          "description": "How much the plugin's tools may do. Generates default rules for agents with a base allow rule.",
-          "choices": [
-            {
-              "value": "all",
-              "label": "Allowed",
-              "description": "Every tool runs without asking, reads and changes alike."
-            },
-            {
-              "value": "ask-changes",
-              "label": "Ask before changes",
-              "description": "Reads run without asking. Each change asks you first."
-            },
-            {
-              "value": "read-only",
-              "label": "Read only",
-              "description": "Reads run. Changes never run."
-            }
-          ],
-          "default": "all"
-        }
-      ]
+    "actions": [],
+    "events": {
+      "changed": {}
     }
   }
 }
