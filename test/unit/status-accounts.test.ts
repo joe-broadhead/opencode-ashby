@@ -34,7 +34,7 @@ describe("status", () => {
         expect(Object.keys(answer).sort()).toEqual(["accounts", "host", "name", "nextStep", "state", "unguardedAgents", "version"])
         expect(answer).toMatchObject({
           name: "ashby",
-          version: "0.0.0",
+          version: "0.0.9",
           host: { version: "2.4.1", range: ">=2.4.1 <2.5.0", tested: ["2.4.1"] },
           state: "ready",
           accounts: [{ alias: "default", state: "ready" }],
