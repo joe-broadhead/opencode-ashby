@@ -14,6 +14,7 @@
 - `status` from the host's MCP server state through `statusAnswer`; `probe` reads OpenCode's sign-in and calls Ashby for
   nothing.
 - The two skills, `ashby` and `ashby-write`, are read from `skills/<id>/SKILL.md` at setup and registered through
-  `ctx.skill.transform`, so OpenCode loads them; a missing or broken file is reported in `status` and does not stop the
-  plugin.
+  `ctx.skill.transform`, so OpenCode loads them. Their frontmatter is parsed as YAML with `yaml`, so `description: >`,
+  `|`, `>-` and `|-` register the folded or literal text instead of the marker; a malformed file fails setup with
+  `SCHEMA_VIOLATION`. The parser is bundled into `dist/`, so the package still has no runtime dependency.
 - Generated docs, two skills, `AGENTS.md`, and the conformance, unit, host and pack tests.

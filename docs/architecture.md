@@ -18,14 +18,15 @@ status, and registers its two skills. It has no runtime dependencies and no cred
 | `src/handlers/status.ts`     | `statusAnswer` from the accounts module, one state per alias                                                                         |
 | `src/handlers/events.ts`     | The windows, the lookback, the cursor and the page                                                                                   |
 | `src/handlers/probe.ts`      | The signed-in owner of one alias                                                                                                     |
-| `src/skills.ts`              | Reads `skills/<id>/SKILL.md`, validates its frontmatter, and registers it through `ctx.skill.transform`                              |
+| `src/skills.ts`              | Reads `skills/<id>/SKILL.md`, parses its YAML frontmatter (including `>`, `|` block scalars), checks it and registers it through `ctx.skill.transform` |
 
 ## Setup
 
 1. `assertHost(ctx, manifest)` reads `ctx.app.version` against `>=2.4.1 <2.5.0` and refuses an untested release with
    `HOST_UNTESTED` and a next step, before anything is wired. `allowUntestedHost: true` starts it anyway.
-2. `loadSkills()` reads every `skills/<id>/SKILL.md` and validates its frontmatter; a missing or broken file becomes a
-   `status` problem, never a setup failure.
+2. `readSkills()` reads every `skills/<id>/SKILL.md`, parses its frontmatter as YAML (so `>`, `|`, `>-` and `|-`
+   descriptions register their text) and checks the name, description and body; a malformed file fails setup with
+   `SCHEMA_VIOLATION`.
 3. `registerAccounts(ctx, { manifest, options, server })` registers one Ashby MCP server per alias through
    `ctx.mcp.transform`: `ashby` for `default`, `ashby-work` for `work`. The endpoint is the same for every alias; the
    OAuth credential is keyed by the server name. A transform that throws is recorded as a status problem, never fatal.
@@ -33,8 +34,8 @@ status, and registers its two skills. It has no runtime dependencies and no cred
 5. `createHandlers(...)` builds one handler per own method and passes the manifest's `maxBytes` for the source.
 6. `register(ctx, manifest, handlers)` validates the table against `methods`, generates the access rules into every
    agent, and registers the three tools in the `ashby` namespace and the one RPC id `ashby`.
-7. `ctx.skill.transform(...)` adds each valid skill through OpenCode's skill editor. Setup returns one cleanup that
-   disposes the skill registration and the registration.
+7. `registerSkills(ctx, skills)` adds every checked skill through `ctx.skill.transform`. Setup returns one cleanup
+   that disposes the skill registration and the registration.
 
 The manifest declares the vendor's tools as 22 explicit `mcp:<tool>` rows. `register` refuses a handler for an `mcp:`
 method: the vendor's server owns the tool and its input, so the plugin neither proxies nor re-registers it. That is why

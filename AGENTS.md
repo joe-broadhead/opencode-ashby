@@ -42,7 +42,7 @@ A full check binds the host: run one at a time on a shared machine.
 ## Layout
 
 ```
-src/index.ts          Plugin.define({ id, setup }): assertHost, loadSkills, registerAccounts, register
+src/index.ts          Plugin.define({ id, setup }): assertHost, readSkills, registerAccounts, register
 src/manifest.ts       the installed package's capabilities, validated; the version and package name
 src/accounts.ts       accountName, the per-alias server name, and the host's server record
 src/provider/         the one endpoint, ctx.tool.list()/execute, result and error mapping, the interview answer
@@ -83,9 +83,9 @@ docs/                 the user and maintainer docs; generated sections come from
 - **No bus event and no per-request hook.** The plugin makes no write of its own and receives no webhook, so contract §10
   has nothing to nudge. It installs no `execute.after` hook and declares no event; `register` still owns the one RPC
   registration.
-- **Register the skills once.** `loadSkills` reads every `skills/<id>/SKILL.md` and validates its frontmatter; setup
-  adds them directly through `ctx.skill.transform`. A missing or broken file is a `status` problem, never a setup
-  failure.
+- **Register the skills once.** `readSkills` parses every `skills/<id>/SKILL.md` frontmatter as YAML, so block scalars
+  (`>`, `|`, `>-`, `|-`) register their text; setup adds the checked skills through `registerSkills` and
+  `ctx.skill.transform`. A malformed file fails setup with `SCHEMA_VIOLATION`.
 - **Answer status with `statusAnswer`.** The handler passes the manifest, the installed and host versions, one state per
   alias, the problems setup recorded and `await call.unguardedAgents()`. That call answers `{ ok: true, agents }` or
   `{ ok: false, error }`; pass it as it is, and `statusAnswer` records an unreadable list as a problem and answers with

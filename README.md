@@ -167,9 +167,9 @@ Every failure reads `CODE: What happened. Next step: What to do.` The contract's
 | `UNAVAILABLE` | the provider could not be reached |
 <!-- /generated:errors -->
 
-The plugin's own code is `SKILLS_INVALID`: a bundled skill file is missing or broken, and `status` reports it without
-stopping the plugin. The contract's table above is generated; this one code is the plugin's until the manifest can
-declare it.
+The bundled skill frontmatter is parsed as YAML, so a `description: >` or `description: |` block scalar registers its
+folded or literal text, not the marker. A malformed file (invalid YAML, a missing field, or a bare block marker) fails
+setup with `SCHEMA_VIOLATION`; the contract's table above describes the code.
 
 ## Troubleshooting
 
@@ -188,8 +188,9 @@ declare it.
   exists for one migration and should stay `false`.
 - **`PERMISSION_DENIED`.** The person's own rules refused the call. Change the rule or the `access` level; the plugin
   never routes around it.
-- **`SKILLS_INVALID`.** A bundled `skills/<id>/SKILL.md` is missing or broken. Reinstall the plugin; `status` names the
-  file and the next step. The plugin still starts and its tools still work.
+- **`SCHEMA_VIOLATION` from setup.** A bundled `skills/<id>/SKILL.md` has invalid YAML, a missing field or a bare block
+  marker. The error names the file; reinstall the plugin or fix the file. Descriptions written as `>`, `|`, `>-` or
+  `|-` register their text.
 
 ## Docs
 

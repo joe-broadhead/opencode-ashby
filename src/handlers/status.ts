@@ -41,8 +41,6 @@ export interface StatusParts {
   readonly hostVersion: string
   /** What registering the accounts could not do, one sentence each. */
   readonly accountProblems: readonly string[]
-  /** What reading the bundled skills could not do, one sentence each. */
-  readonly skillProblems?: readonly string[] | undefined
   readonly context: HostContext
 }
 
@@ -60,7 +58,7 @@ export function createStatusHandler(parts: StatusParts): MethodHandler {
           version: parts.version,
           hostVersion: parts.hostVersion,
           accounts: [],
-          problems: [...parts.accountProblems, ...(parts.skillProblems ?? []), ...plan.problems],
+          problems: [...parts.accountProblems, ...plan.problems],
           unguardedAgents: await call.unguardedAgents(),
         })
       }
@@ -71,7 +69,7 @@ export function createStatusHandler(parts: StatusParts): MethodHandler {
         version: parts.version,
         hostVersion: parts.hostVersion,
         accounts: plan.value.accounts.length === 0 ? [] : accountStatuses(plan.value.accounts, signals),
-        problems: [...parts.accountProblems, ...(parts.skillProblems ?? [])],
+        problems: [...parts.accountProblems],
         unguardedAgents: await call.unguardedAgents(),
       })
     },

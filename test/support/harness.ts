@@ -1,7 +1,7 @@
 /**
  * A faithful fake of the OpenCode host, for the plugin's own tests.
  *
- * The real code runs: `assertHost`, `loadSkills`, the skill registration, `registerAccounts`, the provider,
+ * The real code runs: `assertHost`, `readSkills`, `registerSkills`, `registerAccounts`, the provider,
  * `createHandlers` and `register` (doors 1–3). Only OpenCode is faked: `ctx.mcp`, `ctx.skill`, `ctx.tool.list()`,
  * `ctx.integration.connection.active`, the agent rules and the RPC registration. The fake MCP transport answers the way
  * Ashby's server does — the recorded `list_interviews` envelope, its request/answer shape, and its own `Tool.Error` for
@@ -14,7 +14,7 @@ import { assertHost, register } from "@we-the-rebel-alliance/plugin-contract/reg
 import { createHandlers } from "../../src/handlers/index.ts"
 import { manifest as installed } from "../../src/manifest.ts"
 import { createProvider, serverConfig } from "../../src/provider/index.ts"
-import { loadSkills } from "../../src/skills.ts"
+import { readSkills, registerSkills } from "../../src/skills.ts"
 
 /** One interview as Ashby's `list_interviews` answers it: the shape the reader was written against. */
 export interface InterviewRecord {
@@ -63,8 +63,6 @@ export interface HarnessOptions {
   readonly looseAgent?: boolean | undefined
   /** Make `ctx.agent.list()` throw, so status's unguarded-agent read is unknown. */
   readonly agentListThrows?: boolean | undefined
-  /** The skills directory a test runs the real loader over; the plugin's own `skills/` by default. */
-  readonly skillsDir?: string | undefined
 }
 
 /** One recorded call the fake MCP server received. */
@@ -99,7 +97,6 @@ export interface Harness {
   readonly manifest: Manifest
   readonly tools: readonly CapturedTool[]
   readonly skillIds: readonly string[]
-  readonly skillProblems: readonly string[]
   readonly calls: readonly RecordedCall[]
   callTool(method: string, input: unknown, options?: { readonly signal?: AbortSignal }): Promise<CallAnswer>
   callsOf(alias: string): readonly RecordedCall[]
@@ -352,7 +349,7 @@ export async function startHarness(options: HarnessOptions = {}): Promise<Harnes
 
   sessions.set("ses_test", { agent: "build", permissions: [] })
   assertHost(context, manifest)
-  const { skills, problems: skillProblems } = await loadSkills(options.skillsDir)
+  const skills = readSkills()
   const registered = await registerAccounts(context, { manifest, options: pluginOptions, server: () => serverConfig() })
   const provider = createProvider(context)
   const handlers = createHandlers({
@@ -363,19 +360,15 @@ export async function startHarness(options: HarnessOptions = {}): Promise<Harnes
     version: "0.0.0",
     hostVersion: context.app.version,
     accountProblems: registered.problems,
-    skillProblems,
     now: () => fixedNow,
   })
   const registration = await register(context, manifest, handlers)
-  const skillRegistration = await context.skill.transform((editor: { add: (skill: { readonly id: string }) => void }) => {
-    for (const skill of skills) editor.add(skill)
-  })
+  const skillRegistration = await registerSkills(context, skills)
 
   return {
     manifest,
     tools,
     skillIds,
-    skillProblems,
     calls,
     async callTool(method, input, callOptions = {}) {
       const tool = tools.find((entry) => entry.name === method)

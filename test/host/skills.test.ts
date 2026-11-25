@@ -1,30 +1,23 @@
 /**
- * The built bundle on the real OpenCode 2.4.1 host, in an empty project.
+ * The built bundle's skills on the real OpenCode 2.4.1 host, in an empty project.
  *
  * OpenCode discovers a project's own `skills/` folder by itself, so running the host in this repository would list the
  * skills even if the plugin never registered them. This run points the host at an empty temporary project, and at an
  * empty HOME so no user skill can shadow one, then asks the host's own skill list. Every `skills/<id>/SKILL.md` must be
- * there under this package's path: that is the proof that `ctx.skill.transform` ran at setup.
+ * there under this package's path, with the description its YAML frontmatter declares: parsing a block scalar the way
+ * YAML does is the difference between registering `>` and registering its text.
  */
-import { cp, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises"
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { fileURLToPath, pathToFileURL } from "node:url"
+import { fileURLToPath } from "node:url"
 import type { Plugin } from "@opencode/plugin"
+import { load, resolve } from "@opencode/plugin/host"
 import { waitForActivation } from "@we-the-rebel-alliance/plugin-contract/kit"
 import { afterAll, beforeAll, describe, expect, test } from "vitest"
 import { parse as parseYaml } from "yaml"
 
 const root = fileURLToPath(new URL("../..", import.meta.url))
-const skillsDir = join(root, "skills")
-
-/** The bundled SKILL.md's frontmatter, as a real YAML parser reads it. */
-const frontmatter = async (id: string) => {
-  const text = await readFile(join(skillsDir, id, "SKILL.md"), "utf8")
-  const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text)
-  if (!match) throw new Error(`skills/${id}/SKILL.md has no frontmatter`)
-  return (parseYaml(match[1]!) ?? {}) as Record<string, unknown>
-}
 const HOME_KEYS = ["HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME"] as const
 type HomeKey = (typeof HOME_KEYS)[number]
 
@@ -42,17 +35,10 @@ interface ListedPlugin {
 }
 
 let home = ""
-let project = ""
 const previous = new Map<HomeKey, string | undefined>()
-let bundled: string[] = []
 
 beforeAll(async () => {
-  bundled = (await readdir(skillsDir, { withFileTypes: true }))
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort()
   home = await mkdtemp(join(tmpdir(), "ashby-home-"))
-  project = await mkdtemp(join(tmpdir(), "ashby-project-"))
   for (const key of HOME_KEYS) previous.set(key, process.env[key])
   process.env["HOME"] = home
   process.env["XDG_CONFIG_HOME"] = join(home, "config")
@@ -68,15 +54,26 @@ afterAll(async () => {
     else process.env[key] = value
   }
   await rm(home, { recursive: true, force: true })
-  await rm(project, { recursive: true, force: true })
 })
 
 describe("the built plugin's skills on OpenCode 2.4.1", () => {
-  test("registers every skills/*/SKILL.md in an empty project", async () => {
+  test("registers every skills/<id>/SKILL.md after load, with its YAML description", async () => {
+    const entry = resolve({ directory: root }).server
+    expect(entry).toBeDefined()
+    const module = (await load(entry!)) as { readonly default?: Plugin.Plugin }
+    const definition = module.default
+    expect(definition).toBeDefined()
+
+    const ids = (await readdir(join(root, "skills"), { withFileTypes: true }))
+      .filter((directory) => directory.isDirectory())
+      .map((directory) => directory.name)
+      .sort()
+    expect(ids.length).toBeGreaterThan(0)
+
+    const project = await mkdtemp(join(tmpdir(), "ashby-project-"))
     const { OpenCode } = await import("@opencode/sdk")
-    const loaded = (await import(new URL("../../dist/index.js", import.meta.url).href)) as { readonly default: Plugin.Plugin }
     const host = await OpenCode.create({
-      plugins: [loaded.default],
+      plugins: [definition!],
       config: { directory: project },
       app: { name: "opencode", version: "2.4.1" },
       log: { level: "error", emit: () => undefined },
@@ -87,88 +84,33 @@ describe("the built plugin's skills on OpenCode 2.4.1", () => {
       await waitForActivation({
         isActive: async () => {
           const list = (await host.plugin.list({ location: { directory: project } })) as { readonly data: readonly ListedPlugin[] }
-          return list.data.some((entry) => entry.id === "ashby" && entry.state.status === "active")
+          return list.data.some((plugin) => plugin.id === definition!.id && plugin.state.status === "active")
         },
         timeoutMs: 30_000,
       })
       const listed = (await host.skill.list({ location: { directory: project } })) as { readonly data: readonly ListedSkill[] }
-      const own = listed.data
-        .filter((skill) => skill.path.startsWith(`${skillsDir}/`))
-        .map((skill) => skill.id)
-        .sort()
-      expect(bundled.length).toBeGreaterThan(0)
-      expect(own).toEqual(bundled)
-      for (const id of bundled) {
-        const skill = listed.data.find((entry) => entry.id === id)
-        expect(skill?.path).toBe(join(skillsDir, id, "SKILL.md"))
+      for (const id of ids) {
+        const skill = listed.data.find((candidate) => candidate.id === id)
+        expect(skill, `the host did not register the ${id} skill`).toBeDefined()
         expect(skill?.name).toBe(id)
+        expect(skill?.path).toBe(join(root, "skills", id, "SKILL.md"))
         expect(skill?.content.trim()).not.toBe("")
-        const source = await frontmatter(id)
-        const expected = source["description"]
-        expect(typeof expected).toBe("string")
-        expect(String(expected).trim()).not.toBe("")
-        expect(String(expected).trim()).not.toBe(">")
-        expect(String(expected).trim()).not.toBe("|")
-        expect(skill?.description).toBe(expected)
+
+        const text = await readFile(join(root, "skills", id, "SKILL.md"), "utf8")
+        const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text)
+        expect(frontmatter, `the ${id} skill has no frontmatter`).not.toBeNull()
+        const parsed = parseYaml(frontmatter![1] ?? "") as { readonly description?: unknown }
+        expect(typeof parsed.description, `the ${id} skill has no YAML description`).toBe("string")
+        const expected = parsed.description as string
+        expect(expected.trim(), `the ${id} skill has an empty description`).not.toBe("")
+        for (const marker of [">", "|", ">-", "|-", ">+", "|+"]) {
+          expect(expected.trim(), `the ${id} skill registers the block marker ${marker}, not its text`).not.toBe(marker)
+        }
+        expect(skill?.description, `the ${id} skill description is not the YAML text`).toBe(expected)
       }
     } finally {
       await host.close()
-    }
-  }, 60_000)
-
-  test("still loads with a missing or broken skill and reports SKILLS_INVALID in status", async () => {
-    const pkg = await mkdtemp(join(root, "test", ".broken-skills-"))
-    const brokenProject = await mkdtemp(join(tmpdir(), "ashby-broken-project-"))
-    const brokenSkills = join(pkg, "skills")
-    try {
-      await mkdir(join(pkg, "dist"), { recursive: true })
-      await cp(join(root, "dist", "index.js"), join(pkg, "dist", "index.js"))
-      await cp(join(root, "package.json"), join(pkg, "package.json"))
-      await mkdir(join(brokenSkills, "ok"), { recursive: true })
-      await writeFile(join(brokenSkills, "ok", "SKILL.md"), "---\nname: ok\ndescription: Use ok.\n---\n\nThe body.\n")
-      await mkdir(join(brokenSkills, "missing"), { recursive: true })
-      await mkdir(join(brokenSkills, "broken"), { recursive: true })
-      await writeFile(join(brokenSkills, "broken", "SKILL.md"), "---\nname: wrong\ndescription: Use broken.\n---\n\nThe body.\n")
-
-      const { OpenCode } = await import("@opencode/sdk")
-      const loaded = (await import(pathToFileURL(join(pkg, "dist", "index.js")).href)) as { readonly default: Plugin.Plugin }
-      const host = await OpenCode.create({
-        plugins: [loaded.default],
-        config: { directory: brokenProject },
-        app: { name: "opencode", version: "2.4.1" },
-        log: { level: "error", emit: () => undefined },
-      })
-      try {
-        const session = await host.sessions.create({ location: { directory: brokenProject }, agent: "build", permissions: [] })
-        await host.sessions.prompt({ sessionID: session.id, text: "activate the broken-skills test", delivery: "queue" }).catch(() => undefined)
-        await waitForActivation({
-          isActive: async () => {
-            const list = (await host.plugin.list({ location: { directory: brokenProject } })) as { readonly data: readonly ListedPlugin[] }
-            return list.data.some((entry) => entry.id === "ashby" && entry.state.status === "active")
-          },
-          timeoutMs: 30_000,
-        })
-        const listed = (await host.skill.list({ location: { directory: brokenProject } })) as { readonly data: readonly ListedSkill[] }
-        const own = listed.data
-          .filter((skill) => skill.path.startsWith(`${brokenSkills}/`))
-          .map((skill) => skill.id)
-          .sort()
-        expect(own).toEqual(["ok"])
-        const answer = await host.rpc.call({
-          rpcID: "ashby",
-          method: "status",
-          input: { sessionID: session.id, input: {} },
-          location: { directory: brokenProject },
-        })
-        const status = answer?.output as { readonly state?: string; readonly nextStep?: string } | undefined
-        expect(status?.state).toBe("error")
-        expect(String(status?.nextStep)).toContain("SKILLS_INVALID")
-      } finally {
-        await host.close()
-      }
-    } finally {
-      await rm(pkg, { recursive: true, force: true })
-      await rm(brokenProject, { recursive: true, force: true })
+      await rm(project, { recursive: true, force: true })
     }
   }, 60_000)
 })

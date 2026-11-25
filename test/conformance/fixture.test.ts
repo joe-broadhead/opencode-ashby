@@ -138,7 +138,6 @@ describe("the conformance recording", () => {
 
       // The plugin installs no per-request hook and emits no bus event: it makes no write of its own.
       expect(harness.skillIds).toEqual(["ashby", "ashby-write"])
-      expect(harness.skillProblems).toEqual([])
 
       const expected = {
         $comment:
