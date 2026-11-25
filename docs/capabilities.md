@@ -1,8 +1,8 @@
 # Capabilities
 
 The plugin declares 25 methods: three of its own (`status`, `events_list`, `probe`) and 22 pass-through Ashby MCP
-tools. One events source (`ashby.interviews`) and one bus event (`changed`). It offers no actions: every write is one of
-Ashby's own tools, run by the vendor's server under the person's permission.
+tools. One events source (`ashby.interviews`). It offers no actions and no bus event: every write is one of Ashby's own
+tools, run by the vendor's server under the person's permission.
 
 <!-- generated:capabilities -->
 ### Methods
@@ -47,7 +47,7 @@ None.
 
 ### Bus events
 
-`rpc.ashby.changed`
+None.
 <!-- /generated:capabilities -->
 
 ## The interviews source
@@ -94,13 +94,3 @@ the stage's own automations; `submit_mcp_feedback` reaches Ashby's team. `add_no
 notify followers, but it does not email the candidate. `update_ai_interviewer_outline` edits a draft only, so it is
 `write` even though Ashby marks the call destructive. No row needs an `effect` override: under `ask-changes` a non-read
 asks, and under `read-only` it is denied.
-
-## The `changed` event
-
-`changed` is the plugin's one bus event, published as `rpc.ashby.changed`. It says only that a source may have changed:
-`{ capability: "ashby.interviews", account: <alias>, reason: "write" }`.
-
-A pass-through write runs in Ashby's server, not in a plugin handler, so the plugin observes it at the tool result: one
-`execute.after` hook emits `changed` after a completed non-read `mcp:` tool for an alias. A read, an errored call, or
-another plugin's tool emits nothing. The hook adds no text to the model's turn and does not change the result; an app
-that receives a nudge re-reads through RPC, which is the truth.

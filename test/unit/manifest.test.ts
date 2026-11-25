@@ -179,7 +179,6 @@ describe("the capabilities manifest", () => {
         service: { id: "ashby.interviews", label: "Interviews" },
         operations: ["list_interviews"],
         cadence: { suggestMinutes: 2 },
-        signals: ["bus"],
         private: true,
         cost: { class: "free" },
         maxBytes: 65536,
@@ -189,7 +188,7 @@ describe("the capabilities manifest", () => {
     expect(manifest.sources[0]).not.toHaveProperty("thumbnails")
   })
 
-  test("declares the one bus event and nothing else", () => {
-    expect(manifest.events).toEqual({ changed: {} })
+  test("declares no bus event, because it makes no write of its own", () => {
+    expect(manifest.events).toEqual({})
   })
 })

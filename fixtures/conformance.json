@@ -1,5 +1,5 @@
 {
-  "$comment": "Recorded by test/conformance/fixture.test.ts through the plugin's real handlers, provider and register, over a fake Ashby MCP transport. Two mcp accounts (work and personal), one events source, its probe, status, and the one changed event. Every person, job, id, link and message is invented.",
+  "$comment": "Recorded by test/conformance/fixture.test.ts through the plugin's real handlers, provider and register, over a fake Ashby MCP transport. Two mcp accounts (work and personal), one events source, its probe, and status. The plugin emits no bus event. Every person, job, id, link and message is invented.",
   "plugin": "@we-the-rebel-alliance/ashby-plugin",
   "accounts": {
     "real": true,
@@ -388,9 +388,7 @@
     }
   },
   "events": {
-    "emitted": [
-      "changed"
-    ],
+    "emitted": [],
     "status": {
       "name": "ashby",
       "version": "0.0.0",

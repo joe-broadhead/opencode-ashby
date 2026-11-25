@@ -47,7 +47,7 @@ describe("the built plugin on OpenCode 2.4.1", () => {
       expect(run.tools.every((tool) => tool.codemode === true)).toBe(true)
       expect(run.rpc?.id).toBe("ashby")
       expect([...(run.rpc?.methods ?? [])].sort()).toEqual(["events_list", "probe", "status"])
-      expect(run.rpc?.events).toEqual(["changed"])
+      expect(run.rpc?.events).toEqual([])
       expect(run.agents.length).toBeGreaterThan(0)
       for (const agent of run.agents) {
         if (evaluate(agent.permissions, "*", "*") === "deny") continue

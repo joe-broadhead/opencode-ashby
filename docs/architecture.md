@@ -3,14 +3,14 @@
 The plugin is a thin contract layer over Ashby's own MCP server. OpenCode owns the MCP transport, OAuth, credentials,
 permission prompts and result limits; Ashby owns its 22 tool inputs and results. The plugin declares the accounts,
 writes one handler table for its three own methods, reads `list_interviews` through OpenCode's own executor, reports
-status, and emits one nudge after a pass-through write. It has no runtime dependencies and no credentials of its own.
+status, and registers its two skills. It has no runtime dependencies and no credentials of its own.
 
 ## Layout
 
 | Path                         | Role                                                                                                                                 |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/index.ts`               | `Plugin.define({ id, setup })`: the host gate, the accounts, the handler table, `register`, the one tool hook                        |
-| `src/manifest.ts`            | Reads `package.json`, validates and exports `capabilities`, the version and the package name                                         |
+| `src/index.ts`               | `Plugin.define({ id, setup })`: the host gate, the accounts, the handler table, `register`, the two skills           |
+| `src/manifest.ts`            | Reads `package.json`, validates and exports `capabilities`, the version and the package name                         |
 | `src/accounts.ts`            | The one server-name derivation (`accountName`), and the host's record of one alias's server                                          |
 | `src/provider/index.ts`      | The only place the Ashby endpoint is named; `ctx.tool.list()`/`execute`, result and error mapping, the owner from OpenCode's sign-in |
 | `src/provider/interviews.ts` | Ashby's `list_interviews` envelope, the interview facts, the event, and contact masking                                              |
@@ -18,21 +18,23 @@ status, and emits one nudge after a pass-through write. It has no runtime depend
 | `src/handlers/status.ts`     | `statusAnswer` from the accounts module, one state per alias                                                                         |
 | `src/handlers/events.ts`     | The windows, the lookback, the cursor and the page                                                                                   |
 | `src/handlers/probe.ts`      | The signed-in owner of one alias                                                                                                     |
-| `src/bus.ts`                 | The one `execute.after` hook that emits `changed`                                                                                    |
+| `src/skills.ts`              | Reads `skills/<id>/SKILL.md`, validates its frontmatter, and registers it through `ctx.skill.transform`                              |
 
 ## Setup
 
 1. `assertHost(ctx, manifest)` reads `ctx.app.version` against `>=2.4.1 <2.5.0` and refuses an untested release with
    `HOST_UNTESTED` and a next step, before anything is wired. `allowUntestedHost: true` starts it anyway.
-2. `registerAccounts(ctx, { manifest, options, server })` registers one Ashby MCP server per alias through
+2. `loadSkills()` reads every `skills/<id>/SKILL.md` and validates its frontmatter; a missing or broken file becomes a
+   `status` problem, never a setup failure.
+3. `registerAccounts(ctx, { manifest, options, server })` registers one Ashby MCP server per alias through
    `ctx.mcp.transform`: `ashby` for `default`, `ashby-work` for `work`. The endpoint is the same for every alias; the
    OAuth credential is keyed by the server name. A transform that throws is recorded as a status problem, never fatal.
-3. `createProvider(ctx)` closes over the host context; nothing is cached between calls.
-4. `createHandlers(...)` builds one handler per own method and passes the manifest's `maxBytes` for the source.
-5. `register(ctx, manifest, handlers)` validates the table against `methods`, generates the access rules into every
-   agent, registers the three tools in the `ashby` namespace and the one RPC id `ashby`, and returns the bus writer.
-6. `installChangedHook(...)` adds the one `ctx.tool.hook("execute.after")` callback. Setup returns one cleanup that
-   disposes the hook and the registration.
+4. `createProvider(ctx)` closes over the host context; nothing is cached between calls.
+5. `createHandlers(...)` builds one handler per own method and passes the manifest's `maxBytes` for the source.
+6. `register(ctx, manifest, handlers)` validates the table against `methods`, generates the access rules into every
+   agent, and registers the three tools in the `ashby` namespace and the one RPC id `ashby`.
+7. `registerSkills(ctx.skill, skills)` adds each valid skill through OpenCode's skill editor. Setup returns one cleanup
+   that disposes the skill registration and the registration.
 
 The manifest declares the vendor's tools as 22 explicit `mcp:<tool>` rows. `register` refuses a handler for an `mcp:`
 method: the vendor's server owns the tool and its input, so the plugin neither proxies nor re-registers it. That is why
@@ -69,17 +71,6 @@ are `ready` (the host is connecting), `needs_auth` is `needs_sign_in`, and `disa
 `{ ok: true, agents }` or `{ ok: false, error }`, and `statusAnswer` records an unreadable list as a problem and answers
 with an empty list. It keeps no state between `register` and the call.
 
-## The one hook
-
-A pass-through write never enters a plugin handler, so the plugin cannot emit from one. It observes the result instead:
-one `ctx.tool.hook("execute.after")` callback looks the effective tool id up in the set of the plugin's non-read
-`mcp:` tools for each alias, and on `status: "completed"` emits
-`changed { capability: "ashby.interviews", account, reason: "write" }` through `registration.bus`.
-
-The hook is observation only: it adds no text to the model's turn, changes no result, and never throws into the tool
-call. It is the plugin's only bus wiring and its only hook. A read, an errored call or another plugin's tool emits
-nothing; a missed nudge costs one re-read, never data.
-
 ## OpenCode APIs used
 
 | API                                                          | Why                                                       |
@@ -89,8 +80,8 @@ nothing; a missed nudge costs one re-read, never data.
 | `ctx.mcp.transform`, `ctx.mcp.list()`                        | One Ashby server per alias, and its state                 |
 | `ctx.tool.transform` (through `register`)                    | The three own tools, in the `ashby` namespace             |
 | `ctx.tool.list()`, `tool.execute`                            | `list_interviews` through the vendor's own executor       |
-| `ctx.tool.hook("execute.after")`                             | The one `changed` nudge                                   |
 | `ctx.integration.connection.active`                          | The signed-in owner `probe` and every page name           |
+| `ctx.skill.transform`                                        | The plugin's two skills, from `skills/<id>/SKILL.md`       |
 | `ctx.agent.transform`, `ctx.agent.list` (through `register`) | The generated access rules, and status's unguarded agents |
 | `ctx.rpc.register` (through `register`)                      | The one RPC id `ashby`                                    |
 

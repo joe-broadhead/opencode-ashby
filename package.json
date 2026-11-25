@@ -307,9 +307,6 @@
         "cadence": {
           "suggestMinutes": 2
         },
-        "signals": [
-          "bus"
-        ],
         "private": true,
         "cost": {
           "class": "free"
@@ -318,8 +315,6 @@
       }
     ],
     "actions": [],
-    "events": {
-      "changed": {}
-    }
+    "events": {}
   }
 }

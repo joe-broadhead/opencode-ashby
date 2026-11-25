@@ -2,13 +2,12 @@
 
 An OpenCode automation can read interviews on a timer and hand them to an agent or a script. Its code action runs in
 Code Mode with the plugin's tools, and OpenCode keeps the automation's `state` between runs, which is where the cursor
-belongs. The plugin emits `changed` after a pass-through write, but the source's own correctness is the cursor: pull is
-the truth, the nudge only makes a re-read sooner.
+belongs. The source's own correctness is the cursor: pull is the truth, and there is no bus nudge to wait for.
 
 <!-- generated:automations -->
 | Source | Method | Provider floor | Suggested | Signals |
 |---|---|---|---|---|
-| `ashby.interviews` | `tools.ashby.events_list` | — | 2 min | `bus` |
+| `ashby.interviews` | `tools.ashby.events_list` | — | 2 min | — |
 <!-- /generated:automations -->
 
 ## A timer recipe

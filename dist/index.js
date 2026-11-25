@@ -12321,6 +12321,9 @@ function assertHost(context, manifest2) {
   );
 }
 
+// src/handlers/events.ts
+import { createHash as createHash5 } from "node:crypto";
+
 // src/accounts.ts
 var PLUGIN = "ashby";
 function serverName(alias) {
@@ -12338,34 +12341,6 @@ async function serverRecord(context, alias) {
     ...server.integrationID === void 0 ? {} : { integrationID: server.integrationID }
   };
 }
-
-// src/bus.ts
-function changedTools(manifest2, aliases) {
-  const declared = aliases.length === 0 ? ["default"] : aliases;
-  const rows = Object.entries(manifest2.methods).filter(([method, item2]) => method.startsWith("mcp:") && item2.class !== "read");
-  const tools = /* @__PURE__ */ new Map();
-  for (const alias of declared) {
-    for (const [method] of rows) tools.set(toolAction(serverName(alias), method.slice("mcp:".length)), { alias, method });
-  }
-  return tools;
-}
-async function installChangedHook(context, manifest2, aliases, bus) {
-  const capability = manifest2.sources[0]?.id;
-  if (capability === void 0) return { async dispose() {
-  } };
-  const tools = changedTools(manifest2, aliases);
-  return context.tool.hook("execute.after", async (event) => {
-    if (event.status !== "completed") return;
-    const id = typeof event.tool === "string" && event.tool !== "" ? event.tool : event.info?.options?.permission;
-    if (typeof id !== "string") return;
-    const hit = tools.get(id);
-    if (hit === void 0) return;
-    await bus.emit("changed", { capability, account: hit.alias, reason: "write" });
-  });
-}
-
-// src/handlers/events.ts
-import { createHash as createHash5 } from "node:crypto";
 
 // src/manifest.ts
 import { readFileSync } from "node:fs";
@@ -12991,16 +12966,9 @@ var index_default = Plugin.define({
       skillProblems
     });
     const registration = await register(context, manifest, handlers);
-    const hook = await installChangedHook(
-      context,
-      manifest,
-      accounts.accounts.map((account) => account.alias),
-      registration.bus
-    );
     const skillRegistration = await registerSkills(context.skill, skills);
     return async () => {
       await skillRegistration.dispose();
-      await hook.dispose();
       await registration.dispose();
     };
   }

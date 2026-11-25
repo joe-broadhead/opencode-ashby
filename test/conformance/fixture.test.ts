@@ -74,7 +74,7 @@ const refusal = (answer: { ok: true } | { ok: false; code: string; message: stri
 }
 
 describe("the conformance recording", () => {
-  test("records two aliases, their pages, probe, status and the one bus event, and matches the committed fixture", async () => {
+  test("records two aliases, their pages, probe, status and no bus event, and matches the committed fixture", async () => {
     const harness = await startHarness({
       accounts: { work: { interviews: WORK }, personal: { interviews: PERSONAL } },
       now: NOW,
@@ -136,13 +136,13 @@ describe("the conformance recording", () => {
         trust: "untrusted",
       })
 
-      // The one nudge: a completed non-read pass-through tool for work.
-      await harness.fireToolHook({ status: "completed", tool: "ashby-work_add_note_to_candidate" })
-      expect(harness.emitted).toEqual([{ event: "changed", data: { capability: "ashby.interviews", account: "work", reason: "write" } }])
+      // The plugin installs no per-request hook and emits no bus event: it makes no write of its own.
+      expect(harness.skillIds).toEqual(["ashby", "ashby-write"])
+      expect(harness.skillProblems).toEqual([])
 
       const expected = {
         $comment:
-          "Recorded by test/conformance/fixture.test.ts through the plugin's real handlers, provider and register, over a fake Ashby MCP transport. Two mcp accounts (work and personal), one events source, its probe, status, and the one changed event. Every person, job, id, link and message is invented.",
+          "Recorded by test/conformance/fixture.test.ts through the plugin's real handlers, provider and register, over a fake Ashby MCP transport. Two mcp accounts (work and personal), one events source, its probe, and status. The plugin emits no bus event. Every person, job, id, link and message is invented.",
         plugin: packageName,
         accounts: {
           real: true,
@@ -170,7 +170,7 @@ describe("the conformance recording", () => {
             probe: { input: { account: "work" }, answer: probe.output },
           },
         },
-        events: { emitted: harness.emitted.map((entry) => entry.event), status },
+        events: { emitted: [], status },
         namespace: harness.manifest.plugin.summary,
       }
 

@@ -21,7 +21,6 @@ dependencies. Its handler table is three methods (`status`, `events_list`, `prob
 | Capability ids                    | `ashby.interviews`                                                                |
 | Accounts                          | `mcp`: `ashby` for `default`, `ashby-<alias>` for others                          |
 | Permission actions                | `ashby.<method>`, on resources `<alias>:<operation>`; MCP tools `<server>_<tool>` |
-| Bus event                         | `rpc.ashby.changed`                                                               |
 
 ## Commands
 
@@ -43,16 +42,15 @@ A full check binds the host: run one at a time on a shared machine.
 ## Layout
 
 ```
-src/index.ts          Plugin.define({ id, setup }): assertHost, registerAccounts, register, one tool hook
+src/index.ts          Plugin.define({ id, setup }): assertHost, loadSkills, registerAccounts, register
 src/manifest.ts       the installed package's capabilities, validated; the version and package name
 src/accounts.ts       accountName, the per-alias server name, and the host's server record
 src/provider/         the one endpoint, ctx.tool.list()/execute, result and error mapping, the interview answer
 src/handlers/         the one handler table and one file per own method
-src/bus.ts            the execute.after hook that emits changed
 src/skills.ts         reads skills/<id>/SKILL.md and registers them through ctx.skill.transform
 skills/ashby/         the read skill
 skills/ashby-write/   the change skill
-test/unit/            manifest, provider mapping, events semantics, accounts, bus, errors, skills
+test/unit/            manifest, provider mapping, events semantics, accounts, errors, skills
 test/conformance/     the fake MCP transport and the regenerated fixtures/conformance.json
 test/host/            the built bundle on the real 2.4.1 host (createHost), including the skills list in an empty project
 test/pack/            the packed tarball
@@ -82,9 +80,12 @@ docs/                 the user and maintainer docs; generated sections come from
 
 - **Gate the host first.** `assertHost(ctx, manifest)` at the top of `setup` reads `ctx.app.version` against
   `capabilities.plugin.host.opencode` and refuses an untested release with `HOST_UNTESTED`.
-- **Emit through the registration.** `register` builds the typed writer from its one RPC registration, returns it as
-  `registration.bus` and gives every handler call `call.bus`. This plugin emits only from the `execute.after` hook, so it
-  uses `registration.bus`; it never calls `ctx.rpc.register` itself.
+- **No bus event and no per-request hook.** The plugin makes no write of its own and receives no webhook, so contract §10
+  has nothing to nudge. It installs no `execute.after` hook and declares no event; `register` still owns the one RPC
+  registration.
+- **Register the skills once.** `loadSkills` reads every `skills/<id>/SKILL.md` and validates its frontmatter;
+  `registerSkills` adds them through `ctx.skill.transform`. A missing or broken file is a `status` problem, never a
+  setup failure.
 - **Answer status with `statusAnswer`.** The handler passes the manifest, the installed and host versions, one state per
   alias, the problems setup recorded and `await call.unguardedAgents()`. That call answers `{ ok: true, agents }` or
   `{ ok: false, error }`; pass it as it is, and `statusAnswer` records an unreadable list as a problem and answers with
@@ -92,8 +93,6 @@ docs/                 the user and maintainer docs; generated sections come from
 - **Reuse the contract's schemas.** `STATUS_SCHEMA` from `accounts`; `EVENTS_LIST_INPUT_SCHEMA` is `events_list`'s input,
   and `PAGE_SCHEMA` and `PROBE_SCHEMA` from `events` are its page and probe outputs. Copying those shapes into the
   plugin is drift.
-- **The one hook is observation only.** `execute.after` looks up a completed non-read `mcp:` tool for an alias and emits
-  `changed`. It adds no model text and changes no result. It is the plugin's only bus wiring and its only hook.
 
 ## Adding a capability
 

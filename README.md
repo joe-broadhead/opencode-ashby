@@ -134,7 +134,7 @@ None.
 
 ### Bus events
 
-`rpc.ashby.changed`
+None.
 <!-- /generated:capabilities -->
 
 ## Errors
@@ -167,6 +167,10 @@ Every failure reads `CODE: What happened. Next step: What to do.` The contract's
 | `UNAVAILABLE` | the provider could not be reached |
 <!-- /generated:errors -->
 
+The plugin's own code is `SKILLS_INVALID`: a bundled skill file is missing or broken, and `status` reports it without
+stopping the plugin. The contract's table above is generated; this one code is the plugin's until the manifest can
+declare it.
+
 ## Troubleshooting
 
 - **No Ashby tools, or `NEEDS_SIGN_IN`.** Sign in to that account's server: `/connect` and choose it, or
@@ -184,10 +188,12 @@ Every failure reads `CODE: What happened. Next step: What to do.` The contract's
   exists for one migration and should stay `false`.
 - **`PERMISSION_DENIED`.** The person's own rules refused the call. Change the rule or the `access` level; the plugin
   never routes around it.
+- **`SKILLS_INVALID`.** A bundled `skills/<id>/SKILL.md` is missing or broken. Reinstall the plugin; `status` names the
+  file and the next step. The plugin still starts and its tools still work.
 
 ## Docs
 
-- [Capabilities](docs/capabilities.md): the source, the 22 pass-through tools, and the `changed` event.
+- [Capabilities](docs/capabilities.md): the source and the 22 pass-through tools.
 - [Accounts](docs/accounts.md): one server per alias, sign-in, and picking an account in a call.
 - [Configuration](docs/configuration.md): every option.
 - [Architecture](docs/architecture.md): the provider client, the OpenCode APIs used, and what is cached.
