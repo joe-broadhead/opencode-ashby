@@ -15,7 +15,7 @@ import { listEvents, SOURCE_ID } from "./events.ts"
 import { createProbeHandler } from "./probe.ts"
 import { createStatusHandler } from "./status.ts"
 
-/** The source's bound when the manifest somehow omits it: the contract's own default page size. */
+/** The source's bound when the manifest somehow omits it: the contract's default `maxBytes` for one answer. */
 export const FALLBACK_MAX_BYTES = 65_536
 
 export const EVENTS_DESCRIPTION =
