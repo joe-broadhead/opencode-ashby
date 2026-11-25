@@ -65,12 +65,12 @@ describe("the capabilities manifest", () => {
     ])
     expect(manifestHash(manifest)).toMatch(/^sha256:[0-9a-f]{64}$/)
     expect(packageName).toBe("@we-the-rebel-alliance/ashby-plugin")
-    expect(version).toBe("0.0.8")
+    expect(version).toBe("0.0.0")
   })
 
   test("declares the package shape the standard names: one server entry, no runtime dependencies, pinned dev tooling", () => {
     expect(pkg["name"]).toBe("@we-the-rebel-alliance/ashby-plugin")
-    expect(pkg["version"]).toBe("0.0.8")
+    expect(pkg["version"]).toBe("0.0.0")
     expect(pkg["engines"]).toEqual({ node: ">=24" })
     expect(pkg["type"]).toBe("module")
     expect(pkg["license"]).toBe("MIT")

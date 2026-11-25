@@ -23,7 +23,7 @@ if (!checked.ok) throw new Error(`ashby: capabilities is not a valid manifest: $
 export const manifest: Manifest = checked.value
 
 /** The installed package's version, for `status`. */
-export const version: string = typeof pkg.version === "string" && pkg.version !== "" ? pkg.version : "0.0.8"
+export const version: string = typeof pkg.version === "string" && pkg.version !== "" ? pkg.version : "0.0.0"
 
 /** The installed package's name, which every events page names. */
 export const packageName: string = typeof pkg.name === "string" && pkg.name !== "" ? pkg.name : "@we-the-rebel-alliance/ashby-plugin"
