@@ -14,4 +14,13 @@
 - `status` from the host's MCP server state through `statusAnswer`; `probe` reads OpenCode's sign-in and calls Ashby for
   nothing.
 - One `execute.after` hook that emits `changed` after a completed non-read pass-through tool.
+- The two skills, `ashby` and `ashby-write`, are read from `skills/<id>/SKILL.md` at setup and registered through
+  `ctx.skill.transform`, so OpenCode loads them; a missing or broken file is reported in `status` and does not stop the
+  plugin.
 - Generated docs, two skills, `AGENTS.md`, and the conformance, unit, host and pack tests.
+
+### Removed since v0.0.7
+
+- The `/ashby-status` command and the `/ashby` status dialog, with its `./tui` export.
+- The RPC ids `ashby.recruiting`, `ashby.recruiting.tools` and `ashby.recruiting.tui`: every method is now on the one
+  RPC id `ashby`.

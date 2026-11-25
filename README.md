@@ -59,6 +59,13 @@ opencode mcp auth ashby-personal
 Ashby does not confirm. With more than one alias, every method that takes an account needs one: leaving it out is
 `ACCOUNT_REQUIRED`, and an alias the plugin does not serve is `ACCOUNT_UNKNOWN`.
 
+## Skills
+
+The plugin ships two skills. `ashby` covers reads: a candidate's stage and profile, pipelines and counts, interviews,
+feedback and pending tasks. `ashby-write` covers changes: a note, a new candidate, an application stage, an AI screening
+draft, feedback to Ashby. OpenCode loads both when the plugin starts. They say when to use the plugin rather than
+guess, how to pick an account when several are signed in, and whom a change reaches.
+
 ## Access
 
 `access` is the ceiling for the agent rules the plugin generates:

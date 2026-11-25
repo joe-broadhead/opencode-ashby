@@ -49,11 +49,12 @@ src/accounts.ts       accountName, the per-alias server name, and the host's ser
 src/provider/         the one endpoint, ctx.tool.list()/execute, result and error mapping, the interview answer
 src/handlers/         the one handler table and one file per own method
 src/bus.ts            the execute.after hook that emits changed
+src/skills.ts         reads skills/<id>/SKILL.md and registers them through ctx.skill.transform
 skills/ashby/         the read skill
 skills/ashby-write/   the change skill
-test/unit/            manifest, provider mapping, events semantics, accounts, bus, errors
+test/unit/            manifest, provider mapping, events semantics, accounts, bus, errors, skills
 test/conformance/     the fake MCP transport and the regenerated fixtures/conformance.json
-test/host/            the built bundle on the real 2.4.1 host (createHost)
+test/host/            the built bundle on the real 2.4.1 host (createHost), including the skills list in an empty project
 test/pack/            the packed tarball
 docs/                 the user and maintainer docs; generated sections come from the manifest
 ```
