@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-// @we-the-rebel-alliance/ashby-plugin 0.0.9. Built by scripts/build.mjs; do not edit.
+// @we-the-rebel-alliance/ashby-plugin 0.0.0. Built by scripts/build.mjs; do not edit.
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -19717,7 +19717,7 @@ var pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "
 var checked = checkManifest(pkg.capabilities);
 if (!checked.ok) throw new Error(`ashby: capabilities is not a valid manifest: ${checked.problems.join("; ")}`);
 var manifest = checked.value;
-var version2 = typeof pkg.version === "string" && pkg.version !== "" ? pkg.version : "0.0.9";
+var version2 = typeof pkg.version === "string" && pkg.version !== "" ? pkg.version : "0.0.0";
 var packageName = typeof pkg.name === "string" && pkg.name !== "" ? pkg.name : "@we-the-rebel-alliance/ashby-plugin";
 
 // src/provider/interviews.ts

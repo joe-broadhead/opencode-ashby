@@ -41,7 +41,7 @@ A full check binds the host: run one at a time on a shared machine.
 
 ## Release
 
-The release bot cuts `v0.0.9` on the merged `master` with `npx plugin-kit release 0.0.9`. The old pre-transfer
+The release bot cuts `v0.0.0` on the merged `master` with `npx plugin-kit release 0.0.0`. The old pre-transfer
 `v0.0.1`–`v0.0.7` tags stay where they are.
 
 ## Layout
