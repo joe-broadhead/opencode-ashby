@@ -18,3 +18,4 @@
   `|`, `>-` and `|-` register the folded or literal text instead of the marker; a malformed file fails setup with
   `SCHEMA_VIOLATION`. The parser is bundled into `dist/`, so the package still has no runtime dependency.
 - Generated docs, two skills, `AGENTS.md`, and the conformance, unit, host and pack tests.
+- The release `NOTICE` carries the licence text of every package bundled into `dist/`: plugin-contract, yaml and zod.
